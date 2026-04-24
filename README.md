@@ -221,6 +221,26 @@ CREATE TABLE snapshots (
 );
 ```
 
+공간 기억 데이터 흐름:
+```
+1회 방문:  YOLO 탐지 결과 + 공간 ID(WiFi SSID) → 서버 DB 저장
+2회 이후:  이전 기록 vs 현재 탐지 비교 → 변화 감지 → "의자가 1개 더 있어요" 안내
+```
+
+변화 감지 로직:
+```python
+def detect_space_change(current_objects, previous_snapshot):
+    changes = []
+    for obj_class in current_objects:
+        curr_count = current_objects[obj_class]["count"]
+        prev_count = previous_snapshot.get(obj_class, {}).get("count", 0)
+        if curr_count > prev_count:
+            changes.append(f"{obj_class}이 {curr_count - prev_count}개 더 있어요")
+        elif curr_count < prev_count:
+            changes.append(f"{obj_class}이 {prev_count - curr_count}개 줄었어요")
+    return changes
+```
+
 ---
 
 ### MODULE C: YOLO 탐지 + 방향/위험도
@@ -249,12 +269,50 @@ risk_score = round(dir_score * dist_score, 2)
 **담당**: 문수찬 | **브랜치**: `feature/voice`  
 **파일**: `src/depth/depth.py`, `src/voice/stt.py`, `src/voice/tts.py`
 
+**거리 측정 방식 비교 및 선택:**
+
+| | 방법 A — bbox 비율 | 방법 B — Depth Anything V2 | 방법 C — Depth Pro |
+|---|---|---|---|
+| 난이도 | 낮음 | 중간 | 높음 |
+| 정확도 | 낮음 | 중간~높음 | 높음 |
+| 모바일 지원 | O | O (ONNX 변환) | X |
+| 추가 비용 | 없음 | 없음 (오픈소스) | 없음 (오픈소스) |
+| **적용 단계** | MVP 빠른 검증 | **본 구현 목표** | 고도화 단계 |
+
+MVP 단계 (bbox 비율):
+```python
+bbox_area = (x2 - x1) * (y2 - y1)
+frame_area = frame_w * frame_h
+ratio = bbox_area / frame_area
+
+if ratio > 0.15:   distance = "가까이"
+elif ratio > 0.05: distance = "보통"
+else:              distance = "멀리"
+```
+
+서버 연동 후 (Depth Anything V2):
+```python
+from depth_anything_v2.dpt import DepthAnythingV2
+
+model = DepthAnythingV2(encoder='vits', features=64, out_channels=[48, 96, 192, 384])
+model.load_state_dict(torch.load('depth_anything_v2_vits.pth'))
+model.eval()
+
+depth_map = model.infer_image(raw_img)  # HxW numpy array
+
+# YOLO bbox 중심의 깊이값 추출
+cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+depth_val = depth_map[cy][cx]
+
+# 주의: 상대적(relative) depth → 임계값은 4/28 실내 실험으로 결정
+if depth_val < 0.3:   distance_label = "가까이"
+elif depth_val < 0.6: distance_label = "보통"
+else:                 distance_label = "멀리"
+```
+
 ```python
 def estimate_distance(image_np, x1, y1, x2, y2) -> str:
-    """bbox 중심점 depth 값으로 거리 분류 → "가까이" / "보통" / "멀리"
-    주의: Depth Anything V2는 상대적(relative) depth 출력
-    → 임계값은 실내 환경 실험으로 결정 (4/28 현장 실험 예정)
-    """
+    """bbox 중심점 depth 값으로 거리 분류 → "가까이" / "보통" / "멀리" """
 
 def listen_and_classify() -> tuple[str, str]:
     """Returns: (원문 텍스트, 모드명)  모드: "장애물" / "찾기" / "확인" / "unknown" """
@@ -388,13 +446,21 @@ refactor(depth): depth 임계값 하드코딩 제거
 
 ## 타임라인
 
-| 날짜 | 마일스톤 |
-|------|---------|
-| 4/25 | Python MVP: 이미지 탐지 → 음성 출력 완성 |
-| 4/30 | 시나리오 3개 Python에서 완성 |
-| 5/7  | Android + 서버 end-to-end 완성 |
-| 5/9  | 데모 영상 1차 녹화 |
-| 5/13 | 최종 발표 |
+| 날짜 | 정환주 (Android) | 신유득 (서버) | 김재현 (YOLO) | 문수찬 (Depth+음성) | 임명광 (문장+발표) |
+|------|------|------|------|------|------|
+| 4/24 | 개발환경 세팅 | FastAPI 기본 구조 | YOLO11n 설치·탐지 확인 | gTTS 설치·출력 확인 | 문장 템플릿 시작 |
+| 4/25 | 카메라 캡처 구현 | DB 스키마 설계 | 방향 판단 로직 | STT 연결 | 테스트 케이스 이초 |
+| 4/28 | HTTP 기초 연결 | DAv2 연동 지원 | 위험도 스코어 | DAv2 서버 탑재·임계값 실험 | 유튜브 영상 3~5개 분석 |
+| 4/29 | 서버 통신 구현 | 공간 API 작성 | `detect()` 함수 작성 | 임계값 튜닝 | 기존 서비스 비교표 |
+| 4/30 | 이미지 전송 | ngrok 설정 | 인식률 테스트 | STT 소음 환경 테스트 | 데모 스크립트 |
+| 5/1  | 시나리오 1 완성 | 서버 안정화 | 테스트 이미지 수집 | `detect_and_depth()` 작성 | PPT 구조 확정 |
+| 5/2  | 공간 기억 연동 | 공간 연동 테스트 | 오차 케이스 분석 | `build_sentence` 지원 | PPT 본문 작성 |
+| 5/6  | 시나리오 2·3 완성 | 통합 테스트 | 최종 인식률 정리 | 전체 음성 흐름 점검 | PPT 완성 |
+| 5/7  | UI 개선 | 서버 문서화 | 함수 최종 완성 | 함수 최종 완성 | 발표 대본 작성 |
+| 5/8  | **전체 통합 테스트 + 오류 수정** ||||| 
+| 5/9  | **데모 영상 1차 녹화** |||||
+| 5/12 | **리허설 1~2회** |||||
+| 5/13 | **최종 발표** |||||
 
 ---
 
@@ -483,3 +549,16 @@ ngrok http 8000
 | Depth V2 느릴 경우 | bbox 면적 비율 fallback |
 | STT 불안정 | 버튼 입력으로 대체 |
 | 공간 기억 불안정 | 데모 제외, PPT 로드맵으로 대체 |
+
+---
+
+## 참고 자료
+
+| 자료 | 내용 |
+|------|------|
+| Depth Anything V2 (NeurIPS 2024) | 단안 depth estimation SOTA, Small 모델 Apache-2.0 라이선스 |
+| [Depth Anything Android](https://github.com/shubham0204/Depth-Anything-Android) | ONNX 기반 Android 온디바이스 구현 오픈소스 |
+| Apple Depth Pro (ICLR 2025) | 절대 미터 단위 depth 출력, 라이선스 제한으로 고도화 단계 검토 |
+| VISA 시스템 논문 — J. Imaging 2025, 11(1):9 | 시각장애인 실내 내비게이션, AR+YOLO+depth 결합 구현 사례 |
+| UC Davis 사용자 조사 — arxiv:2504.06379 | 시각장애인 내비게이션 니즈 정성 조사, 행동 안내 부재가 핵심 불편 |
+| Nature Scientific Reports — DOI:10.1038/s41598-025-91755-w | 시각장애인 가정 내 보조기기 사용 현황 통계 |
