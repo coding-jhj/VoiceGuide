@@ -11,22 +11,22 @@
 
 ```
 [사용자 음성 입력]
-    ↓ STT (멤버 D)
+    ↓ STT (문수찬)
 [텍스트 변환]
-    ↓ 키워드 매칭 (멤버 D)
+    ↓ 키워드 매칭 (문수찬)
 [모드 선택: 장애물 / 찾기 / 확인]
-    ↓ 카메라 이미지 캡처 (멤버 A: Android / 멤버 B: Gradio MVP)
-[YOLO11n 탐지] ─────────────────── (멤버 C)
+    ↓ 카메라 이미지 캡처 (정환주: Android / 신유득: Gradio MVP)
+[YOLO11n 탐지] ─────────────────── (김재현)
     ↓ bbox + class
-[방향 판단] bbox 중심 x → left/center/right ── (멤버 C)
+[방향 판단] bbox 중심 x → left/center/right ── (김재현)
     ↓
-[거리 판단] bbox 비율(MVP) → Depth V2(서버) ── (멤버 D)
+[거리 판단] bbox 비율(MVP) → Depth V2(서버) ── (문수찬)
     ↓
-[위험도 스코어] 방향 + 거리 → 상위 1~2개 ─── (멤버 C)
+[위험도 스코어] 방향 + 거리 → 상위 1~2개 ─── (김재현)
     ↓ detect_and_depth() 반환
-[문장 생성] build_sentence() ─────────────── (멤버 E)
+[문장 생성] build_sentence() ─────────────── (임명광)
     ↓
-[TTS 음성 출력] ──────────────────────────── (멤버 D)
+[TTS 음성 출력] ──────────────────────────── (문수찬)
 ```
 
 ---
@@ -36,7 +36,7 @@
 ---
 
 ### MODULE A: Android 앱
-**담당**: 멤버 A | **브랜치**: `feature/android`  
+**담당**: 정환주 | **브랜치**: `feature/android`  
 **파일**: `src/android/` (Android Studio 프로젝트)
 
 #### 역할
@@ -80,10 +80,10 @@ Android 연동이 막히면 → Gradio 데모로 대체, Android는 UI 와이어
 ---
 
 ### MODULE B: FastAPI 서버 (허브)
-**담당**: 멤버 B | **브랜치**: `feature/api`  
+**담당**: 신유득 | **브랜치**: `feature/api`  
 **파일**: `src/api/main.py`, `src/api/routes.py`, `src/api/db.py`
 
-> B는 팀의 허브입니다. C, D, E의 함수를 받아서 연결합니다.  
+> 신유득은 팀의 허브입니다. 김재현, 문수찬, 임명광의 함수를 받아서 연결합니다.  
 > 다른 모듈의 내부 구현을 몰라도 됩니다. 함수 인터페이스만 호출하면 됩니다.
 
 #### 역할
@@ -154,14 +154,14 @@ CREATE TABLE snapshots (
 ---
 
 ### MODULE C: YOLO 탐지 + 방향/위험도
-**담당**: 멤버 C | **브랜치**: `feature/vision`  
+**담당**: 김재현 | **브랜치**: `feature/vision`  
 **파일**: `src/vision/detect.py`
 
 #### 역할
 - YOLO11n으로 5종 물체 탐지
 - 방향 판단 (left / center / right)
 - 위험도 스코어 계산
-- D와 협력해서 `detect_and_depth()` 완성
+- 문수찬과 협력해서 `detect_and_depth()` 완성
 
 #### 작성해야 할 함수
 
@@ -196,10 +196,10 @@ risk_score = round(dir_score * dist_score, 2)
 ---
 
 ### MODULE D: Depth 거리 추정 + STT/TTS
-**담당**: 멤버 D | **브랜치**: `feature/voice`  
+**담당**: 문수찬 | **브랜치**: `feature/voice`  
 **파일**: `src/depth/depth.py`, `src/voice/stt.py`, `src/voice/tts.py`
 
-#### 역할 1: Depth Anything V2로 거리 추정 (C와 협력)
+#### 역할 1: Depth Anything V2로 거리 추정 (김재현과 협력)
 
 ```python
 def estimate_distance(image_np, x1, y1, x2, y2) -> str:
@@ -250,7 +250,7 @@ gTTS 사용, macOS: `afplay`, Linux: `mpg321`
 ---
 
 ### MODULE E: 문장 생성 + 발표
-**담당**: 멤버 E | **브랜치**: `feature/nlg`  
+**담당**: 임명광 | **브랜치**: `feature/nlg`  
 **파일**: `src/nlg/sentence.py`, `src/nlg/templates.py`
 
 #### 역할
@@ -297,19 +297,19 @@ TEMPLATES = {
 
 ```
 main          → 발표용 최종 코드 (직접 push 금지)
-  └── develop → 통합 브랜치 (B가 관리, 주 1회 main merge)
-        ├── feature/android  (A)
-        ├── feature/api      (B)
-        ├── feature/vision   (C)
-        ├── feature/voice    (D)
-        └── feature/nlg      (E)
+  └── develop → 통합 브랜치 (신유득 관리, 주 1회 main merge)
+        ├── feature/android  (정환주)
+        ├── feature/api      (신유득)
+        ├── feature/vision   (김재현)
+        ├── feature/voice    (문수찬)
+        └── feature/nlg      (임명광)
 ```
 
 ### PR 규칙
 
 | 규칙 | 내용 |
 |------|------|
-| `feature/*` → `develop` | PR 필수, B가 review 후 merge |
+| `feature/*` → `develop` | PR 필수, 신유득이 review 후 merge |
 | `develop` → `main` | 주 1회 (매주 월요일), 팀 전체 확인 후 |
 | 직접 `main` push | **금지** |
 | PR 단위 | 함수 하나 또는 기능 하나 완성 단위 |
@@ -327,10 +327,10 @@ refactor(depth): depth 임계값 하드코딩 제거
 ### 충돌 방지 규칙
 
 ```
-C와 D는 detect_and_depth()를 공동 작성합니다.
-→ 역할 분리: C는 detect_objects() 작성, D는 estimate_distance() 작성
-→ 통합: D가 detect_and_depth() 최종 함수를 합칩니다.
-→ 충돌 시: B에게 알리고 팀 전체 모여서 해결 (혼자 3시간 이상 붙잡지 말 것)
+김재현과 문수찬은 detect_and_depth()를 공동 작성합니다.
+→ 역할 분리: 김재현은 detect_objects() 작성, 문수찬은 estimate_distance() 작성
+→ 통합: 문수찬이 detect_and_depth() 최종 함수를 합칩니다.
+→ 충돌 시: 신유득에게 알리고 팀 전체 모여서 해결 (혼자 3시간 이상 붙잡지 말 것)
 ```
 
 ### .gitignore 필수 항목
