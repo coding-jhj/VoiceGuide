@@ -1,5 +1,10 @@
 .env               # API 키
 *.pth              # 모델 가중치 (용량 큼)
+*.pt               # YOLO 모델 가중치
+test_*.py          # 테스트 스크립트
+*.jpg              # 테스트 이미지
+*.jpeg
+*.png
 __pycache__/
 *.pyc
 .DS_Store

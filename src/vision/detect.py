@@ -24,7 +24,7 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     h, w = img.shape[:2]
 
-    results = model(img)[0]
+    results = model(img, conf=0.15)[0]
     detections = []
 
     for box in results.boxes:
