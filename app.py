@@ -49,4 +49,16 @@ demo = gr.Interface(
 )
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860, show_api=False, inbrowser=True)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--share", action="store_true",
+                        help="실기기 테스트용 공개 URL 생성 (Gradio 터널링)")
+    args = parser.parse_args()
+
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        show_api=False,
+        inbrowser=not args.share,
+        share=args.share,
+    )
