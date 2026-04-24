@@ -1,0 +1,12 @@
+ultralytics          # YOLO11n
+SpeechRecognition    # STT
+gtts                 # TTS
+gradio               # MVP UI
+fastapi              # 서버
+uvicorn              # ASGI 서버
+python-multipart     # 파일 업로드
+torch                # Depth Anything V2
+opencv-python        # 이미지 처리
+numpy
+httpx                # TestClient용
+pytest

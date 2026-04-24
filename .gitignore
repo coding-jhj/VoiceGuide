@@ -1,0 +1,12 @@
+.env               # API 키
+*.pth              # 모델 가중치 (용량 큼)
+__pycache__/
+*.pyc
+.DS_Store
+data/test_images/  # 테스트 이미지 (용량 큼, 별도 공유)
+voiceguide.db      # SQLite DB (로컬 데이터)
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
