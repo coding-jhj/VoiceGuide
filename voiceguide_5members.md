@@ -1,4 +1,4 @@
-# VoiceGuide — 5명 균등 역할 분담
+﻿# VoiceGuide — 5명 균등 역할 분담
 
 > 2026년 4월 24일 | 역할명이 아닌 실제 업무량 기준으로 재분배
 
@@ -11,7 +11,7 @@
 
 ---
 
-## 멤버 A — Android + 서버 통신
+## 정환주 — Android + 서버 통신
 
 **핵심**: 앱에서 찍어서 보내고, 받아서 소리 내는 것
 
@@ -30,7 +30,7 @@
 
 ---
 
-## 멤버 B — FastAPI 서버 + 공간 기억 (히소카모로)
+## 신유득 — FastAPI 서버 + 공간 기억 (히소카모로)
 
 **핵심**: 이미지 받고, 비전·음성 함수 연결하고, 공간 기록 저장하는 허브
 
@@ -49,7 +49,7 @@
 
 ---
 
-## 멤버 C — YOLO + 방향/위험도
+## 김재현 — YOLO + 방향/위험도
 
 **핵심**: 이미지에서 물체 찾고, 방향 판단하고, 위험도 계산하는 함수 만들기
 
@@ -68,7 +68,7 @@
 
 ---
 
-## 멤버 D — Depth Anything V2 + STT/TTS
+## 문수찬 — Depth Anything V2 + STT/TTS
 
 **핵심**: 거리 측정 모델 붙이고, 음성 입출력 만들기
 
@@ -77,7 +77,7 @@
 | Depth Anything V2 서버 탑재 | Small 모델 로드, 서버에서 실행 |
 | bbox 중심 깊이값 추출 | `depth_map[cy][cx]` → 가까이/보통/멀리 분류 |
 | depth 임계값 튜닝 | 실내 환경 기준으로 실험 조정 |
-| `detect_and_depth()` 완성 | C(멤버)의 detect + depth 통합 함수 |
+| `detect_and_depth()` 완성 | 김재현의 detect + depth 통합 함수 |
 | gTTS 설치 + 음성 출력 확인 | 한국어 TTS 기본 작동 |
 | STT 연결 (Google Speech API) | 한국어 음성 → 텍스트 |
 | 키워드 매칭 | "앞에 뭐 있어" / "핸드폰 찾아줘" / "이거 뭐야" |
@@ -87,7 +87,7 @@
 
 ---
 
-## 멤버 E — 문장 템플릿 + 기획/발표
+## 임명광 — 문장 템플릿 + 기획/발표
 
 **핵심**: 탐지 결과를 자연스러운 한국어로 바꾸고, 발표 자료 만들기
 
@@ -110,29 +110,29 @@
 
 | 멤버 | 핵심 역할 | 난이도 | 주요 산출물 |
 |---|---|---|---|
-| A | Android 앱 | ★★★☆☆ | 작동하는 Android 앱 |
-| B | 서버 허브 | ★★★★☆ | FastAPI 서버 + DB |
-| C | YOLO + 방향 | ★★★★☆ | detect() 함수 + 인식률 데이터 |
-| D | Depth + 음성 | ★★★★☆ | detect_and_depth() + STT/TTS |
-| E | 문장 + 발표 | ★★★☆☆ | 문장 템플릿 + PPT |
+| 정환주 | Android 앱 | ★★★☆☆ | 작동하는 Android 앱 |
+| 신유득 | 서버 허브 | ★★★★☆ | FastAPI 서버 + DB |
+| 김재현 | YOLO + 방향 | ★★★★☆ | detect() 함수 + 인식률 데이터 |
+| 문수찬 | Depth + 음성 | ★★★★☆ | detect_and_depth() + STT/TTS |
+| 임명광 | 문장 + 발표 | ★★★☆☆ | 문장 템플릿 + PPT |
 
 ---
 
 ## 팀 간 연결 포인트
 
 ```
-A (Android)
+정환주 (Android)
   ↓ POST /detect {image, wifi_ssid}
-B (서버)
-  → C의 detect_and_depth() 호출
-  → E의 build_sentence() 호출
+신유득 (서버)
+  → 김재현의 detect_and_depth() 호출
+  → 임명광의 build_sentence() 호출
   → DB 저장 + 변화 감지
   ↓ JSON 응답 {objects, changes}
-A (Android) → TTS 재생
+정환주 (Android) → TTS 재생
 ```
 
-**B가 C와 D, E의 함수를 호출하는 구조.**  
-C, D, E는 각자 함수만 완성하면 됨. 서버 구조 몰라도 됨.
+**신유득이 김재현과 문수찬, 임명광의 함수를 호출하는 구조.**  
+김재현, 문수찬, 임명광은 각자 함수만 완성하면 됨. 서버 구조 몰라도 됨.
 
 ---
 
@@ -152,7 +152,7 @@ def build_sentence(objects: list, changes: list) -> str:
 
 ## 날짜별 타임라인
 
-| 날짜 | A (Android) | B (서버) | C (YOLO) | D (Depth+음성) | E (문장+발표) |
+| 날짜 | 정환주 (Android) | 신유득 (서버) | 김재현 (YOLO) | 문수찬 (Depth+음성) | 임명광 (문장+발표) |
 |---|---|---|---|---|---|
 | 4/24 | 환경 세팅 | FastAPI 기본 | YOLO 탐지 확인 | gTTS 확인 | 문장 템플릿 시작 |
 | 4/25 | 카메라 캡처 | DB 스키마 설계 | 방향 판단 로직 | STT 연결 | 테스트 케이스 초안 |
