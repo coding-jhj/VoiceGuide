@@ -29,6 +29,8 @@ pygame==2.6.1
 # MVP UI
 # gradio 5.x는 fastapi를 내장해 별도 설치 버전과 충돌
 gradio==4.44.1
+# gradio 4.44.1은 huggingface_hub 0.26+ 와 호환 문제 발생
+huggingface_hub<0.26
 
 # 서버
 fastapi==0.115.5
