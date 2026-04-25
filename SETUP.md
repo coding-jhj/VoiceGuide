@@ -24,7 +24,7 @@ pip install -r requirements.txt
 pip install ultralytics
 ```
 
-> 첫 실행 시 YOLO 모델(yolo11n.pt)이 자동 다운로드됩니다. (약 1분, 인터넷 필요)
+> 첫 실행 시 YOLO 모델(yolo11m.pt)이 자동 다운로드됩니다. (약 2분, 인터넷 필요, 약 40MB)
 
 ---
 
