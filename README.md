@@ -357,12 +357,27 @@ TEMPLATES = {
 
 ```
 VoiceGuide/
-├── README.md
+├── README.md              프로젝트 개요 + 팀 컨텍스트 (이 파일)
+├── SETUP.md               실기기 데모 실행 가이드
+├── app.py                 MVP Gradio 데모
+├── patch_gradio_client.py gradio_client 버그 패치 스크립트
+├── requirements.txt
 ├── verify.py              환경 설치 검증 스크립트
+├── .env.example
+│
+├── docs/                  프로젝트 문서
+│   ├── PRD.md             제품 기획서 (왜 만드나, 기능 정의, 성공 지표)
+│   ├── TECH.md            기술 명세 (모듈별 구현 사양, 함수 인터페이스)
+│   ├── TEAM.md            팀 역할 분담 + 타임라인
+│   ├── RESEARCH.md        자료조사 (기술 선택 근거, 경쟁 서비스 분석)
+│   ├── INSTRUCTOR.md      강사님용 발표 스크립트
+│   ├── PROJECT_GUIDE.md   기술 통합 가이드 (데모·모델·트러블슈팅 종합)
+│   ├── mvp_checklist.md   MVP 기능 체크리스트
+│   └── troubleshooting.md 에러 해결법 모음
 │
 ├── src/
 │   ├── vision/            [feature/vision] 김재현 담당
-│   │   ├── detect.py      YOLO11n 탐지 + 방향/위험도
+│   │   ├── detect.py      YOLO11m 탐지 + 방향/위험도
 │   │   └── __init__.py
 │   │
 │   ├── depth/             [feature/voice] 문수찬 담당
@@ -376,7 +391,7 @@ VoiceGuide/
 │   │
 │   ├── nlg/               [feature/nlg] 임명광 담당
 │   │   ├── sentence.py    build_sentence() 함수
-│   │   ├── templates.py   문장 템플릿 30~50개
+│   │   ├── templates.py   문장 템플릿
 │   │   └── __init__.py
 │   │
 │   ├── api/               [feature/api] 신유득 담당
@@ -396,12 +411,8 @@ VoiceGuide/
 ├── data/
 │   └── test_images/       시나리오별 테스트 이미지
 │
-├── results/
-│   └── eval_log.md        인식률 실험 결과
-│
-├── app.py                 MVP Gradio 데모
-├── requirements.txt
-└── .env.example
+└── results/
+    └── eval_log.md        인식률 실험 결과
 ```
 
 ---
