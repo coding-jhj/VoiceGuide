@@ -23,7 +23,7 @@ DIST_FAR       = 0.01
 CALIB_RATIO  = 0.12
 CALIB_DIST_M = 1.0
 
-CONF_THRESHOLD = 0.40
+CONF_THRESHOLD = 0.25
 
 RISK_DIR = {
     "8시":  0.3, "9시":  0.5, "10시": 0.7, "11시": 0.9,
