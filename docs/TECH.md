@@ -7,26 +7,33 @@
 
 ---
 
-## 전체 파이프라인
+## 전체 파이프라인 (최종 구현 기준 2026-04-25)
 
 ```
-[사용자 음성 입력]
-    ↓ STT (문수찬)
-[텍스트 변환]
-    ↓ 키워드 매칭 (문수찬)
-[모드 선택: 장애물 / 찾기 / 확인]
-    ↓ 카메라 이미지 캡처 (정환주: Android / 신유득: Gradio MVP)
-[YOLO11n 탐지] ──────────────────── (김재현)
-    ↓ bbox + class
-[방향 판단] bbox 중심 x → left/center/right ── (김재현)
+[Android 카메라] ─────────────────────────── (정환주)
+    ↓ 1초마다 JPEG + WiFi SSID + 카메라방향(가속도센서 자동감지)
+[STT 음성 명령] ──────────────────────────── (정환주)
+    ↓ "주변 알려줘/찾아줘/이거 뭐야" → 장애물/찾기/확인 모드
+[FastAPI /detect 서버]
     ↓
-[거리 판단] bbox 비율(MVP) → Depth V2(서버) ── (문수찬)
+[yolo11m_indoor.pt 탐지] ─────────────────── (김재현)
+    ↓ bbox + class (COCO 80 + 계단 = 81클래스, conf=0.60)
+[방향 판단] bbox 중심 x → 8시~4시 9구역 ──── (김재현)
     ↓
-[위험도 스코어] 방향 + 거리 → 상위 1~2개 ─── (김재현)
-    ↓ detect_and_depth() 반환
-[문장 생성] build_sentence() ──────────────── (임명광)
-    ↓
-[TTS 음성 출력] ─────────────────────────── (문수찬)
+[Depth Anything V2 GPU] ─────────────────── (문수찬)
+    ↓ depth map(H×W) → bbox별 거리(m) 정제 (안전 우선 보수 추정)
+[계단/낙차/턱 감지] ─────────────────────── (문수찬)
+    ↓ 바닥 12구역 깊이 변화 분석 → hazards[]
+[객체 추적기 EMA] ────────────────────────── (신유득)
+    ↓ 거리 평활화(α=0.55) + 접근/소멸 감지
+[공간 기억 DB] ───────────────────────────── (신유득)
+    ↓ WiFi SSID → 이전 방문 비교 → 변화 감지
+[위험도 스코어] 방향×거리×바닥여부 → 상위 3개 (김재현)
+    ↓ (objects, hazards) 튜플 반환
+[문장 생성] build_sentence() / build_hazard_sentence() ── (임명광)
+    ↓ 긴박도 4단계, 계단 최우선 안내
+[Android TTS + Failsafe] ─────────────────── (정환주)
+    ↓ 음성 재생 / 3회 실패시 "연결 끊겼어요" / 6초 무응답시 경고
 ```
 
 ---
@@ -114,12 +121,16 @@ Android 연동이 막히면 → Gradio 데모로 대체, Android는 UI 와이어
         {
             "class": "chair",
             "class_ko": "의자",
-            "direction": "left",
+            "direction": "12시",       # 8시~4시 시계 방향 9구역
             "distance": "가까이",
-            "risk_score": 0.85
+            "distance_m": 1.2,          # 실제 거리(m), Depth V2 기준
+            "risk_score": 0.85,
+            "is_ground_level": false,
+            "depth_source": "v2"        # "v2" or "bbox"
         }
     ],
-    "changes": ["가방이 1개 더 있어요"]             # 재방문 시에만, 없으면 []
+    "hazards": [{"type":"drop","distance_m":0.7,"message":"조심!...","risk":0.8}],
+    "changes": ["의자가 생겼어요"]              # 재방문 시 변화, 없으면 []
 }
 
 # POST /spaces/snapshot
@@ -177,11 +188,11 @@ Python 3.10, FastAPI 0.104
 **담당**: 김재현 | **브랜치**: `feature/vision`
 **파일**: `src/vision/detect.py`
 
-#### 역할
-- YOLO11n으로 5종 물체 탐지
-- 방향 판단 (left / center / right)
-- 위험도 스코어 계산
-- 문수찬과 협력해서 `detect_and_depth()` 완성
+#### 역할 (최종 구현)
+- yolo11m_indoor.pt로 81클래스 탐지 (COCO 80 + 계단)
+- 방향 판단: 8시~4시 9구역 시계 방향
+- 위험도 스코어: 방향 × 거리 × 바닥여부(계단 포함)
+- 상위 3개 반환, 거리는 Depth V2로 정제됨
 
 #### 완성해야 할 함수
 
@@ -190,7 +201,9 @@ Python 3.10, FastAPI 0.104
 
 from ultralytics import YOLO
 
-model = YOLO("yolo11n.pt")   # 최초 실행 시 자동 다운로드
+import os
+_f = "yolo11m_indoor.pt" if os.path.exists("yolo11m_indoor.pt") else "yolo11m.pt"
+model = YOLO(_f)   # 파인튜닝 모델 우선, 없으면 기본 모델 자동 fallback
 
 TARGET_CLASSES = {
     "person": "사람", "chair": "의자", "dining table": "테이블",
@@ -199,64 +212,28 @@ TARGET_CLASSES = {
 
 def detect_objects(image_bytes: bytes) -> list[dict]:
     """
-    YOLO11n으로 이미지에서 5종 물체 탐지
-    Returns: [{class, class_ko, bbox, direction, risk_score}, ...]
+    yolo11m_indoor.pt로 81클래스(계단 포함) 탐지
+    Returns: [{class, class_ko, bbox, direction, distance, distance_m,
+               risk_score, is_ground_level, depth_source}, ...]
     """
-    import numpy as np, cv2
-    nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    h, w = img.shape[:2]
-
-    results = model(img)[0]
-    detections = []
-
-    for box in results.boxes:
-        cls_name = model.names[int(box.cls)]
-        if cls_name not in TARGET_CLASSES:
-            continue                        # 5종 외 무시
-
-        x1, y1, x2, y2 = map(int, box.xyxy[0])
-        cx = (x1 + x2) / 2
-
-        # 방향 판단
-        if cx < w * 0.33:       direction = "left"
-        elif cx < w * 0.66:     direction = "center"
-        else:                   direction = "right"
-
-        # bbox 면적 비율 (MVP 거리 추정 — D가 Depth V2로 교체)
-        area_ratio = ((x2-x1) * (y2-y1)) / (w * h)
-        if area_ratio > 0.15:   distance = "가까이"
-        elif area_ratio > 0.05: distance = "보통"
-        else:                   distance = "멀리"
-
-        # 위험도 스코어 (방향=center + 거리=가까이 일수록 높음)
-        dir_score  = {"center": 1.0, "left": 0.7, "right": 0.7}[direction]
-        dist_score = {"가까이": 1.0, "보통": 0.6, "멀리": 0.3}[distance]
-        risk_score = round(dir_score * dist_score, 2)
-
-        detections.append({
-            "class":     cls_name,
-            "class_ko":  TARGET_CLASSES[cls_name],
-            "bbox":      [x1, y1, x2, y2],
-            "direction": direction,
-            "distance":  distance,           # D가 Depth V2로 교체 예정
-            "risk_score": risk_score,
-        })
-
-    # 위험도 내림차순 정렬, 상위 2개만 반환
-    return sorted(detections, key=lambda x: x["risk_score"], reverse=True)[:2]
+    # 실제 구현은 src/vision/detect.py 참조
+    # 방향: 8시~4시 9구역 시계 방향
+    # 거리: Depth V2 기준 미터값 (fallback: bbox 면적 비율)
+    # 위험도: RISK_DIR[direction] × RISK_DIST[distance] × ground_multiplier
+    # 상위 3개 반환
+    pass
 ```
 
-#### AI 도구에 질문할 때 참고 컨텍스트
+#### 현재 구현 핵심 (실제 코드 기준)
 
 ```
-나는 YOLO 탐지 모듈을 담당합니다.
-detect_objects(image_bytes: bytes) -> list[dict] 함수를 완성해야 합니다.
-인식 대상: person, chair, dining table, backpack, suitcase, cell phone (5종)
-출력 필드: class, class_ko, bbox, direction, distance, risk_score
-방향: bbox 중심 x좌표 기준 left/center/right
-위험도: 방향과 거리 조합으로 0.0~1.0 스코어
-상위 2개만 반환합니다.
+방향 9구역:  cx_norm → 0.11/0.22/0.33/0.44/0.56/0.67/0.78/0.89
+            → 8시/9시/10시/11시/12시/1시/2시/3시/4시
+
+위험도 가중치:
+  방향: 12시=1.0, 11시/1시=0.9, 10시/2시=0.7, 9시/3시=0.5, 8시/4시=0.3
+  거리: 매우가까이=1.0, 가까이=0.8, 보통=0.5, 멀리=0.2, 매우멀리=0.1
+  바닥장애물(계단 포함): × 1.4 보정
 ```
 
 ---
@@ -451,32 +428,21 @@ def build_sentence(objects: list[dict], changes: list[str]) -> str:
 ```python
 # src/nlg/templates.py
 
-TEMPLATES = {
-    # (direction, distance) → 문장 템플릿
-    # direction: left / center / right
-    # distance: 가까이 / 보통 / 멀리
-
-    ("left",   "가까이"): "{obj}가 왼쪽 바로 앞에 있어요. 오른쪽으로 비켜보세요.",
-    ("center", "가까이"): "{obj}가 정면 가까이에 있어요. 멈추세요.",
-    ("right",  "가까이"): "{obj}가 오른쪽 바로 앞에 있어요. 왼쪽으로 비켜보세요.",
-    ("left",   "보통"):   "{obj}가 왼쪽에 있어요.",
-    ("center", "보통"):   "{obj}가 앞에 있어요. 조심하세요.",
-    ("right",  "보통"):   "{obj}가 오른쪽에 있어요.",
-    ("left",   "멀리"):   "{obj}가 왼쪽 멀리에 있어요.",
-    ("center", "멀리"):   "{obj}가 멀리 앞에 있어요.",
-    ("right",  "멀리"):   "{obj}가 오른쪽 멀리에 있어요.",
-    # ... 30~50개로 확장 예정
-}
+# 실제 구현은 CLOCK_TO_DIRECTION, CLOCK_ACTION 사전 기반 (src/nlg/templates.py)
+# direction: 8시~4시 시계방향 → "왼쪽", "왼쪽 앞", "바로 앞", "오른쪽 앞", "오른쪽"
+# 긴박도 4단계:
+#   dist_m < 0.5  → "위험! 바로 앞 의자!"
+#   dist_m < 1.0  → "멈추세요! 바로 앞에 의자가 있어요. 약 70cm."
+#   dist_m < 2.5  → "바로 앞에 의자가 있어요. 약 1.2m. 멈추세요."
+#   dist_m >= 2.5 → "바로 앞에 의자가 있어요. 약 3.0m."
 ```
 
-#### AI 도구에 질문할 때 참고 컨텍스트
+#### 현재 구현 핵심
 
 ```
-나는 문장 생성 모듈을 담당합니다.
-build_sentence(objects: list[dict], changes: list[str]) -> str 함수를 완성해야 합니다.
-objects 입력 예시: [{"class_ko": "의자", "direction": "left", "distance": "가까이", "risk_score": 0.85}]
-출력: "왼쪽 바로 앞에 의자가 있어요. 오른쪽으로 비켜보세요."
-규칙: 최대 2문장, 위험도 높은 순서, 변화 감지 결과는 마지막에 추가
+build_sentence(objects, changes, camera_orientation="front") → str
+build_hazard_sentence(hazard, objects, changes, camera_orientation) → str
+  └─ 계단/낙차 위험 시 최우선 안내, risk >= 0.7이면 장애물 정보 생략
 ```
 
 ---
@@ -559,7 +525,7 @@ ngrok http 8000
 ## requirements.txt
 
 ```
-ultralytics          # YOLO11n
+ultralytics          # YOLO11m (파인튜닝: yolo11m_indoor.pt)
 SpeechRecognition    # STT
 gtts                 # TTS
 gradio               # MVP UI

@@ -7,7 +7,7 @@
 | 영역 | 라이브러리 | 버전 | 비고 |
 |------|----------|------|------|
 | 객체 탐지 | Ultralytics YOLO11m | 8.4.x | yolo11m.pt 사전 학습 모델 |
-| 깊이 추정 | Depth Anything V2 | vits | MVP에서는 미활성화 |
+| 깊이 추정 | Depth Anything V2 | vits | ✅ GPU 활성화 (depth_anything_v2_vits.pth 필요) |
 | 음성 합성 (서버) | gTTS + pygame | 2.5.3 / 2.6.1 | 한국어(ko) |
 | 음성 합성 (앱) | Android TTS | 내장 | 미디어 볼륨 스트림 |
 | 음성 인식 | SpeechRecognition | 3.10.4 | Google Speech API |
