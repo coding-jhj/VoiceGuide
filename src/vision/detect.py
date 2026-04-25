@@ -3,14 +3,6 @@ from ultralytics import YOLO
 
 model = YOLO("yolo11n.pt")
 
-# ── 튜닝 파라미터 ──────────────────────────────────────────────────────────
-# [방향] 이미지 너비를 9구역으로 분할 (각 ~11%)
-# ZONE_BOUNDARIES: (x 상한값, 시계 방향) — 왼쪽 끝(8시) → 오른쪽 끝(4시)
-#
-#  |--8시--|--9시--|--10시--|--11시--|--12시--|--1시--|--2시--|--3시--|--4시--|
-#  0     0.11   0.22    0.33    0.44    0.56   0.67   0.78   0.89    1.0
-#
-#  경계값을 조정하면 특정 구역의 감도를 높이거나 낮출 수 있음
 ZONE_BOUNDARIES = [
     (0.11, "8시"),
     (0.22, "9시"),
@@ -20,47 +12,26 @@ ZONE_BOUNDARIES = [
     (0.67, "1시"),
     (0.78, "2시"),
     (0.89, "3시"),
-    (1.01, "4시"),   # 1.01: 나머지 전부 포함
+    (1.01, "4시"),
 ]
 
-# [거리] bbox 면적 ÷ 전체 이미지 면적 비율
-#
-#  bbox 비율   대략적인 실거리     distance 레이블
-#  ─────────   ────────────────   ───────────────
-#  > 0.25      ~0.5 m 이내        매우 가까이
-#  > 0.12      ~1.0 m 이내        가까이
-#  > 0.04      ~2.0 m 이내        보통
-#  > 0.01      ~4.0 m 이내        멀리
-#   ≤ 0.01     ~4.0 m 초과        매우 멀리
-#
 DIST_VERY_NEAR = 0.25
 DIST_NEAR      = 0.12
 DIST_MID       = 0.04
 DIST_FAR       = 0.01
 
-# [거리 추정] bbox 비율 → 미터 환산 보정값
-# 보정 방법: 실제 1m 거리 물체를 찍어 bbox 비율 측정 → CALIB_RATIO 에 입력
 CALIB_RATIO  = 0.12
 CALIB_DIST_M = 1.0
 
-# [YOLO] confidence 임계값 (낮출수록 더 많이 탐지, 오탐 증가 / 권장: 0.10~0.40)
-CONF_THRESHOLD = 0.15
+CONF_THRESHOLD = 0.40
 
-# [위험도] 방향별 가중치 — 12시(정면)가 가장 위험, 가장자리(8·4시)는 낮게
 RISK_DIR = {
-    "8시":  0.3,
-    "9시":  0.5,
-    "10시": 0.7,
-    "11시": 0.9,
+    "8시":  0.3, "9시":  0.5, "10시": 0.7, "11시": 0.9,
     "12시": 1.0,
-    "1시":  0.9,
-    "2시":  0.7,
-    "3시":  0.5,
-    "4시":  0.3,
-    "6시":  0.6,   # 뒤쪽 (카메라 회전 후 절대 방향)
+    "1시":  0.9, "2시":  0.7, "3시":  0.5, "4시":  0.3,
+    "6시":  0.6,
 }
 
-# [위험도] 거리별 가중치
 RISK_DIST = {
     "매우 가까이": 1.0,
     "가까이":      0.8,
@@ -68,23 +39,92 @@ RISK_DIST = {
     "멀리":        0.2,
     "매우 멀리":   0.1,
 }
-# ────────────────────────────────────────────────────────────────────────────
 
 TARGET_CLASSES = {
-    "person":       "사람",
-    "chair":        "의자",
-    "dining table": "테이블",
-    "backpack":     "가방",
-    "suitcase":     "가방",
-    "cell phone":   "휴대폰",
+    "person":         "사람",
+    "bicycle":        "자전거",
+    "car":            "자동차",
+    "motorcycle":     "오토바이",
+    "airplane":       "비행기",
+    "bus":            "버스",
+    "train":          "기차",
+    "truck":          "트럭",
+    "boat":           "보트",
+    "traffic light":  "신호등",
+    "fire hydrant":   "소화전",
+    "stop sign":      "정지 표지판",
+    "parking meter":  "주차 미터기",
+    "bench":          "벤치",
+    "bird":           "새",
+    "cat":            "고양이",
+    "dog":            "개",
+    "horse":          "말",
+    "sheep":          "양",
+    "cow":            "소",
+    "elephant":       "코끼리",
+    "bear":           "곰",
+    "zebra":          "얼룩말",
+    "giraffe":        "기린",
+    "backpack":       "가방",
+    "umbrella":       "우산",
+    "handbag":        "가방",
+    "tie":            "넥타이",
+    "suitcase":       "여행가방",
+    "frisbee":        "원반",
+    "skis":           "스키",
+    "snowboard":      "스노보드",
+    "sports ball":    "공",
+    "kite":           "연",
+    "baseball bat":   "야구 방망이",
+    "baseball glove": "야구 글러브",
+    "skateboard":     "스케이트보드",
+    "surfboard":      "서프보드",
+    "tennis racket":  "테니스 라켓",
+    "bottle":         "병",
+    "wine glass":     "와인잔",
+    "cup":            "컵",
+    "fork":           "포크",
+    "knife":          "칼",
+    "spoon":          "숟가락",
+    "bowl":           "그릇",
+    "banana":         "바나나",
+    "apple":          "사과",
+    "sandwich":       "샌드위치",
+    "orange":         "오렌지",
+    "broccoli":       "브로콜리",
+    "carrot":         "당근",
+    "hot dog":        "핫도그",
+    "pizza":          "피자",
+    "donut":          "도넛",
+    "cake":           "케이크",
+    "chair":          "의자",
+    "couch":          "소파",
+    "potted plant":   "화분",
+    "bed":            "침대",
+    "dining table":   "테이블",
+    "toilet":         "변기",
+    "tv":             "TV",
+    "laptop":         "노트북",
+    "mouse":          "마우스",
+    "remote":         "리모컨",
+    "keyboard":       "키보드",
+    "cell phone":     "휴대폰",
+    "microwave":      "전자레인지",
+    "oven":           "오븐",
+    "toaster":        "토스터기",
+    "sink":           "세면대",
+    "refrigerator":   "냉장고",
+    "book":           "책",
+    "clock":          "시계",
+    "vase":           "꽃병",
+    "scissors":       "가위",
+    "teddy bear":     "인형",
+    "hair drier":     "드라이기",
+    "toothbrush":     "칫솔",
 }
 
 
 def detect_objects(image_bytes: bytes) -> list[dict]:
-    """
-    YOLO11n으로 이미지에서 TARGET_CLASSES 탐지
-    Returns: [{class, class_ko, bbox, direction, distance, distance_m, risk_score}, ...]
-    """
     import numpy as np
     import cv2
 
@@ -122,10 +162,7 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
             distance = "매우 멀리"
 
         distance_m = round(CALIB_DIST_M * math.sqrt(CALIB_RATIO / area_ratio), 1) if area_ratio > 0 else 99.9
-
-        risk_score = round(
-            RISK_DIR.get(direction, 0.5) * RISK_DIST[distance], 2
-        )
+        risk_score = round(RISK_DIR.get(direction, 0.5) * RISK_DIST[distance], 2)
 
         detections.append({
             "class":      cls_name,
