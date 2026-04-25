@@ -93,7 +93,9 @@ def _bbox_dist_m(depth_map: np.ndarray, x1, y1, x2, y2) -> float:
     if not vals:
         return 5.0
     vals.sort()
-    raw = vals[len(vals) // 2]  # 중앙값 (이상치 제거)
+    # 안전 우선: 중앙값 대신 하위 30% 값 사용 (더 가깝게 추정 → 조기 경고)
+    conservative_idx = max(0, len(vals) // 3)
+    raw = vals[conservative_idx]
     return round(max(0.1, min(raw, 10.0)), 1)
 
 

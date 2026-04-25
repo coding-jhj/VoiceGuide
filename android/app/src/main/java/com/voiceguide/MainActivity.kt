@@ -39,6 +39,7 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEventListener {
@@ -62,9 +63,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── Network ─────────────────────────────────────────────────────────
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)   // 5초 타임아웃 (기존 15초)
+        .readTimeout(8, TimeUnit.SECONDS)       // 8초 타임아웃 (기존 30초)
         .build()
+
+    // ── 연속 오류 감지 & Failsafe ────────────────────────────────────────
+    private val consecutiveFails = AtomicInteger(0)
+    private var lastSuccessTime  = System.currentTimeMillis()
+    private val FAIL_WARN_COUNT  = 3    // 이 횟수 이상 실패 시 경고
+    private val SILENCE_WARN_MS  = 6000L  // 이 시간(ms) 이상 결과 없으면 경고
 
     // ── 센서: 카메라 방향 자동 감지 ────────────────────────────────────
     private lateinit var sensorManager: SensorManager
@@ -81,7 +88,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         private const val PERM_CODE   = 100
         private const val PREFS_NAME  = "voiceguide"
         private const val PREF_URL    = "server_url"
-        private const val INTERVAL_MS = 2000L
+        private const val INTERVAL_MS = 1000L   // 1초 캡처 (기존 2초)
     }
 
     // ── 생명주기 ─────────────────────────────────────────────────────────
@@ -115,7 +122,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 requestPermissions()
             }
         }
-
         btnStt.setOnClickListener { startListening() }
     }
 
@@ -140,7 +146,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         super.onDestroy()
     }
 
-    // ── 가속도 센서: 카메라 방향 자동 감지 ─────────────────────────────
+    // ── 센서: 카메라 방향 자동 감지 ────────────────────────────────────
 
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
@@ -213,9 +219,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             try {
                 yoloDetector = YoloDetector(this)
                 runOnUiThread { tvMode.text = "온디바이스 추론 준비 완료" }
-            } catch (_: Exception) {
-                // 모델 파일 없으면 서버 모드로 fallback (정상)
-            }
+            } catch (_: Exception) { /* 모델 없으면 서버 모드 */ }
         }.start()
     }
 
@@ -243,26 +247,49 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture)
                 startAnalysis()
-            } catch (e: Exception) { tvStatus.text = "카메라 오류: ${e.message}" }
+            } catch (e: Exception) {
+                tvStatus.text = "카메라 오류: ${e.message}"
+                speak("카메라를 사용할 수 없어요. 주의하세요.")
+            }
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun startAnalysis() {
-        isAnalyzing.set(true); lastSentence = ""
-        btnToggle.text = "분석 중지"; tvStatus.text = "분석 중..."
-        captureAndProcess(); scheduleNext()
+        isAnalyzing.set(true)
+        lastSentence = ""
+        consecutiveFails.set(0)
+        lastSuccessTime = System.currentTimeMillis()
+        btnToggle.text = "분석 중지"
+        tvStatus.text  = "분석 중..."
+        captureAndProcess()
+        scheduleNext()
+        scheduleWatchdog()  // 무음 감지 감시 시작
     }
 
     private fun stopAnalysis() {
         isAnalyzing.set(false)
         handler.removeCallbacksAndMessages(null)
-        btnToggle.text = "분석 시작"; tvStatus.text = "분석 중지됨"
+        btnToggle.text = "분석 시작"
+        tvStatus.text  = "분석 중지됨"
     }
 
     private fun scheduleNext() {
         handler.postDelayed({
             if (isAnalyzing.get()) { captureAndProcess(); scheduleNext() }
         }, INTERVAL_MS)
+    }
+
+    // 결과가 너무 오래 안 오면 사용자에게 경고
+    private fun scheduleWatchdog() {
+        handler.postDelayed({
+            if (!isAnalyzing.get()) return@postDelayed
+            val elapsed = System.currentTimeMillis() - lastSuccessTime
+            if (elapsed >= SILENCE_WARN_MS && !tts.isSpeaking) {
+                speak("분석이 중단됐어요. 주의해서 이동하세요.")
+                runOnUiThread { tvStatus.text = "⚠ 연결 끊김 — 주의하세요" }
+            }
+            scheduleWatchdog()
+        }, SILENCE_WARN_MS)
     }
 
     private fun captureAndProcess() {
@@ -275,7 +302,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     if (yoloDetector != null) processOnDevice(file)
                     else sendToServer(file)
                 }
-                override fun onError(e: ImageCaptureException) { isSending.set(false) }
+                override fun onError(e: ImageCaptureException) {
+                    isSending.set(false)
+                    handleFail()
+                }
             })
     }
 
@@ -288,9 +318,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val detections = yoloDetector!!.detect(bmp)
                 val sentence   = SentenceBuilder.build(detections)
                 bmp.recycle()
-                deliverResult(sentence)
+                handleSuccess(sentence)
             } catch (_: Exception) {
-                sendToServer(imageFile)  // 실패 시 서버 fallback
+                sendToServer(imageFile)  // 온디바이스 실패 → 서버 시도
             }
         }.start()
     }
@@ -299,6 +329,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun sendToServer(imageFile: File) {
         val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
+        if (serverUrl.isEmpty()) { handleFail(); return }
+
         Thread {
             try {
                 val body = MultipartBody.Builder().setType(MultipartBody.FORM)
@@ -313,16 +345,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     Request.Builder().url("$serverUrl/detect").post(body).build()
                 ).execute()
 
-                val sentence = JSONObject(response.body?.string() ?: "{}")
-                    .optString("sentence", "감지된 장애물이 없어요")
-                deliverResult(sentence)
+                val json     = JSONObject(response.body?.string() ?: "{}")
+                val sentence = json.optString("sentence", "주변에 장애물이 없어요.")
+                handleSuccess(sentence)
             } catch (_: Exception) {
-                isSending.set(false)
+                handleFail()
+            } finally {
+                imageFile.delete()
             }
         }.start()
     }
 
-    private fun deliverResult(sentence: String) {
+    // ── 결과 처리 & Failsafe ────────────────────────────────────────────
+
+    private fun handleSuccess(sentence: String) {
+        consecutiveFails.set(0)
+        lastSuccessTime = System.currentTimeMillis()
+        isSending.set(false)
+
         runOnUiThread {
             if (sentence == "주변에 장애물이 없어요.") {
                 tvStatus.text = "장애물 없음"
@@ -332,7 +372,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 speak(sentence)
             }
         }
+    }
+
+    private fun handleFail() {
         isSending.set(false)
+        val fails = consecutiveFails.incrementAndGet()
+
+        // 연속 3회 실패 시 음성 경고
+        if (fails == FAIL_WARN_COUNT) {
+            runOnUiThread {
+                tvStatus.text = "⚠ 서버 연결 실패 — 주의하세요"
+                if (!tts.isSpeaking) speak("서버 연결이 끊겼어요. 주의해서 이동하세요.")
+            }
+        }
+        // 온디바이스 모드로 전환 시도
+        if (fails >= FAIL_WARN_COUNT && yoloDetector != null) {
+            runOnUiThread { tvMode.text = "온디바이스 모드 전환됨" }
+        }
     }
 
     // ── 유틸리티 ────────────────────────────────────────────────────────
@@ -350,7 +406,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) tts.setLanguage(Locale.KOREAN)
+        if (status == TextToSpeech.SUCCESS) {
+            tts.setLanguage(Locale.KOREAN)
+            tts.setSpeechRate(1.1f)  // 약간 빠르게 (긴박한 상황 대응)
+        }
     }
 
     override fun onRequestPermissionsResult(
