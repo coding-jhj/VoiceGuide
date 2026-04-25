@@ -528,27 +528,73 @@ VoiceGuide : 환경을 기억하고 행동을 안내한다
 ## 빠른 시작
 
 ```bash
+# 1. 클론
 git clone https://github.com/coding-jhj/VoiceGuide.git
 cd VoiceGuide
-conda create -n voiceguide python=3.10 -y
-conda activate voiceguide
+
+# 2. conda 환경 활성화 (Python 3.10)
+conda activate ai_env
+
+# 3. 의존성 설치
 pip install -r requirements.txt
-python patch_gradio_client.py   # gradio_client 버그 패치 (1회)
-cp .env.example .env
 
-# 설치 검증
-python verify.py
+# 4. gradio_client 버그 패치 (1회만)
+python patch_gradio_client.py
 
-# MVP 실행
+# 5. Depth Anything V2 모델 가중치 다운로드 (1회만, 약 94MB)
+python -c "
+import urllib.request
+urllib.request.urlretrieve(
+    'https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth',
+    'depth_anything_v2_vits.pth'
+)
+print('완료')
+"
+
+# 6. Gradio 데모 실행 (발표·데모용)
 python app.py
-# → http://localhost:7860
+# → http://localhost:7860 브라우저 자동 열림
 
-# 서버 실행
-uvicorn src.api.main:app --reload --port 8000
+# 폰으로 보여줄 때 (공개 URL 생성)
+python app.py --share
 
-# ngrok 외부 접근
-ngrok http 8000
+# 7. FastAPI 서버 실행 (Android 앱 연동용)
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+
+# 로컬 IP 확인 (Android 앱에 입력할 주소)
+ipconfig   # Windows
+# → http://192.168.x.x:8000
 ```
+
+> **참고**: `depth_anything_v2_vits.pth` 는 `.gitignore` 대상(용량 큼)이므로 팀원 각자 PC에서 5번을 실행해야 합니다.
+
+---
+
+## 현재 구현 상태 (2026-04-25 기준)
+
+### 완료된 기능
+
+| 기능 | 상태 | 비고 |
+|------|------|------|
+| YOLO11m 장애물 탐지 | ✅ 완료 | 신뢰도 0.60, 33종 클래스 |
+| 8방향 시계 방향 판단 | ✅ 완료 | 8시~4시, 위험도 가중치 |
+| Depth Anything V2 거리 추정 | ✅ 완료 | GPU 자동 감지, bbox fallback |
+| 위험도 스코어링 | ✅ 완료 | 방향 × 거리 × 바닥 여부 |
+| 한국어 문장 생성 | ✅ 완료 | 4단계 긴급도, 이/가 자동 조사 |
+| TTS 음성 출력 | ✅ 완료 | gTTS + 파일 캐시 (반복 재생 즉시) |
+| FastAPI 서버 | ✅ 완료 | `/detect`, `/spaces/snapshot` |
+| 공간 메모리 (WiFi SSID) | ✅ 완료 | SQLite, 등장/소멸 변화 감지 |
+| 객체 추적 (프레임 간) | ✅ 완료 | EMA 거리 평균화, 접근 경고 |
+| Gradio 데모 UI | ✅ 완료 | 바운딩 박스 시각화, 추론 시간 표시 |
+| Android 앱 | ✅ 완료 | CameraX, 2초 자동 캡처, Android TTS |
+
+### 미완성 (다음 단계)
+
+| 기능 | 상태 |
+|------|------|
+| STT 키워드 인식 | 🔲 미구현 |
+| 카메라 방향 자동 감지 (나침반) | 🔲 미구현 |
+| 온디바이스 추론 (ONNX) | 🔲 미구현 |
 
 ---
 
@@ -558,7 +604,7 @@ ngrok http 8000
 |------|------|
 | Android 연동 실패 | Gradio 데모로 대체, Android 설계도 제출 |
 | 서버 배포 실패 | ngrok 로컬 서버로 대체 |
-| Depth V2 느릴 경우 | bbox 면적 비율 fallback |
+| Depth V2 모델 파일 없을 경우 | bbox 면적 비율 자동 fallback (코드 수정 불필요) |
 | STT 불안정 | 버튼 입력으로 대체 |
 | 공간 기억 불안정 | 데모 제외, PPT 로드맵으로 대체 |
 
