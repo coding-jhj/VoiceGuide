@@ -1,11 +1,20 @@
 package com.voiceguide
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.AudioManager
+import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.widget.Button
 import android.widget.EditText
@@ -30,130 +39,274 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.abs
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEventListener {
 
+    // ── UI ──────────────────────────────────────────────────────────────
     private lateinit var tts: TextToSpeech
     private lateinit var etServerUrl: EditText
     private lateinit var tvStatus: TextView
+    private lateinit var tvMode: TextView
     private lateinit var btnToggle: Button
+    private lateinit var btnStt: Button
     private lateinit var previewView: PreviewView
 
+    // ── Camera ──────────────────────────────────────────────────────────
     private var imageCapture: ImageCapture? = null
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private val isAnalyzing = AtomicBoolean(false)
-    private val isSending = AtomicBoolean(false)
+    private val isSending   = AtomicBoolean(false)
     private var lastSentence = ""
 
+    // ── Network ─────────────────────────────────────────────────────────
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    // ── 센서: 카메라 방향 자동 감지 ────────────────────────────────────
+    private lateinit var sensorManager: SensorManager
+    @Volatile private var cameraOrientation = "front"
+
+    // ── STT: 음성 명령 ──────────────────────────────────────────────────
+    private lateinit var speechRecognizer: SpeechRecognizer
+    @Volatile private var currentMode = "장애물"
+
+    // ── ONNX 온디바이스 추론 ────────────────────────────────────────────
+    private var yoloDetector: YoloDetector? = null
+
     companion object {
-        private const val CAMERA_PERMISSION_CODE = 100
-        private const val PREFS_NAME = "voiceguide"
-        private const val PREF_SERVER_URL = "server_url"
+        private const val PERM_CODE   = 100
+        private const val PREFS_NAME  = "voiceguide"
+        private const val PREF_URL    = "server_url"
         private const val INTERVAL_MS = 2000L
     }
+
+    // ── 생명주기 ─────────────────────────────────────────────────────────
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        tts         = TextToSpeech(this, this)
+        tts = TextToSpeech(this, this)
+
         etServerUrl = findViewById(R.id.etServerUrl)
         tvStatus    = findViewById(R.id.tvStatus)
+        tvMode      = findViewById(R.id.tvMode)
         btnToggle   = findViewById(R.id.btnToggle)
+        btnStt      = findViewById(R.id.btnStt)
         previewView = findViewById(R.id.previewView)
 
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        etServerUrl.setText(prefs.getString(PREF_SERVER_URL, ""))
+        etServerUrl.setText(
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREF_URL, ""))
+
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        initSpeechRecognizer()
+        tryInitYoloDetector()
 
         btnToggle.setOnClickListener {
-            if (isAnalyzing.get()) stopAnalysis() else {
+            if (isAnalyzing.get()) stopAnalysis()
+            else {
                 val url = etServerUrl.text.toString().trim()
-                if (url.isEmpty()) { tvStatus.text = "서버 URL을 입력하세요"; return@setOnClickListener }
-                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
-                    .putString(PREF_SERVER_URL, url).apply()
-                requestCameraPermission()
+                if (url.isEmpty()) { tvStatus.text = "서버 URL을 먼저 입력하세요"; return@setOnClickListener }
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putString(PREF_URL, url).apply()
+                requestPermissions()
             }
+        }
+
+        btnStt.setOnClickListener { startListening() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
     }
 
-    private fun requestCameraPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-            == PackageManager.PERMISSION_GRANTED) startCamera()
-        else ActivityCompat.requestPermissions(
-            this, arrayOf(Manifest.permission.CAMERA), CAMERA_PERMISSION_CODE)
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
     }
+
+    override fun onDestroy() {
+        tts.shutdown()
+        speechRecognizer.destroy()
+        yoloDetector?.close()
+        cameraExecutor.shutdown()
+        handler.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+
+    // ── 가속도 센서: 카메라 방향 자동 감지 ─────────────────────────────
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+        val x = event.values[0]
+        val y = event.values[1]
+        val prev = cameraOrientation
+        cameraOrientation = when {
+            abs(y) >= abs(x) -> if (y >= 0) "front" else "back"
+            x < 0            -> "left"
+            else             -> "right"
+        }
+        if (cameraOrientation != prev) {
+            val label = mapOf("front" to "정면", "back" to "뒤", "left" to "왼쪽", "right" to "오른쪽")
+            runOnUiThread { tvMode.text = "모드: $currentMode  |  방향: ${label[cameraOrientation]}" }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    // ── STT 초기화 & 실행 ──────────────────────────────────────────────
+
+    private fun initSpeechRecognizer() {
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechRecognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onResults(results: Bundle) {
+                val text = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull() ?: return
+                val mode = classifyKeyword(text)
+                currentMode = mode
+                runOnUiThread { tvMode.text = "모드: $mode  |  방향: 정면" }
+                speak("$mode 모드.")
+            }
+            override fun onError(error: Int) {
+                runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
+            }
+            override fun onReadyForSpeech(p: Bundle?) {}
+            override fun onBeginningOfSpeech()        {}
+            override fun onRmsChanged(v: Float)        {}
+            override fun onBufferReceived(b: ByteArray?) {}
+            override fun onEndOfSpeech()               {}
+            override fun onPartialResults(p: Bundle?)  {}
+            override fun onEvent(t: Int, p: Bundle?)   {}
+        })
+    }
+
+    private fun startListening() {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            tvMode.text = "음성 인식 미지원 기기"; return
+        }
+        val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        tvMode.text = "듣는 중..."
+        speechRecognizer.startListening(intent)
+    }
+
+    private fun classifyKeyword(text: String): String = when {
+        listOf("앞에 뭐 있어", "주변 알려줘", "뭐 있어", "장애물").any { text.contains(it) } -> "장애물"
+        listOf("찾아줘", "어디있어", "어디 있어").any { text.contains(it) }                  -> "찾기"
+        listOf("이거 뭐야", "이게 뭐야", "뭐야").any { text.contains(it) }                   -> "확인"
+        else -> "장애물"
+    }
+
+    // ── ONNX 온디바이스 추론 초기화 ────────────────────────────────────
+
+    private fun tryInitYoloDetector() {
+        Thread {
+            try {
+                yoloDetector = YoloDetector(this)
+                runOnUiThread { tvMode.text = "온디바이스 추론 준비 완료" }
+            } catch (_: Exception) {
+                // 모델 파일 없으면 서버 모드로 fallback (정상)
+            }
+        }.start()
+    }
+
+    // ── 카메라 & 분석 루프 ──────────────────────────────────────────────
+
+    private fun requestPermissions() {
+        val needed = mutableListOf<String>()
+        if (!hasPerm(Manifest.permission.CAMERA))       needed.add(Manifest.permission.CAMERA)
+        if (!hasPerm(Manifest.permission.RECORD_AUDIO)) needed.add(Manifest.permission.RECORD_AUDIO)
+        if (needed.isEmpty()) startCamera()
+        else ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERM_CODE)
+    }
+
+    private fun hasPerm(p: String) =
+        ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
             val provider = future.get()
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
+            val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
             imageCapture = ImageCapture.Builder()
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                .build()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build()
             try {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture)
                 startAnalysis()
-            } catch (e: Exception) {
-                tvStatus.text = "카메라 오류: ${e.message}"
-            }
+            } catch (e: Exception) { tvStatus.text = "카메라 오류: ${e.message}" }
         }, ContextCompat.getMainExecutor(this))
     }
 
     private fun startAnalysis() {
-        isAnalyzing.set(true)
-        lastSentence = ""
-        btnToggle.text = "분석 중지"
-        tvStatus.text  = "분석 중..."
-        captureAndSend()
-        scheduleNext()
+        isAnalyzing.set(true); lastSentence = ""
+        btnToggle.text = "분석 중지"; tvStatus.text = "분석 중..."
+        captureAndProcess(); scheduleNext()
     }
 
     private fun stopAnalysis() {
         isAnalyzing.set(false)
         handler.removeCallbacksAndMessages(null)
-        btnToggle.text = "분석 시작"
-        tvStatus.text  = "분석이 중지되었어요."
+        btnToggle.text = "분석 시작"; tvStatus.text = "분석 중지됨"
     }
 
     private fun scheduleNext() {
         handler.postDelayed({
-            if (isAnalyzing.get()) { captureAndSend(); scheduleNext() }
+            if (isAnalyzing.get()) { captureAndProcess(); scheduleNext() }
         }, INTERVAL_MS)
     }
 
-    private fun captureAndSend() {
+    private fun captureAndProcess() {
         if (isSending.get()) return
         val file = File.createTempFile("vg_", ".jpg", cacheDir)
-        imageCapture?.takePicture(
-            ImageCapture.OutputFileOptions.Builder(file).build(), cameraExecutor,
-            object : ImageCapture.OnImageSavedCallback {
+        imageCapture?.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(),
+            cameraExecutor, object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     isSending.set(true)
-                    sendToServer(file)
+                    if (yoloDetector != null) processOnDevice(file)
+                    else sendToServer(file)
                 }
                 override fun onError(e: ImageCaptureException) { isSending.set(false) }
             })
     }
 
+    // ── 온디바이스 추론 ─────────────────────────────────────────────────
+
+    private fun processOnDevice(imageFile: File) {
+        Thread {
+            try {
+                val bmp = android.graphics.BitmapFactory.decodeFile(imageFile.absolutePath)
+                val detections = yoloDetector!!.detect(bmp)
+                val sentence   = SentenceBuilder.build(detections)
+                bmp.recycle()
+                deliverResult(sentence)
+            } catch (_: Exception) {
+                sendToServer(imageFile)  // 실패 시 서버 fallback
+            }
+        }.start()
+    }
+
+    // ── 서버 전송 ───────────────────────────────────────────────────────
+
     private fun sendToServer(imageFile: File) {
         val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
         Thread {
             try {
-                val body = MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
+                val body = MultipartBody.Builder().setType(MultipartBody.FORM)
                     .addFormDataPart("image", "frame.jpg",
                         imageFile.asRequestBody("image/jpeg".toMediaType()))
-                    .addFormDataPart("camera_orientation", "front")
+                    .addFormDataPart("camera_orientation", cameraOrientation)
+                    .addFormDataPart("wifi_ssid", getWifiSsid())
+                    .addFormDataPart("mode", currentMode)
                     .build()
 
                 val response = httpClient.newCall(
@@ -162,24 +315,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
                 val sentence = JSONObject(response.body?.string() ?: "{}")
                     .optString("sentence", "감지된 장애물이 없어요")
-
-                runOnUiThread {
-                    if (sentence == "주변에 장애물이 없어요.") {
-                        tvStatus.text = "장애물 없음"
-                    } else if (sentence != lastSentence && !tts.isSpeaking) {
-                        lastSentence = sentence
-                        tvStatus.text = sentence
-                        speak(sentence)
-                    }
-                }
-            } catch (e: Exception) {
-                runOnUiThread { tvStatus.text = "연결 오류: ${e.message}" }
-            } finally {
+                deliverResult(sentence)
+            } catch (_: Exception) {
                 isSending.set(false)
-                imageFile.delete()
             }
         }.start()
     }
+
+    private fun deliverResult(sentence: String) {
+        runOnUiThread {
+            if (sentence == "주변에 장애물이 없어요.") {
+                tvStatus.text = "장애물 없음"
+            } else if (sentence != lastSentence && !tts.isSpeaking) {
+                lastSentence = sentence
+                tvStatus.text = sentence
+                speak(sentence)
+            }
+        }
+        isSending.set(false)
+    }
+
+    // ── 유틸리티 ────────────────────────────────────────────────────────
+
+    @Suppress("MissingPermission")
+    private fun getWifiSsid(): String = try {
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        wm.connectionInfo.ssid?.replace("\"", "") ?: ""
+    } catch (_: Exception) { "" }
 
     private fun speak(text: String) {
         val params = Bundle()
@@ -195,14 +357,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CAMERA_PERMISSION_CODE &&
-            grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startCamera()
-    }
-
-    override fun onDestroy() {
-        tts.shutdown()
-        cameraExecutor.shutdown()
-        handler.removeCallbacksAndMessages(null)
-        super.onDestroy()
+        if (requestCode == PERM_CODE &&
+            grantResults.all { it == PackageManager.PERMISSION_GRANTED }) startCamera()
     }
 }

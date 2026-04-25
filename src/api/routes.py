@@ -59,3 +59,14 @@ async def save_space_snapshot(body: dict):
     objects  = body.get("objects", [])
     db.save_snapshot(space_id, objects)
     return {"saved": True}
+
+
+@router.post("/stt")
+async def stt_listen():
+    """PC 마이크로 음성 인식 후 모드 분류 (Gradio 데모용)."""
+    try:
+        from src.voice.stt import listen_and_classify
+        text, mode = listen_and_classify()
+        return {"text": text, "mode": mode, "success": bool(text)}
+    except Exception as e:
+        return {"text": "", "mode": "unknown", "success": False, "error": str(e)}

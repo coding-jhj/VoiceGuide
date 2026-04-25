@@ -9,7 +9,7 @@
         android:id="@+id/etServerUrl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="서버 URL  예) http://172.30.1.36:8000"
+        android:hint="서버 URL  예) http://192.168.x.x:8000"
         android:inputType="textUri"
         android:padding="10dp"
         android:textSize="13sp"
@@ -23,6 +23,7 @@
         android:layout_height="0dp"
         android:layout_weight="1" />
 
+    <!-- 음성 안내 결과 -->
     <TextView
         android:id="@+id/tvStatus"
         android:layout_width="match_parent"
@@ -36,13 +37,44 @@
         android:background="#1A1A1A"
         android:lineSpacingMultiplier="1.4" />
 
-    <Button
-        android:id="@+id/btnToggle"
+    <!-- 모드 / 방향 상태 표시 -->
+    <TextView
+        android:id="@+id/tvMode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="모드: 장애물  |  방향: 정면"
+        android:textSize="13sp"
+        android:textColor="#AAAAAA"
+        android:gravity="center"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:background="#111111" />
+
+    <!-- 버튼 행 -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="72dp"
-        android:text="분석 시작"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:backgroundTint="#1565C0" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnToggle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:text="분석 시작"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:backgroundTint="#1565C0" />
+
+        <Button
+            android:id="@+id/btnStt"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="음성 명령"
+            android:textSize="16sp"
+            android:backgroundTint="#2E7D32" />
+
+    </LinearLayout>
 
 </LinearLayout>

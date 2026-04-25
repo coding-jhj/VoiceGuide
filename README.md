@@ -588,13 +588,11 @@ ipconfig   # Windows
 | Gradio 데모 UI | ✅ 완료 | 바운딩 박스 시각화, 추론 시간 표시 |
 | Android 앱 | ✅ 완료 | CameraX, 2초 자동 캡처, Android TTS |
 
-### 미완성 (다음 단계)
-
-| 기능 | 상태 |
-|------|------|
-| STT 키워드 인식 | 🔲 미구현 |
-| 카메라 방향 자동 감지 (나침반) | 🔲 미구현 |
-| 온디바이스 추론 (ONNX) | 🔲 미구현 |
+| STT 음성 명령 (Android) | ✅ 완료 | "주변 알려줘" / "찾아줘" / "이거 뭐야" 3모드 |
+| STT 모드 선택 (Gradio) | ✅ 완료 | 장애물/찾기/확인 라디오 버튼 |
+| STT 엔드포인트 (서버) | ✅ 완료 | POST /stt |
+| 카메라 방향 자동 감지 | ✅ 완료 | 가속도 센서 기반, front/left/right/back |
+| ONNX 온디바이스 추론 | ✅ 완료 | yolo11m.onnx + NMS, 서버 fallback |
 
 ---
 

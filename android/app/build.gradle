@@ -11,8 +11,8 @@ android {
         applicationId "com.voiceguide"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
 
     buildTypes {
@@ -34,6 +34,13 @@ android {
     aaptOptions {
         noCompress "onnx"
     }
+
+    packagingOptions {
+        pickFirst 'lib/x86/libonnxruntime.so'
+        pickFirst 'lib/x86_64/libonnxruntime.so'
+        pickFirst 'lib/armeabi-v7a/libonnxruntime.so'
+        pickFirst 'lib/arm64-v8a/libonnxruntime.so'
+    }
 }
 
 dependencies {
@@ -48,4 +55,7 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
 
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    // ONNX Runtime — 온디바이스 YOLO 추론
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.3'
 }

@@ -7,11 +7,13 @@ from ultralytics import YOLO
 import shutil, os
 
 model = YOLO("yolo11m.pt")
-model.export(format="onnx", imgsz=640, half=False)
+model.export(format="onnx", imgsz=640, half=False, simplify=True)
 
 src = "yolo11m.onnx"
-dst = "android/app/src/main/assets/yolo11m.onnx"
+dst_dir = "../android/app/src/main/assets"
+dst = f"{dst_dir}/yolo11m.onnx"
 
-os.makedirs("android/app/src/main/assets", exist_ok=True)
+os.makedirs(dst_dir, exist_ok=True)
 shutil.copy(src, dst)
-print(f"완료: {dst} 로 복사됨")
+print(f"완료: {dst}")
+print(f"파일 크기: {os.path.getsize(dst) / 1024 / 1024:.1f} MB")
