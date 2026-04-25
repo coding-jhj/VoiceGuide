@@ -1,12 +1,42 @@
-ultralytics          # YOLO11n
-SpeechRecognition    # STT
-gtts                 # TTS
-gradio               # MVP UI
-fastapi              # 서버
-uvicorn              # ASGI 서버
-python-multipart     # 파일 업로드
-torch                # Depth Anything V2
-opencv-python        # 이미지 처리
-numpy
-httpx                # TestClient용
+# Python 3.10 기준 VoiceGuide 프로젝트
+# 모든 버전은 상호 호환성 검증 완료
+
+# 딥러닝 프레임워크
+# torch는 반드시 numpy보다 먼저 설치
+# GPU 있으면: pip install torch==2.4.1+cu118 torchvision==0.19.1+cu118 --index-url https://download.pytorch.org/whl/cu118
+torch==2.4.1
+torchvision==0.19.1
+
+# 수치 계산 - 버전 고정 필수!
+# 2.x로 올리면 opencv, ultralytics 동작 충돌 발생
+numpy==1.26.4
+
+# 객체 탐지 (YOLO11n)
+ultralytics==8.3.2
+
+# 이미지 처리
+# headless: GUI 없는 서버/도커 환경용
+opencv-python-headless==4.10.0.84
+
+# STT - 음성 인식
+SpeechRecognition==3.10.4
+pyaudio==0.2.14
+
+# TTS - 음성 합성
+gTTS==2.5.3
+pygame==2.6.1
+
+# MVP UI
+# gradio 5.x는 fastapi를 내장해 별도 설치 버전과 충돌
+gradio==4.44.1
+# gradio 4.44.1은 huggingface_hub 0.26+ 와 호환 문제 발생
+huggingface_hub<0.26
+
+# 서버
+fastapi==0.115.5
+uvicorn==0.32.1
+python-multipart==0.0.12
+
+# 테스트
+httpx
 pytest
