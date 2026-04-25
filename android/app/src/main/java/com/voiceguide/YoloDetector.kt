@@ -40,13 +40,14 @@ class YoloDetector(context: Context) {
         )
 
         val output = session.run(mapOf(inputName to tensor))
-        // 출력: [1, 84, 8400]
-        val raw = (output[0].value as Array<*>)[0] as Array<*>  // [84][8400]
+        val outputTensor = output[0] as ai.onnxruntime.OnnxTensor
+        // 출력: [1, 84, 8400] → flat FloatBuffer (크기 = 705,600)
+        val flatBuf = outputTensor.floatBuffer
 
         tensor.close()
         output.close()
 
-        return postProcess(raw)
+        return postProcess(flatBuf, 84, 8400)
     }
 
     private fun bitmapToNCHW(bitmap: Bitmap): FloatBuffer {
@@ -69,18 +70,16 @@ class YoloDetector(context: Context) {
         return buf
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun postProcess(raw: Array<*>): List<Detection> {
-        // raw: Array[84] of FloatArray[8400]
-        val features = raw as Array<FloatArray>
-        val numDet = features[0].size  // 8400
+    private fun postProcess(buf: java.nio.FloatBuffer, numFeatures: Int, numDet: Int): List<Detection> {
+        // buf layout: [feature_0 * 8400, feature_1 * 8400, ..., feature_83 * 8400]
+        // buf[j * numDet + i] = feature j for detection i
         val candidates = mutableListOf<Detection>()
 
         for (i in 0 until numDet) {
             var maxScore = confThreshold
             var maxClass = -1
             for (c in 0 until 80) {
-                val s = features[4 + c][i]
+                val s = buf.get((4 + c) * numDet + i)
                 if (s > maxScore) { maxScore = s; maxClass = c }
             }
             if (maxClass < 0) continue
@@ -89,10 +88,10 @@ class YoloDetector(context: Context) {
             candidates.add(Detection(
                 classKo    = name,
                 confidence = maxScore,
-                cx = features[0][i] / inputSize,
-                cy = features[1][i] / inputSize,
-                w  = features[2][i] / inputSize,
-                h  = features[3][i] / inputSize
+                cx = buf.get(0 * numDet + i) / inputSize,
+                cy = buf.get(1 * numDet + i) / inputSize,
+                w  = buf.get(2 * numDet + i) / inputSize,
+                h  = buf.get(3 * numDet + i) / inputSize
             ))
         }
 

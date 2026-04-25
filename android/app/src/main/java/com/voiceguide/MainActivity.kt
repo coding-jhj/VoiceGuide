@@ -129,6 +129,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                         bitmap.recycle()
                         val sentence = SentenceBuilder.build(detections)
                         runOnUiThread { handleResult(sentence) }
+                    } catch (e: Exception) {
+                        runOnUiThread { tvStatus.text = "오류: ${e.message}" }
                     } finally {
                         isSending.set(false)
                         file.delete()
@@ -136,6 +138,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 }
                 override fun onError(e: ImageCaptureException) {
                     isSending.set(false)
+                    runOnUiThread { tvStatus.text = "카메라 오류: ${e.message}" }
                 }
             })
     }
