@@ -8,12 +8,12 @@ _model_available: bool | None = None  # None = 아직 확인 안 함
 _MODEL_PATH = "depth_anything_v2_vits.pth"
 
 # ── 캘리브레이션 파라미터 ────────────────────────────────────────────────────
-# Depth Anything V2 는 disparity(역깊이) 출력 → 역수 변환 후 스케일 적용
-# DEPTH_INVERT = True : 출력값이 클수록 가깝다 (disparity 포맷)
-# DEPTH_SCALE  : (1 / depth_val) * DEPTH_SCALE ≈ 실제 거리(m)
-#   보정 방법: 1m 거리 물체 → depth_val 측정 → DEPTH_SCALE = depth_val * 1.0
-DEPTH_INVERT = True
-DEPTH_SCALE  = 5.0
+# Depth Anything V2 (ViT-S) infer_image() 출력:
+#   - 단위: 상대적 깊이 (작을수록 가깝다 = depth 포맷, disparity 아님)
+#   - 실측값 범위: 실내 기준 약 0.1 ~ 8.0 (미터 근사)
+# DEPTH_SCALE: 출력값 * DEPTH_SCALE = 추정 거리(m). 카메라/환경마다 조정.
+#   보정: 알려진 거리(예: 2m)의 물체 depth 값 측정 → DEPTH_SCALE = 2.0 / depth_val
+DEPTH_SCALE = 1.0
 
 DIST_VERY_NEAR_M = 0.8
 DIST_NEAR_M      = 2.0
@@ -33,6 +33,9 @@ def _check_model() -> bool:
     return _model_available
 
 
+_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def _load_model():
     global _depth_model
     if _depth_model is not None:
@@ -41,11 +44,12 @@ def _load_model():
         from depth_anything_v2.dpt import DepthAnythingV2
         m = DepthAnythingV2(encoder="vits", features=64,
                             out_channels=[48, 96, 192, 384])
-        state = torch.load(_MODEL_PATH, map_location="cpu")
+        state = torch.load(_MODEL_PATH, map_location=_DEVICE)
         m.load_state_dict(state)
+        m.to(_DEVICE)
         m.eval()
         _depth_model = m
-        print("[Depth V2] 모델 로드 완료")
+        print(f"[Depth V2] 모델 로드 완료 (device={_DEVICE})")
     except Exception as e:
         print(f"[Depth V2] 모델 로드 실패: {e}")
         global _model_available
@@ -60,17 +64,10 @@ def _infer_depth_map(image_np) -> np.ndarray | None:
         return None
     try:
         with torch.no_grad():
-            raw = model.infer_image(image_np)  # H x W, float32
-        # disparity → depth: 역수 변환
-        if DEPTH_INVERT:
-            raw = np.where(raw > 1e-6, 1.0 / raw, 10.0)
-        # 0-1 정규화 후 미터 스케일 적용
-        d_min, d_max = raw.min(), raw.max()
-        if d_max > d_min:
-            norm = (raw - d_min) / (d_max - d_min)
-        else:
-            norm = np.zeros_like(raw)
-        return norm * DEPTH_SCALE
+            raw = model.infer_image(image_np)  # H x W, float32 (작을수록 가까움)
+        # 스케일 적용 후 유효 범위 클리핑
+        depth_m = np.clip(raw * DEPTH_SCALE, 0.1, 10.0)
+        return depth_m
     except Exception as e:
         print(f"[Depth V2] 추론 오류: {e}")
         return None
