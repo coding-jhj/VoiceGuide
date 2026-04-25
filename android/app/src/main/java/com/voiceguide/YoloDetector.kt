@@ -1,13 +1,11 @@
 package com.voiceguide
 
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.graphics.Bitmap
-import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.gpu.GpuDelegate
-import java.io.FileInputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import java.nio.channels.FileChannel
+import java.nio.FloatBuffer
 
 data class Detection(
     val classKo: String,
@@ -20,58 +18,69 @@ data class Detection(
 
 class YoloDetector(context: Context) {
 
-    private val interpreter: Interpreter
+    private val env = OrtEnvironment.getEnvironment()
+    private val session: OrtSession
     private val inputSize = 640
     private val confThreshold = 0.25f
     private val iouThreshold = 0.45f
 
     init {
-        val fd = context.assets.openFd("yolo11n.tflite")
-        val channel = FileInputStream(fd.fileDescriptor).channel
-        val model = channel.map(FileChannel.MapMode.READ_ONLY, fd.startOffset, fd.declaredLength)
-
-        val options = Interpreter.Options()
-        try {
-            options.addDelegate(GpuDelegate())
-        } catch (_: Exception) { /* GPU 미지원 시 CPU 사용 */ }
-
-        interpreter = Interpreter(model, options)
+        val bytes = context.assets.open("yolo11n.onnx").readBytes()
+        session = env.createSession(bytes, OrtSession.SessionOptions())
     }
 
     fun detect(bitmap: Bitmap): List<Detection> {
         val resized = Bitmap.createScaledBitmap(bitmap, inputSize, inputSize, true)
-        val input = bitmapToBuffer(resized)
+        val inputBuffer = bitmapToNCHW(resized)
         resized.recycle()
 
-        // 출력: [1, 84, 8400]
-        val output = Array(1) { Array(84) { FloatArray(8400) } }
-        interpreter.run(input, output)
+        val inputName = session.inputNames.iterator().next()
+        val tensor = OnnxTensor.createTensor(
+            env, inputBuffer, longArrayOf(1, 3, inputSize.toLong(), inputSize.toLong())
+        )
 
-        return postProcess(output[0])
+        val output = session.run(mapOf(inputName to tensor))
+        // 출력: [1, 84, 8400]
+        val raw = (output[0].value as Array<*>)[0] as Array<*>  // [84][8400]
+
+        tensor.close()
+        output.close()
+
+        return postProcess(raw)
     }
 
-    private fun bitmapToBuffer(bitmap: Bitmap): ByteBuffer {
-        val buf = ByteBuffer.allocateDirect(1 * inputSize * inputSize * 3 * 4)
-        buf.order(ByteOrder.nativeOrder())
+    private fun bitmapToNCHW(bitmap: Bitmap): FloatBuffer {
         val pixels = IntArray(inputSize * inputSize)
         bitmap.getPixels(pixels, 0, inputSize, 0, 0, inputSize, inputSize)
-        for (px in pixels) {
-            buf.putFloat(((px shr 16) and 0xFF) / 255f)
-            buf.putFloat(((px shr 8)  and 0xFF) / 255f)
-            buf.putFloat((px          and 0xFF) / 255f)
+
+        val buf = FloatBuffer.allocate(3 * inputSize * inputSize)
+        val r = FloatArray(inputSize * inputSize)
+        val g = FloatArray(inputSize * inputSize)
+        val b = FloatArray(inputSize * inputSize)
+
+        for (i in pixels.indices) {
+            r[i] = ((pixels[i] shr 16) and 0xFF) / 255f
+            g[i] = ((pixels[i] shr 8)  and 0xFF) / 255f
+            b[i] = ((pixels[i])        and 0xFF) / 255f
         }
+
+        buf.put(r); buf.put(g); buf.put(b)
+        buf.rewind()
         return buf
     }
 
-    private fun postProcess(out: Array<FloatArray>): List<Detection> {
+    @Suppress("UNCHECKED_CAST")
+    private fun postProcess(raw: Array<*>): List<Detection> {
+        // raw: Array[84] of FloatArray[8400]
+        val features = raw as Array<FloatArray>
+        val numDet = features[0].size  // 8400
         val candidates = mutableListOf<Detection>()
-        val n = out[0].size  // 8400
 
-        for (i in 0 until n) {
+        for (i in 0 until numDet) {
             var maxScore = confThreshold
             var maxClass = -1
             for (c in 0 until 80) {
-                val s = out[4 + c][i]
+                val s = features[4 + c][i]
                 if (s > maxScore) { maxScore = s; maxClass = c }
             }
             if (maxClass < 0) continue
@@ -80,10 +89,10 @@ class YoloDetector(context: Context) {
             candidates.add(Detection(
                 classKo    = name,
                 confidence = maxScore,
-                cx = out[0][i] / inputSize,
-                cy = out[1][i] / inputSize,
-                w  = out[2][i] / inputSize,
-                h  = out[3][i] / inputSize
+                cx = features[0][i] / inputSize,
+                cy = features[1][i] / inputSize,
+                w  = features[2][i] / inputSize,
+                h  = features[3][i] / inputSize
             ))
         }
 
