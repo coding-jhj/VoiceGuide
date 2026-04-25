@@ -1,17 +1,22 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from src.api.routes import router
 from src.api import db
 
-app = FastAPI(title="VoiceGuide API")
 
-
-@app.on_event("startup")
-def startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 서버 시작 시: DB 초기화 + YOLO 워밍업
     db.init_db()
     import numpy as np
     from src.vision.detect import model, CONF_THRESHOLD
     model(np.zeros((640, 640, 3), dtype=np.uint8), conf=CONF_THRESHOLD, verbose=False)
+    yield
+    # 서버 종료 시: 정리 작업 없음
+
+
+app = FastAPI(title="VoiceGuide API", lifespan=lifespan)
 
 
 # 예외가 나도 Android가 음성 안내를 받을 수 있도록 안전 응답 반환
