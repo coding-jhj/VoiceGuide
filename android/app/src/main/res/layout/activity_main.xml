@@ -5,18 +5,6 @@
     android:orientation="vertical"
     android:background="#000000">
 
-    <EditText
-        android:id="@+id/etServerUrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="서버 URL  예) https://xxxx.ngrok-free.app"
-        android:inputType="textUri"
-        android:padding="10dp"
-        android:textSize="12sp"
-        android:background="#1A1A1A"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#888888" />
-
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="match_parent"
@@ -29,7 +17,7 @@
         android:layout_height="wrap_content"
         android:minHeight="80dp"
         android:text="분석 시작 버튼을 누르세요"
-        android:textSize="20sp"
+        android:textSize="22sp"
         android:textColor="#FFFFFF"
         android:gravity="center"
         android:padding="16dp"
