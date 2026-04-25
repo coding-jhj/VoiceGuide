@@ -1,7 +1,10 @@
 import math
 from ultralytics import YOLO
 
-model = YOLO("yolo11m.pt")
+import os
+_MODEL_FILE = "yolo11m_indoor.pt" if os.path.exists("yolo11m_indoor.pt") else "yolo11m.pt"
+model = YOLO(_MODEL_FILE)
+print(f"[YOLO] 모델 로드: {_MODEL_FILE}")
 
 ZONE_BOUNDARIES = [
     (0.11, "8시"),
@@ -103,6 +106,9 @@ TARGET_CLASSES = {
     "cup":           "컵",
     "book":          "책",
     "keyboard":      "키보드",
+
+    # 파인튜닝으로 추가된 신규 클래스
+    "stairs":        "계단",
 }
 
 # 물체 실제 크기 기반 캘리브레이션 (area_ratio at 1m)
@@ -173,7 +179,7 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
 
         # 바닥 장애물 감지: bbox 하단이 화면 65% 아래 = 발 아래 장애물(걸림 위험)
         y2_norm = y2 / h
-        is_ground_level = y2_norm > 0.65
+        is_ground_level = y2_norm > 0.65 or cls_name == "stairs"
 
         # 바닥 장애물은 가까울수록 위험도 상향
         ground_multiplier = 1.4 if is_ground_level and distance in ("매우 가까이", "가까이", "보통") else 1.0
