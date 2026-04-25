@@ -14,6 +14,8 @@ if spec is None:
 
 utils_path = spec.submodule_search_locations[0] + "/utils.py"
 
+print('\n',utils_path)
+
 with open(utils_path, encoding="utf-8") as f:
     src = f.read()
 
@@ -23,23 +25,27 @@ if MARKER in src:
     sys.exit(0)
 
 # 패치 1: get_type()에서 schema가 bool일 때 TypeError 방지
-OLD1 = 'def get_type(schema: dict) -> str:'
-NEW1 = '''def get_type(schema: dict) -> str:
-    if not isinstance(schema, dict):  ''' + MARKER + '''
-        return "Any"'''
+OLD1   = 'def get_type(schema: dict) -> str:'
+OLD1_1 = 'def get_type(schema: dict):'
+NEW1_BODY = f'\n    if not isinstance(schema, dict):  {MARKER}\n        return "Any"'
 
 # 패치 2: _json_schema_to_python_type()에서 bool 스키마 처리
-OLD2 = 'def _json_schema_to_python_type(schema: dict, defs: dict | None = None) -> str:'
-NEW2 = '''def _json_schema_to_python_type(schema: dict, defs: dict | None = None) -> str:
-    if isinstance(schema, bool):  ''' + MARKER + '''
-        return "Any"'''
+OLD2   = 'def _json_schema_to_python_type(schema: dict, defs: dict | None = None) -> str:'
+OLD2_2 = 'def _json_schema_to_python_type(schema: Any, defs) -> str:'
+NEW2_BODY = f'\n    if isinstance(schema, bool):  {MARKER}\n        return "Any"'
 
-if OLD1 not in src:
-    print("패치 대상 코드를 찾지 못했습니다. gradio_client 버전을 확인하세요.")
+found1 = OLD1 if OLD1 in src else (OLD1_1 if OLD1_1 in src else None)
+if found1 is None:
+    print("패치 1 대상 코드를 찾지 못했습니다. gradio_client 버전을 확인하세요.")
     sys.exit(1)
 
-src = src.replace(OLD1, NEW1, 1)
-src = src.replace(OLD2, NEW2, 1)
+found2 = OLD2 if OLD2 in src else (OLD2_2 if OLD2_2 in src else None)
+if found2 is None:
+    print("패치 2 대상 코드를 찾지 못했습니다. gradio_client 버전을 확인하세요.")
+    sys.exit(1)
+
+src = src.replace(found1, found1 + NEW1_BODY, 1)
+src = src.replace(found2, found2 + NEW2_BODY, 1)
 
 with open(utils_path, "w", encoding="utf-8") as f:
     f.write(src)
