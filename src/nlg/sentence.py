@@ -20,21 +20,28 @@ def _format_dist(dist_m: float) -> str:
     if dist_m < 1.0:
         cm = max(10, round(dist_m * 100 / 10) * 10)
         return f"약 {cm:.0f}센티미터"
-    return f"약 {dist_m:.1f}미터"
+    return f"약 {min(dist_m, 10.0):.1f}미터"
 
 
 def _primary(obj: dict, abs_clock: str) -> str:
-    distance  = obj["distance"]
-    dist_m    = obj.get("distance_m", 0.0)
-    name      = obj["class_ko"]
-    ig        = _i_ga(name)
-    direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
-    dist_str  = _format_dist(dist_m)
-    action    = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
+    dist_m     = obj.get("distance_m", 0.0)
+    name       = obj["class_ko"]
+    ig         = _i_ga(name)
+    direction  = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
+    dist_str   = _format_dist(dist_m)
+    action     = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
+    is_ground  = obj.get("is_ground_level", False)
 
-    if distance == "매우 가까이":
+    # 바닥 장애물 (발에 걸릴 위험): 방향보다 "발 아래" 강조
+    if is_ground and dist_m < 1.5:
+        loc = "발 아래" if dist_m < 0.8 else direction
+        act = action if action else "조심하세요"
+        return f"조심! {loc}에 {name}{ig} 있어요. {act}."
+
+    # 거리 기반 긴급도 (area_ratio 라벨 대신 distance_m 직접 사용)
+    if dist_m < 1.0:
         return f"{action}! {direction}에 {name}{ig} 있어요. {dist_str} 거리예요."
-    elif distance == "가까이":
+    elif dist_m < 2.5:
         return f"{direction}에 {name}{ig} 있어요. {dist_str} 거리예요. {action}." if action else \
                f"{direction}에 {name}{ig} 있어요. {dist_str} 거리예요."
     else:
@@ -46,6 +53,11 @@ def _secondary(obj: dict, abs_clock: str) -> str:
     name      = obj["class_ko"]
     direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
     dist_str  = _format_dist(dist_m)
+    action    = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
+
+    # 두 번째 장애물도 가까우면 회피 행동 포함
+    if dist_m < 1.5 and action:
+        return f"{direction}에 {name}도 있어요. {dist_str}예요. {action}."
     return f"{direction}에 {name}도 있어요. {dist_str}예요."
 
 

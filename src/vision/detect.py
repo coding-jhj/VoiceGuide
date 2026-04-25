@@ -90,9 +90,9 @@ TARGET_CLASSES = {
     "potted plant":  "화분",
 
     # 바닥/공중 장애물
-    "backpack":      "가방",
+    "backpack":      "배낭",
     "umbrella":      "우산",
-    "handbag":       "가방",
+    "handbag":       "핸드백",
     "suitcase":      "여행가방",
 
     # 실내 맥락 파악용 (확인용)
@@ -168,18 +168,28 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
             distance = "매우 멀리"
 
         calib = CLASS_CALIB_RATIO.get(cls_name, _DEFAULT_CALIB_RATIO)
-        distance_m = round(math.sqrt(calib / area_ratio), 1) if area_ratio > 0 else 99.9
-        risk_score = round(RISK_DIR.get(direction, 0.5) * RISK_DIST[distance], 2)
+        distance_m = round(math.sqrt(calib / area_ratio), 1) if area_ratio > 0 else 10.0
+        distance_m = min(distance_m, 10.0)
+
+        # 바닥 장애물 감지: bbox 하단이 화면 65% 아래 = 발 아래 장애물(걸림 위험)
+        y2_norm = y2 / h
+        is_ground_level = y2_norm > 0.65
+
+        # 바닥 장애물은 가까울수록 위험도 상향
+        ground_multiplier = 1.4 if is_ground_level and distance in ("매우 가까이", "가까이", "보통") else 1.0
+        risk_score = round(RISK_DIR.get(direction, 0.5) * RISK_DIST[distance] * ground_multiplier, 2)
+        risk_score = min(risk_score, 1.0)
 
         detections.append({
-            "class":      cls_name,
-            "class_ko":   TARGET_CLASSES.get(cls_name, "알 수 없는 물체"),
-            "bbox":       [x1, y1, x2, y2],
-            "direction":  direction,
-            "distance":   distance,
-            "distance_m": distance_m,
-            "risk_score": risk_score,
-            "conf":       round(conf, 2),
+            "class":           cls_name,
+            "class_ko":        TARGET_CLASSES.get(cls_name, "알 수 없는 물체"),
+            "bbox":            [x1, y1, x2, y2],
+            "direction":       direction,
+            "distance":        distance,
+            "distance_m":      distance_m,
+            "risk_score":      risk_score,
+            "conf":            round(conf, 2),
+            "is_ground_level": is_ground_level,
         })
 
-    return sorted(detections, key=lambda x: x["risk_score"], reverse=True)[:2]
+    return sorted(detections, key=lambda x: x["risk_score"], reverse=True)[:3]
