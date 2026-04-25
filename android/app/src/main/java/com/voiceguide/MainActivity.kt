@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         private const val CAMERA_PERMISSION_CODE = 100
         private const val PREFS_NAME = "voiceguide"
         private const val PREF_SERVER_URL = "server_url"
-        private const val INTERVAL_MS = 3000L
+        private const val INTERVAL_MS = 2000L
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
