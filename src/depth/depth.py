@@ -105,17 +105,24 @@ def _label(dist_m: float) -> str:
     else:                             return "매우 멀리"
 
 
-def detect_and_depth(image_bytes: bytes) -> list[dict]:
+def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict]]:
     """
-    YOLO 탐지 + Depth V2 거리 정제 (모델 파일 없으면 bbox 기반 유지).
+    YOLO 탐지 + Depth V2 거리 정제 + 바닥 위험 감지.
     depth map을 이미지당 1회만 추론해 성능 최적화.
+
+    Returns:
+        objects  — YOLO 탐지 결과 (거리 정제 포함)
+        hazards  — 계단/낙차/턱 등 바닥 위험 (Depth 기반, YOLO 불가 영역)
     """
     import cv2
-    nparr = np.frombuffer(image_bytes, np.uint8)
+    from src.depth.hazard import detect_floor_hazards
+    from src.vision.detect import detect_objects
+
+    nparr    = np.frombuffer(image_bytes, np.uint8)
     image_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    from src.vision.detect import detect_objects
     objects = detect_objects(image_bytes)
+    hazards: list[dict] = []
 
     if _check_model():
         depth_map = _infer_depth_map(image_np)
@@ -123,9 +130,11 @@ def detect_and_depth(image_bytes: bytes) -> list[dict]:
             for obj in objects:
                 x1, y1, x2, y2 = obj["bbox"]
                 dm = _bbox_dist_m(depth_map, x1, y1, x2, y2)
-                obj["distance_m"] = dm
-                obj["distance"]   = _label(dm)
+                obj["distance_m"]   = dm
+                obj["distance"]     = _label(dm)
                 obj["depth_source"] = "v2"
+            # 바닥 위험 분석 (YOLO가 잡지 못하는 계단·낙차)
+            hazards = detect_floor_hazards(depth_map)
         else:
             for obj in objects:
                 obj["depth_source"] = "bbox"
@@ -133,4 +142,4 @@ def detect_and_depth(image_bytes: bytes) -> list[dict]:
         for obj in objects:
             obj["depth_source"] = "bbox"
 
-    return objects
+    return objects, hazards

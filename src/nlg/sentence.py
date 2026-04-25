@@ -82,7 +82,6 @@ def build_sentence(
     camera_orientation: str = "front",
 ) -> str:
     if not objects:
-        # 변화 메시지(소멸 등)만 있을 경우 처리
         if changes:
             return changes[0]
         return "주변에 장애물이 없어요."
@@ -96,8 +95,28 @@ def build_sentence(
             parts.append(_secondary(obj, abs_clock))
 
     result = " ".join(parts)
-
-    # 이동 변화 메시지(접근/소멸)를 문장 앞에 붙임
     if changes:
         return f"{changes[0]} {result}".strip()
     return result
+
+
+def build_hazard_sentence(
+    hazard: dict,
+    objects: list[dict],
+    changes: list[str],
+    camera_orientation: str = "front",
+) -> str:
+    """
+    계단·낙차·턱 등 바닥 위험을 최우선 안내.
+    위험도가 높으면 장애물 정보 생략, 낮으면 뒤에 이어서 안내.
+    """
+    h_msg  = hazard.get("message", "앞에 위험이 있어요.")
+    h_risk = hazard.get("risk", 0.5)
+
+    if h_risk >= 0.7 or not objects:
+        # 고위험: 계단 경고만 출력 (짧고 강하게)
+        return h_msg
+
+    # 중간 위험: 계단 경고 + 주요 장애물 1개 이어서 안내
+    obj_sentence = build_sentence(objects[:1], [], camera_orientation)
+    return f"{h_msg} 또한, {obj_sentence}"
