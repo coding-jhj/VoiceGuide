@@ -14,8 +14,15 @@ git pull origin main
 pip install ddgs pygame onnx onnxscript
 ```
 
-> `depth_anything_v2_vits.pth` (94MB) 는 각자 받아야 합니다 → `SETUP.md` 3단계 참고  
-> `yolo11m_indoor.pt` (파인튜닝 모델) 는 용량 문제로 git 미포함 → 조장에게 직접 받기
+> **`depth_anything_v2_vits.pth`** (94MB) — 각자 받아야 합니다 → `SETUP.md` 3단계 참고
+>
+> **`yolo11m_indoor.pt`** (파인튜닝 모델, 39MB) — `.gitignore`로 git 미포함. 아래 둘 중 하나:
+> - 방법 A (권장): 직접 학습 (~9분, GPU 필요)
+>   ```bash
+>   python train/prepare_dataset.py   # 데이터 다운로드
+>   python train/finetune.py          # 학습 → yolo11m_indoor.pt 자동 생성
+>   ```
+> - 방법 B: 조장에게 구글드라이브로 파일 받기
 
 ---
 
