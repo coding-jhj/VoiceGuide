@@ -25,7 +25,7 @@ class YoloDetector(context: Context) {
     private val iouThreshold = 0.45f
 
     init {
-        val bytes = context.assets.open("yolo11n.onnx").readBytes()
+        val bytes = context.assets.open("yolo11m.onnx").readBytes()
         session = env.createSession(bytes, OrtSession.SessionOptions())
     }
 
