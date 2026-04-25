@@ -42,10 +42,6 @@ CLOCK_ACTION = {
     "11시": "오른쪽으로 피해가세요",
 }
 
-CHANGE_TEMPLATES = {
-    "added":   "{obj}이 {count}개 더 있어요.",
-    "removed": "{obj}이 사라졌어요.",
-}
 
 
 def get_absolute_clock(image_clock: str, camera_orientation: str) -> str:

@@ -80,7 +80,44 @@ ConnectionError: Failed to download yolo11n.pt
 
 ---
 
-### 7. `--share` 공개 URL이 연결 안 됨
+### 7. `TypeError: argument of type 'bool' is not iterable` (Gradio 실행 중)
+
+```
+File "...gradio_client/utils.py", line 863, in get_type
+    if "const" in schema:
+TypeError: argument of type 'bool' is not iterable
+```
+
+**원인**: `gradio_client 1.3.0`이 pydantic이 생성한 JSON Schema의 `additionalProperties: true/false`(bool 값)를 처리하지 못하는 버그  
+**해결**: 아래 패치 스크립트를 1회 실행 (`pip install` 후마다 재실행 필요)
+
+```bash
+python patch_gradio_client.py
+```
+
+> `pip install -r requirements.txt`를 다시 실행하면 패치가 초기화됩니다. 그때마다 위 명령을 다시 실행하세요.
+
+---
+
+### 8. `ValueError: When localhost is not accessible, a shareable link must be created`
+
+```
+ValueError: When localhost is not accessible, a shareable link must be created.
+Please set share=True or check your proxy settings to allow access to localhost.
+```
+
+**원인**: Gradio가 내부적으로 localhost 접근 가능 여부를 확인하는데, 일부 환경(방화벽, VPN, WSL 등)에서 실패  
+**해결**: `--share` 플래그로 실행
+
+```bash
+python app.py --share
+```
+
+→ 터미널에 `https://xxxx.gradio.live` URL이 출력됩니다. 폰 브라우저에서 접속 가능.
+
+---
+
+### 9. `--share` 공개 URL이 연결 안 됨
 **원인**: Gradio 터널링 서버가 간헐적으로 불안정  
 **대안**: 같은 WiFi 환경에서 PC IP로 접속
 ```

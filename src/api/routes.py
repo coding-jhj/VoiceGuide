@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Form
 from src.depth.depth import detect_and_depth
-from src.nlg.sentence import build_sentence
+from src.nlg.sentence import build_sentence, _i_ga
 from src.api import db
 
 router = APIRouter()
@@ -13,7 +13,7 @@ def detect_space_change(current: list[dict], previous: list[dict]) -> list[str]:
 
     for cls in curr_classes:
         if cls not in prev_classes:
-            changes.append(f"{cls}이 1개 더 있어요")
+            changes.append(f"{cls}{_i_ga(cls)} 1개 더 있어요")
 
     return changes
 

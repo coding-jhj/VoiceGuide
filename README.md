@@ -522,6 +522,7 @@ cd VoiceGuide
 conda create -n voiceguide python=3.10 -y
 conda activate voiceguide
 pip install -r requirements.txt
+python patch_gradio_client.py   # gradio_client 버그 패치 (1회)
 cp .env.example .env
 
 # 설치 검증

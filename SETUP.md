@@ -21,8 +21,10 @@ cd VoiceGuide
 
 ```cmd
 pip install -r requirements.txt
-pip install ultralytics
+python patch_gradio_client.py
 ```
+
+> `patch_gradio_client.py`는 gradio_client의 알려진 버그를 패치합니다. `pip install -r requirements.txt`를 다시 실행할 때마다 재실행해야 합니다.
 
 > 첫 실행 시 YOLO 모델(yolo11m.pt)이 자동 다운로드됩니다. (약 2분, 인터넷 필요, 약 40MB)
 

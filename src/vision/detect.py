@@ -20,10 +20,25 @@ DIST_NEAR      = 0.12
 DIST_MID       = 0.04
 DIST_FAR       = 0.01
 
-CALIB_RATIO  = 0.12
-CALIB_DIST_M = 1.0
+# 기본 신뢰도: 0.45 → 0.60으로 상향 (오탐 감소)
+CONF_THRESHOLD = 0.60
 
-CONF_THRESHOLD = 0.45
+# 작거나 오탐 많은 물체는 더 높은 신뢰도 요구
+CLASS_MIN_CONF = {
+    "bottle":     0.72,
+    "cup":        0.72,
+    "book":       0.70,
+    "cell phone": 0.72,
+    "keyboard":   0.70,
+    "laptop":     0.65,
+    "tv":         0.65,
+    "handbag":    0.68,
+    "backpack":   0.65,
+    "cat":        0.68,
+    "dog":        0.65,
+    "umbrella":   0.68,
+    "suitcase":   0.65,
+}
 
 RISK_DIR = {
     "8시":  0.3, "9시":  0.5, "10시": 0.7, "11시": 0.9,
@@ -40,88 +55,76 @@ RISK_DIST = {
     "매우 멀리":   0.1,
 }
 
+# 내비게이션에 실제로 필요한 클래스만 유지
+# 제거: 음식류, 스포츠 용품, 희귀 동물, 작은 생활용품
 TARGET_CLASSES = {
-    "person":         "사람",
-    "bicycle":        "자전거",
-    "car":            "자동차",
-    "motorcycle":     "오토바이",
-    "airplane":       "비행기",
-    "bus":            "버스",
-    "train":          "기차",
-    "truck":          "트럭",
-    "boat":           "보트",
-    "traffic light":  "신호등",
-    "fire hydrant":   "소화전",
-    "stop sign":      "정지 표지판",
-    "parking meter":  "주차 미터기",
-    "bench":          "벤치",
-    "bird":           "새",
-    "cat":            "고양이",
-    "dog":            "개",
-    "horse":          "말",
-    "sheep":          "양",
-    "cow":            "소",
-    "elephant":       "코끼리",
-    "bear":           "곰",
-    "zebra":          "얼룩말",
-    "giraffe":        "기린",
-    "backpack":       "가방",
-    "umbrella":       "우산",
-    "handbag":        "가방",
-    "tie":            "넥타이",
-    "suitcase":       "여행가방",
-    "frisbee":        "원반",
-    "skis":           "스키",
-    "snowboard":      "스노보드",
-    "sports ball":    "공",
-    "kite":           "연",
-    "baseball bat":   "야구 방망이",
-    "baseball glove": "야구 글러브",
-    "skateboard":     "스케이트보드",
-    "surfboard":      "서프보드",
-    "tennis racket":  "테니스 라켓",
-    "bottle":         "병",
-    "wine glass":     "와인잔",
-    "cup":            "컵",
-    "fork":           "포크",
-    "knife":          "칼",
-    "spoon":          "숟가락",
-    "bowl":           "그릇",
-    "banana":         "바나나",
-    "apple":          "사과",
-    "sandwich":       "샌드위치",
-    "orange":         "오렌지",
-    "broccoli":       "브로콜리",
-    "carrot":         "당근",
-    "hot dog":        "핫도그",
-    "pizza":          "피자",
-    "donut":          "도넛",
-    "cake":           "케이크",
-    "chair":          "의자",
-    "couch":          "소파",
-    "potted plant":   "화분",
-    "bed":            "침대",
-    "dining table":   "테이블",
-    "toilet":         "변기",
-    "tv":             "TV",
-    "laptop":         "노트북",
-    "mouse":          "마우스",
-    "remote":         "리모컨",
-    "keyboard":       "키보드",
-    "cell phone":     "휴대폰",
-    "microwave":      "전자레인지",
-    "oven":           "오븐",
-    "toaster":        "토스터기",
-    "sink":           "세면대",
-    "refrigerator":   "냉장고",
-    "book":           "책",
-    "clock":          "시계",
-    "vase":           "꽃병",
-    "scissors":       "가위",
-    "teddy bear":     "인형",
-    "hair drier":     "드라이기",
-    "toothbrush":     "칫솔",
+    # 사람 - 항상 최우선
+    "person":        "사람",
+
+    # 차량 - 야외 이동
+    "bicycle":       "자전거",
+    "car":           "자동차",
+    "motorcycle":    "오토바이",
+    "bus":           "버스",
+    "train":         "기차",
+    "truck":         "트럭",
+
+    # 교통 시설
+    "traffic light": "신호등",
+    "fire hydrant":  "소화전",
+    "stop sign":     "정지 표지판",
+
+    # 바닥 위 동물 (걸려넘어질 수 있음)
+    "dog":           "개",
+    "cat":           "고양이",
+
+    # 대형 가구 (충돌 위험)
+    "bench":         "벤치",
+    "chair":         "의자",
+    "couch":         "소파",
+    "bed":           "침대",
+    "dining table":  "테이블",
+    "toilet":        "변기",
+    "sink":          "세면대",
+    "refrigerator":  "냉장고",
+    "potted plant":  "화분",
+
+    # 바닥/공중 장애물
+    "backpack":      "가방",
+    "umbrella":      "우산",
+    "handbag":       "가방",
+    "suitcase":      "여행가방",
+
+    # 실내 맥락 파악용 (확인용)
+    "tv":            "TV",
+    "laptop":        "노트북",
+    "cell phone":    "휴대폰",
+    "bottle":        "병",
+    "cup":           "컵",
+    "book":          "책",
+    "keyboard":      "키보드",
 }
+
+# 물체 실제 크기 기반 캘리브레이션 (area_ratio at 1m)
+# 카메라 수직 FOV ~60°, 수평 FOV ~80° 기준 추정값
+CLASS_CALIB_RATIO = {
+    "person":        0.10,  # 평균 신장 170cm, 어깨 폭 45cm
+    "car":           0.30,  # 폭 180cm
+    "bus":           0.50,  # 폭 250cm
+    "truck":         0.40,  # 폭 220cm
+    "bicycle":       0.06,  # 폭 60cm
+    "motorcycle":    0.08,  # 폭 80cm
+    "bench":         0.15,  # 폭 150cm
+    "chair":         0.06,  # 폭 50cm
+    "couch":         0.20,  # 폭 180cm
+    "bed":           0.28,  # 폭 150cm
+    "dining table":  0.22,  # 폭 120cm
+    "refrigerator":  0.12,  # 폭 60cm
+    "suitcase":      0.06,  # 폭 40cm
+    "dog":           0.05,
+    "cat":           0.03,
+}
+_DEFAULT_CALIB_RATIO = 0.08
 
 
 def detect_objects(image_bytes: bytes) -> list[dict]:
@@ -137,7 +140,10 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
 
     for box in results.boxes:
         cls_name = model.names[int(box.cls)]
-        if cls_name not in TARGET_CLASSES:
+
+        # 클래스별 최소 신뢰도 체크
+        conf = float(box.conf[0])
+        if conf < CLASS_MIN_CONF.get(cls_name, CONF_THRESHOLD):
             continue
 
         x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -161,17 +167,19 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
         else:
             distance = "매우 멀리"
 
-        distance_m = round(CALIB_DIST_M * math.sqrt(CALIB_RATIO / area_ratio), 1) if area_ratio > 0 else 99.9
+        calib = CLASS_CALIB_RATIO.get(cls_name, _DEFAULT_CALIB_RATIO)
+        distance_m = round(math.sqrt(calib / area_ratio), 1) if area_ratio > 0 else 99.9
         risk_score = round(RISK_DIR.get(direction, 0.5) * RISK_DIST[distance], 2)
 
         detections.append({
             "class":      cls_name,
-            "class_ko":   TARGET_CLASSES[cls_name],
+            "class_ko":   TARGET_CLASSES.get(cls_name, "알 수 없는 물체"),
             "bbox":       [x1, y1, x2, y2],
             "direction":  direction,
             "distance":   distance,
             "distance_m": distance_m,
             "risk_score": risk_score,
+            "conf":       round(conf, 2),
         })
 
     return sorted(detections, key=lambda x: x["risk_score"], reverse=True)[:2]
