@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val handler = Handler(Looper.getMainLooper())
     private val isAnalyzing = AtomicBoolean(false)
     private val isSending = AtomicBoolean(false)
+    private var lastSentence = ""
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -128,8 +129,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun startAnalysis() {
         isAnalyzing.set(true)
+        lastSentence = ""
         btnToggle.text = "분석 중지"
         tvStatus.text  = "분석 중..."
+        captureAndSend()
         scheduleNext()
     }
 
@@ -183,8 +186,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     .optString("sentence", "감지된 장애물이 없어요")
 
                 runOnUiThread {
-                    tvStatus.text = sentence
-                    if (sentence != "주변에 장애물이 없어요.") speak(sentence)
+                    if (sentence == "주변에 장애물이 없어요.") {
+                        tvStatus.text = "장애물 없음"
+                    } else if (sentence != lastSentence && !tts.isSpeaking) {
+                        lastSentence = sentence
+                        tvStatus.text = sentence
+                        speak(sentence)
+                    }
                 }
             } catch (_: Exception) {
                 /* 네트워크 오류 시 조용히 다음 주기 대기 */
