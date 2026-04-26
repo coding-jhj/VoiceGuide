@@ -120,19 +120,28 @@
 
 ## 팀 간 연결 포인트
 
+### 온디바이스 흐름 (기본 — 서버 불필요)
+
 ```
-정환주 (Android)
-  ↓ POST /detect {image, wifi_ssid}
-신유득 (서버)
-  → 김재현의 detect_and_depth() 호출
-  → 임명광의 build_sentence() 호출
-  → DB 저장 + 변화 감지
-  ↓ JSON 응답 {objects, changes}
-정환주 (Android) → TTS 재생
+정환주 (Android 앱)
+  → YoloDetector.kt (ONNX 추론)      ← 김재현 모델 파인튜닝 결과
+  → SentenceBuilder.kt (문장 생성)   ← 임명광 문장 설계 반영
+  → Android TTS 재생
+  → SharedPreferences (장소 저장)    ← 신유득 DB 설계 아이디어
 ```
 
-**신유득이 김재현과 문수찬, 임명광의 함수를 호출하는 구조.**  
-김재현, 문수찬, 임명광은 각자 함수만 완성하면 됨. 서버 구조 몰라도 됨.
+### 서버 연동 흐름 (선택 — 정확도 향상)
+
+```
+정환주 (Android)
+  ↓ POST /detect {image, wifi_ssid, mode, query_text}
+신유득 (FastAPI 서버)
+  → detect_and_depth()  ← 김재현 + 문수찬 구현
+  → build_sentence()    ← 임명광 구현
+  → DB 저장 + 변화 감지
+  ↓ {sentence, objects, hazards, changes}
+정환주 (Android) → TTS 재생
+```
 
 ---
 
