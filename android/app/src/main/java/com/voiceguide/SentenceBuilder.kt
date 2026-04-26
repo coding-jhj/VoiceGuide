@@ -6,10 +6,27 @@ object SentenceBuilder {
 
     // ── 장애물 안내 (기본 모드) ───────────────────────────────────────────
 
+    // 차량: 이동 중 → 더 이른 거리에서 더 강한 경고
+    private val VEHICLE_CLASSES = setOf("자동차", "오토바이", "버스", "트럭", "기차", "자전거")
+    private val ANIMAL_CLASSES  = setOf("개", "말")
+
     fun build(detections: List<Detection>): String {
         if (detections.isEmpty()) return "주변에 장애물이 없어요."
 
-        // 계단 최우선
+        // 1순위: 가까운 차량 (야외 최고 위험)
+        val nearVehicle = detections.firstOrNull {
+            it.classKo in VEHICLE_CLASSES && it.w * it.h > 0.04f
+        }
+        if (nearVehicle != null) {
+            val clock   = getClock(nearVehicle.cx)
+            val dir     = CLOCK_TO_DIRECTION[clock] ?: clock
+            val action  = DIRECTION_ACTION[clock] ?: "즉시 멈추세요"
+            val distStr = formatDist(nearVehicle.w, nearVehicle.h)
+            val ig      = josaIGa(nearVehicle.classKo)
+            return "위험! ${dir}에 ${nearVehicle.classKo}${ig} 있어요! $distStr. 즉시 $action!"
+        }
+
+        // 2순위: 계단
         val stairs = detections.firstOrNull { it.classKo == "계단" }
         if (stairs != null) {
             val clock  = getClock(stairs.cx)
@@ -18,17 +35,25 @@ object SentenceBuilder {
         }
 
         val parts = detections.take(2).mapIndexed { idx, det ->
-            val clock    = getClock(det.cx)
-            val dir      = CLOCK_TO_DIRECTION[clock] ?: clock
-            val distStr  = formatDist(det.w, det.h)
-            val ig       = josaIGa(det.classKo)
-            val action   = DIRECTION_ACTION[clock] ?: ""
+            val clock     = getClock(det.cx)
+            val dir       = CLOCK_TO_DIRECTION[clock] ?: clock
+            val distStr   = formatDist(det.w, det.h)
+            val ig        = josaIGa(det.classKo)
+            val action    = DIRECTION_ACTION[clock] ?: ""
             val areaRatio = det.w * det.h
+            val isAnimal  = det.classKo in ANIMAL_CLASSES
 
             val base = when {
-                areaRatio > 0.25f -> "위험! ${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
-                areaRatio > 0.12f -> "${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
-                else              -> "${dir}에 ${det.classKo}${ig} 있어요. $distStr."
+                det.classKo in VEHICLE_CLASSES ->
+                    "조심! ${dir}에 ${det.classKo}${ig} 접근 중이에요. $distStr. $action."
+                isAnimal ->
+                    "조심! ${dir}에 ${det.classKo}${ig} 있어요. $distStr. 천천히 $action."
+                areaRatio > 0.25f ->
+                    "위험! ${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
+                areaRatio > 0.12f ->
+                    "${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
+                else ->
+                    "${dir}에 ${det.classKo}${ig} 있어요. $distStr."
             }
             if (idx == 0) base
             else base.replace("${det.classKo}${ig}", "${det.classKo}도")
