@@ -1,5 +1,6 @@
 """
 pip install -r requirements.txt 후 1회 실행하세요.
+사용법: python tools/patch_gradio_client.py
 
 gradio_client가 pydantic 생성 JSON Schema의 bool 값
 (additionalProperties: true/false)을 처리 못하는 버그 패치.
@@ -14,7 +15,7 @@ if spec is None:
 
 utils_path = spec.submodule_search_locations[0] + "/utils.py"
 
-print('\n',utils_path)
+print('\n', utils_path)
 
 with open(utils_path, encoding="utf-8") as f:
     src = f.read()
@@ -24,12 +25,10 @@ if MARKER in src:
     print("이미 패치가 적용되어 있습니다.")
     sys.exit(0)
 
-# 패치 1: get_type()에서 schema가 bool일 때 TypeError 방지
 OLD1   = 'def get_type(schema: dict) -> str:'
 OLD1_1 = 'def get_type(schema: dict):'
 NEW1_BODY = f'\n    if not isinstance(schema, dict):  {MARKER}\n        return "Any"'
 
-# 패치 2: _json_schema_to_python_type()에서 bool 스키마 처리
 OLD2   = 'def _json_schema_to_python_type(schema: dict, defs: dict | None = None) -> str:'
 OLD2_2 = 'def _json_schema_to_python_type(schema: Any, defs) -> str:'
 NEW2_BODY = f'\n    if isinstance(schema, bool):  {MARKER}\n        return "Any"'

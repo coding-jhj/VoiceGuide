@@ -20,6 +20,10 @@ def _eul_reul(word: str) -> str:
     return _josa(word, "을", "를")
 
 
+def _un_neun(word: str) -> str:
+    return _josa(word, "은", "는")
+
+
 def _format_dist(dist_m: float) -> str:
     dist_m = max(0.1, min(dist_m, 10.0))
     if dist_m < 0.5:
@@ -39,29 +43,22 @@ def _primary(obj: dict, abs_clock: str) -> str:
     action    = CLOCK_ACTION.get(abs_clock, "조심하세요").rstrip(".")
     is_ground = obj.get("is_ground_level", False)
 
-    # 바닥 장애물 (발에 걸릴 위험)
     if is_ground and dist_m < 2.0:
         if dist_m < 0.8:
-            # "발 아래 가방" → "발 앞에 가방이 있어요" 로 자연스럽게
             return f"조심! 바로 앞 바닥에 {name}{ig} 있어요. {action}."
         return f"조심! {direction} 바닥에 {name}{ig} 있어요. {action}."
 
-    # 거리별 긴급도 — 짧을수록 더 짧고 강한 문장
     if dist_m < 0.5:
-        # 초근접: 가장 짧고 강한 경고 (TTS 재생 시간 최소화)
         return f"위험! {direction} {name}!"
 
     if dist_m < 1.0:
-        # 긴급: 방향+물체 먼저 → 행동. "피해가세요! 왼쪽에 의자" 보다 "왼쪽에 의자가 있어요. 피해가세요."가 더 직관적
         return f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
 
     if dist_m < 2.5:
-        # 경고: 방향 + 거리 + 행동
         return (f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
                 if action else
                 f"{direction}에 {name}{ig} 있어요. {dist_str}.")
 
-    # 정보: 방향 + 거리
     return f"{direction}에 {name}{ig} 있어요. {dist_str}."
 
 
@@ -107,18 +104,83 @@ def build_hazard_sentence(
     changes: list[str],
     camera_orientation: str = "front",
 ) -> str:
-    """
-    계단·낙차·턱 등 바닥 위험을 최우선 안내.
-    위험도가 높으면 장애물 정보 생략, 낮으면 뒤에 이어서 안내.
-    """
+    """계단·낙차·턱 등 바닥 위험을 최우선 안내."""
     h_msg  = hazard.get("message", "앞에 위험이 있어요.")
     h_risk = hazard.get("risk", 0.5)
 
     if h_risk >= 0.7 or not objects:
-        # 고위험: 계단 경고만 출력 (짧고 강하게)
         return h_msg
 
-    # 중간 위험: 계단 경고 + 주요 장애물 1개 이어서 안내
-    # "또한," → "그리고" 로 구어체 자연스럽게
     obj_sentence = build_sentence(objects[:1], [], camera_orientation)
     return f"{h_msg} 그리고 {obj_sentence}"
+
+
+def build_find_sentence(
+    target: str,
+    objects: list[dict],
+    camera_orientation: str = "front",
+) -> str:
+    """
+    찾기 모드: 특정 물체를 찾는 맥락에서 안내.
+    target이 비어있으면 일반 장애물 안내로 fallback.
+    """
+    if not target:
+        return build_sentence(objects, [], camera_orientation)
+
+    found = [o for o in objects if target in o.get("class_ko", "")]
+    if found:
+        obj = found[0]
+        abs_clock = get_absolute_clock(obj["direction"], camera_orientation)
+        direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
+        dist_str  = _format_dist(obj.get("distance_m", 0.0))
+        un        = _un_neun(target)
+        return f"{target}{un} {direction}에 있어요. {dist_str}."
+
+    if objects:
+        scene = build_sentence(objects[:1], [], camera_orientation)
+        un = _un_neun(target)
+        return f"{target}{un} 보이지 않아요. 카메라를 천천히 돌려보세요. {scene}"
+
+    un = _un_neun(target)
+    return f"{target}{un} 보이지 않아요. 카메라를 천천히 돌려보세요."
+
+
+def build_navigation_sentence(
+    label: str,
+    action: str,           # "save" | "found_here" | "not_found" | "list"
+    locations: list[dict] | None = None,
+    wifi_ssid: str = "",
+) -> str:
+    """
+    개인 네비게이팅 모드 안내 문장.
+
+    action:
+      "save"       - 장소 저장 완료
+      "found_here" - 현재 위치가 저장된 장소와 일치
+      "not_found"  - 해당 장소 미저장
+      "list"       - 저장된 장소 목록 안내
+      "deleted"    - 장소 삭제 완료
+    """
+    if action == "save":
+        label_str = label or "이 장소"
+        return f"{label_str}{_eul_reul(label_str)} 저장했어요."
+
+    if action == "found_here":
+        return f"{label}{_i_ga(label)} 저장된 위치예요! 도착했어요."
+
+    if action == "not_found":
+        return f"{label}{_un_neun(label)} 저장된 장소에 없어요. 먼저 그 곳에서 저장해 주세요."
+
+    if action == "deleted":
+        return f"{label}{_eul_reul(label)} 삭제했어요."
+
+    if action == "list":
+        if not locations:
+            return "저장된 장소가 없어요. 가고 싶은 곳에서 '여기 저장해줘'라고 말해보세요."
+        names = [loc["label"] for loc in locations[:5]]
+        joined = ", ".join(names)
+        total  = len(locations)
+        suffix = f" 외 {total - 5}곳" if total > 5 else ""
+        return f"저장된 장소는 {joined}{suffix}이에요."
+
+    return "안내를 처리하지 못했어요."

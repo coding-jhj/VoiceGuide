@@ -22,7 +22,7 @@ cd VoiceGuide/VoiceGuide
 ```bash
 conda activate ai_env
 pip install -r requirements.txt
-python patch_gradio_client.py   # gradio_client 버그 패치 (1회)
+python tools/patch_gradio_client.py   # gradio_client 버그 패치 (1회)
 ```
 
 ---
@@ -125,7 +125,7 @@ Android Studio → 폰 USB 연결 → USB 디버깅 ON → ▶ Run
 |------|--------|
 | 서버 모드 | URL 입력 → 분석 시작 → 1초마다 자동 안내 |
 | 온디바이스 모드 | 서버 없어도 자동 감지 (yolo11m.onnx 필요) |
-| 음성 명령 | "음성 명령" 버튼 → "주변 알려줘 / 찾아줘 / 이거 뭐야" |
+| 음성 명령 | "음성 명령" 버튼 → "주변 알려줘 / 찾아줘 / 이거 뭐야 / 여기 저장해줘 편의점" |
 
 ---
 
