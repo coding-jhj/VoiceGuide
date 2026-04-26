@@ -2,6 +2,11 @@ from src.nlg.templates import (
     CLOCK_ACTION, CLOCK_TO_DIRECTION, get_absolute_clock
 )
 
+# 차량 — 5m 이내부터 긴급, 이동하는 물체이므로 별도 처리
+_VEHICLE_KO = {"자동차", "오토바이", "버스", "트럭", "기차", "자전거"}
+# 동물 — 돌발 행동 위험
+_ANIMAL_KO  = {"개", "말"}
+
 
 def _josa(word: str, 받침있음: str, 받침없음: str) -> str:
     if not word:
@@ -25,7 +30,7 @@ def _un_neun(word: str) -> str:
 
 
 def _format_dist(dist_m: float) -> str:
-    dist_m = max(0.1, min(dist_m, 10.0))
+    dist_m = max(0.1, min(dist_m, 15.0))
     if dist_m < 0.5:
         return "바로 코앞"
     if dist_m < 1.0:
@@ -42,23 +47,38 @@ def _primary(obj: dict, abs_clock: str) -> str:
     dist_str  = _format_dist(dist_m)
     action    = CLOCK_ACTION.get(abs_clock, "조심하세요").rstrip(".")
     is_ground = obj.get("is_ground_level", False)
+    is_vehicle = obj.get("is_vehicle", name in _VEHICLE_KO)
+    is_animal  = obj.get("is_animal",  name in _ANIMAL_KO)
 
+    # ── 차량 (야외 이동 위협) ───────────────────────────────────────────
+    if is_vehicle:
+        if dist_m < 3.0:
+            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 즉시 {action}!"
+        if dist_m < 8.0:
+            return f"조심! {direction}에 {name}{ig}접근 중이에요. {dist_str}. {action}."
+        return f"{direction}에 {name}{ig} 있어요. {dist_str}."
+
+    # ── 동물 (돌발 행동 위험) ───────────────────────────────────────────
+    if is_animal:
+        if dist_m < 3.0:
+            return f"조심! {direction}에 {name}{ig} 있어요. {dist_str}. 천천히 {action}."
+        return f"{direction}에 {name}{ig} 있어요. {dist_str}."
+
+    # ── 바닥 장애물 (걸려 넘어짐) ─────────────────────────────────────
     if is_ground and dist_m < 2.0:
         if dist_m < 0.8:
             return f"조심! 바로 앞 바닥에 {name}{ig} 있어요. {action}."
         return f"조심! {direction} 바닥에 {name}{ig} 있어요. {action}."
 
+    # ── 일반 장애물 거리별 긴박도 ─────────────────────────────────────
     if dist_m < 0.5:
         return f"위험! {direction} {name}!"
-
     if dist_m < 1.0:
         return f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
-
     if dist_m < 2.5:
         return (f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
                 if action else
                 f"{direction}에 {name}{ig} 있어요. {dist_str}.")
-
     return f"{direction}에 {name}{ig} 있어요. {dist_str}."
 
 
@@ -68,7 +88,10 @@ def _secondary(obj: dict, abs_clock: str) -> str:
     direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
     dist_str  = _format_dist(dist_m)
     action    = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
+    is_vehicle = obj.get("is_vehicle", name in _VEHICLE_KO)
 
+    if is_vehicle and dist_m < 8.0:
+        return f"{direction}에 {name}도 있어요! {dist_str}. {action}."
     if dist_m < 1.5 and action:
         return f"{direction}에 {name}도 있어요. {dist_str}. {action}."
     return f"{direction}에 {name}도 있어요. {dist_str}."
@@ -104,7 +127,7 @@ def build_hazard_sentence(
     changes: list[str],
     camera_orientation: str = "front",
 ) -> str:
-    """계단·낙차·턱 등 바닥 위험을 최우선 안내."""
+    """계단·낙차·턱 등 바닥 위험 최우선 안내."""
     h_msg  = hazard.get("message", "앞에 위험이 있어요.")
     h_risk = hazard.get("risk", 0.5)
 
@@ -120,10 +143,7 @@ def build_find_sentence(
     objects: list[dict],
     camera_orientation: str = "front",
 ) -> str:
-    """
-    찾기 모드: 특정 물체를 찾는 맥락에서 안내.
-    target이 비어있으면 일반 장애물 안내로 fallback.
-    """
+    """찾기 모드: 특정 물체를 찾는 맥락에서 안내."""
     if not target:
         return build_sentence(objects, [], camera_orientation)
 
@@ -147,40 +167,25 @@ def build_find_sentence(
 
 def build_navigation_sentence(
     label: str,
-    action: str,           # "save" | "found_here" | "not_found" | "list"
+    action: str,
     locations: list[dict] | None = None,
     wifi_ssid: str = "",
 ) -> str:
-    """
-    개인 네비게이팅 모드 안내 문장.
-
-    action:
-      "save"       - 장소 저장 완료
-      "found_here" - 현재 위치가 저장된 장소와 일치
-      "not_found"  - 해당 장소 미저장
-      "list"       - 저장된 장소 목록 안내
-      "deleted"    - 장소 삭제 완료
-    """
+    """개인 네비게이팅 모드 안내."""
     if action == "save":
         label_str = label or "이 장소"
         return f"{label_str}{_eul_reul(label_str)} 저장했어요."
-
     if action == "found_here":
         return f"{label}{_i_ga(label)} 저장된 위치예요! 도착했어요."
-
     if action == "not_found":
         return f"{label}{_un_neun(label)} 저장된 장소에 없어요. 먼저 그 곳에서 저장해 주세요."
-
     if action == "deleted":
         return f"{label}{_eul_reul(label)} 삭제했어요."
-
     if action == "list":
         if not locations:
             return "저장된 장소가 없어요. 가고 싶은 곳에서 '여기 저장해줘'라고 말해보세요."
-        names = [loc["label"] for loc in locations[:5]]
+        names  = [loc["label"] for loc in locations[:5]]
         joined = ", ".join(names)
-        total  = len(locations)
-        suffix = f" 외 {total - 5}곳" if total > 5 else ""
+        suffix = f" 외 {len(locations) - 5}곳" if len(locations) > 5 else ""
         return f"저장된 장소는 {joined}{suffix}이에요."
-
     return "안내를 처리하지 못했어요."
