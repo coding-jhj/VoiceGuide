@@ -76,17 +76,18 @@
 ### Android 앱
 
 - [x] CameraX 라이브 프리뷰 (실시간 카메라 화면)
-- [x] **1초마다** 자동 캡처 → 서버 전송 → 결과 수신
+- [x] **1초마다** 자동 캡처 → 온디바이스 추론 → 결과 음성 출력
 - [x] 분석 시작 즉시 첫 캡처 (대기 없음)
 - [x] Android 기본 TTS 한국어 음성 출력 (속도 1.1배)
 - [x] 같은 문장 반복 안내 방지
-- [x] **STT 음성 명령** — "주변 알려줘/찾아줘/이거 뭐야" → 장애물/찾기/확인 모드
+- [x] **STT 음성 명령** — 5모드 / 키워드 15개 이상 / 미인식 시 장애물 fallback
 - [x] **카메라 방향 자동 감지** — 가속도 센서 → front/left/right/back
 - [x] **WiFi SSID 자동 수집** — 공간 기억 연동
-- [x] **온디바이스 ONNX 추론** — yolo11m.onnx, 서버 없이 폰 단독 동작
-- [x] **Failsafe 음성 경고** — 3회 연속 실패 시 "서버 연결 끊겼어요. 주의해서 이동하세요."
-- [x] **Watchdog** — 6초 무응답 시 "분석이 중단됐어요. 주의해서 이동하세요."
-- [x] 서버 실패 시 온디바이스 모드 자동 전환
+- [x] **온디바이스 ONNX 추론** — 기본 동작 (서버 불필요)
+- [x] **개인 네비게이팅** ⭐ — 장소 저장(SharedPreferences) / 찾기 / 목록
+- [x] **Failsafe 음성 경고** — 3회 연속 실패 시 안내
+- [x] **Watchdog** — 6초 무응답 시 안내
+- [x] 서버 URL 설정 시 Depth V2 정확도 향상 (선택)
 
 ---
 
@@ -134,7 +135,7 @@ conda activate ai_env
 
 # 1회 설정 (최초 1회만)
 pip install -r requirements.txt
-python patch_gradio_client.py
+python tools/patch_gradio_client.py
 python -c "import urllib.request; urllib.request.urlretrieve(
     'https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth',
     'depth_anything_v2_vits.pth'); print('모델 다운로드 완료')"
