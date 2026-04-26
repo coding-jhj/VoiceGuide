@@ -125,4 +125,9 @@ class YoloDetector(context: Context) {
         val union = a.w * a.h + b.w * b.h - inter
         return if (union > 0) inter / union else 0f
     }
+
+    fun close() {
+        session.close()
+        env.close()
+    }
 }
