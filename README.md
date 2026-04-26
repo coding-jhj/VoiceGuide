@@ -603,6 +603,15 @@ VoiceGuide : 환경을 기억하고 행동을 안내한다
 
 ## 빠른 시작
 
+### Android 앱만 쓸 때 (서버 불필요)
+
+```
+SETUP.md → Android 앱 설치 방법 참고
+→ APK 파일 받기 → 폰에서 설치 → 끝
+```
+
+### 서버 + Gradio 데모 실행 (발표용 PC에서)
+
 ```bash
 # 1. 클론
 git clone https://github.com/coding-jhj/VoiceGuide.git
@@ -614,35 +623,29 @@ conda activate ai_env
 # 3. 의존성 설치
 pip install -r requirements.txt
 
-# 4. gradio_client 버그 패치 (1회만)
-python patch_gradio_client.py
+# 4. gradio_client 버그 패치 (딱 1회만)
+python tools/patch_gradio_client.py
 
-# 5. Depth Anything V2 모델 가중치 다운로드 (1회만, 약 94MB)
+# 5. Depth Anything V2 모델 다운로드 (딱 1회만, 94MB)
+#    → 이 파일은 용량이 커서 git에 없음. 아래 명령어로 직접 받아야 함
 python -c "
 import urllib.request
 urllib.request.urlretrieve(
     'https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth',
-    'depth_anything_v2_vits.pth'
-)
-print('완료')
+    'depth_anything_v2_vits.pth')
+print('다운로드 완료')
 "
+#    없어도 동작함 — bbox 면적 기반 거리 추정으로 자동 fallback
 
-# 6. Gradio 데모 실행 (발표·데모용)
-python app.py
-# → http://localhost:7860 브라우저 자동 열림
+# 6. Gradio 데모 실행
+python app.py           # 로컬 브라우저
+python app.py --share   # 폰에서 접속 가능한 공개 URL 생성
 
-# 폰으로 보여줄 때 (공개 URL 생성)
-python app.py --share
-
-# 7. FastAPI 서버 실행 (Android 앱 연동용)
+# 7. FastAPI 서버 실행 (Android 앱 연동 시)
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
-# 로컬 IP 확인 (Android 앱에 입력할 주소)
-ipconfig   # Windows
-# → http://192.168.x.x:8000
+ipconfig   # Windows → IPv4 주소 확인 → 앱에 http://192.168.x.x:8000 입력
 ```
-
-> **참고**: `depth_anything_v2_vits.pth` 는 `.gitignore` 대상(용량 큼)이므로 팀원 각자 PC에서 5번을 실행해야 합니다.
 
 ---
 
