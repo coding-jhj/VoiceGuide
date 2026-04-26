@@ -194,119 +194,121 @@ def build_sentence(objects: list[dict], changes: list[str]) -> str:
 
 ---
 
-## 전체 파이프라인
+## 전체 파이프라인 (구현 완료)
 
 ```
 [사용자 음성 입력]
-    ↓ STT (문수찬)
-[텍스트 변환]
-    ↓ 키워드 매칭 (문수찬)
-[모드 선택: 장애물 / 찾기 / 확인]
-    ↓ 카메라 이미지 캡처 (정환주: Android / 신유득: Gradio MVP)
-[YOLO11m_indoor 탐지] ──────────────── (김재현) ← 계단 포함 파인튜닝 모델
-    ↓ bbox + class + confidence
-[Depth Anything V2] ───────────────── (문수찬) ← depth map → 거리(m)
+    ↓ STT 5모드 키워드 매칭 (문수찬) — 미인식 시 장애물 모드 fallback
+[모드 선택: 장애물 / 찾기 / 확인 / 저장 / 위치목록]
     ↓
-[계단/낙차/턱 감지] ─────────────────── (문수찬) ← depth 12구역 분석
+[저장·위치목록 모드] → 이미지 불필요, SharedPreferences 즉시 처리 (정환주)
     ↓
-[방향 판단] bbox 중심 x → 8시~4시 ───── (김재현)
+[카메라 1초 자동 캡처] ─────────────────────── (정환주: Android)
     ↓
-[거리 판단] bbox 비율(MVP) → Depth V2(서버) ── (문수찬)
+[YOLO11m 81클래스 탐지] ────────────────────── (김재현)
+  ├─ COCO80 전체 + 계단 파인튜닝 (mAP50=0.992)
+  ├─ 9구역 시계방향 판단, 클래스별 위험도 배수
+  └─ scene_analysis: 안전경로·군중·위험물체 분석
     ↓
-[위험도 스코어] 방향 + 거리 → 상위 1~2개 ─── (김재현)
-    ↓ detect_and_depth() 반환
-[문장 생성] build_sentence() ─────────────── (임명광)
+[Depth Anything V2 거리 추정] ──────────────── (문수찬)
+  ├─ GPU 실시간 추론, 보수 추정(하위 30%)
+  └─ bbox 면적 기반 fallback (모델 없을 때)
     ↓
-[TTS 음성 출력] ──────────────────────────── (문수찬)
+[계단·낙차·턱 Depth 감지] ──────────────────── (문수찬)
+  └─ 바닥 12구역 깊이 변화 분석
+    ↓
+[EMA 객체 추적 + 공간 기억] ────────────────── (신유득)
+  ├─ 프레임 jitter 제거 (α=0.55)
+  └─ WiFi SSID 기반 재방문 변화 감지
+    ↓
+[문장 생성] ────────────────────────────────── (임명광)
+  ├─ 긴박도 4단계 (0.5m/1m/2.5m 분기)
+  ├─ 차량·동물 전용 긴급 문장
+  └─ 안전경로·군중·위험물체 경고 추가
+    ↓
+[Android TTS 음성 출력] ────────────────────── (정환주)
+  └─ 속도 1.1배, 같은 문장 반복 방지
 ```
 
 ---
 
-## 모듈별 기술 명세
+## 모듈별 기술 명세 (구현 완료 기준)
 
 ### MODULE A: Android 앱
 **담당**: 정환주 | **브랜치**: `feature/android`  
-**파일**: `src/android/` (Android Studio 프로젝트)
+**파일**: `android/app/src/main/java/com/voiceguide/`
 
+**구현 완료 기능:**
+
+```kotlin
+// MainActivity.kt — 핵심 흐름
+CameraX 1초 자동 캡처
+  → YoloDetector.kt (ONNX Runtime, yolo11m.onnx)  // 온디바이스, 서버 불필요
+  → SentenceBuilder.kt (한국어 문장 생성)
+  → Android TextToSpeech (한국어, 속도 1.1배)
+
+// STT 5모드 (장애물/찾기/확인/저장/위치목록)
+SpeechRecognizer (ko-KR) → classifyKeyword()
+  → 저장·위치목록: 이미지 없이 SharedPreferences 즉시 처리
+  → 찾기: findTarget 추출 → SentenceBuilder.buildFind()
+
+// 개인 네비게이팅 (SharedPreferences JSON 저장)
+"여기 저장해줘 편의점" → saveLocation("편의점", wifiSsid)
+"저장된 곳 알려줘"    → getLocations() → TTS 읽어줌
+
+// Failsafe + Watchdog
+연속 3회 실패 → "서버 연결 끊겼어요. 주의해서 이동하세요."
+6초 무응답   → "분석이 중단됐어요. 주의해서 이동하세요."
 ```
-입력: 카메라 이미지 (JPEG, 최대 1MB)
-출력: HTTP POST → FastAPI 서버
 
-요청 형식:
-  POST http://{서버주소}/detect
-  Content-Type: multipart/form-data
-  Body:
-    - image: (JPEG 파일)
-    - wifi_ssid: (문자열, WifiManager로 읽기)
-
-응답 형식:
-  { "sentence": "왼쪽 바로 앞에 의자가 있어요.", "objects": [...], "changes": [...] }
-```
-
-사용 라이브러리: `OkHttp / Retrofit`, `WifiManager`, `Android TextToSpeech`  
-MVP 비상 플랜: Android 연동이 막히면 → Gradio 데모로 대체, UI 와이어프레임 + 설계도 제출
+| 라이브러리 | 용도 |
+|-----------|------|
+| CameraX | 카메라 라이프사이클 관리 |
+| ONNX Runtime Android | 온디바이스 YOLO 추론 |
+| Android SpeechRecognizer | STT (오프라인 언어팩 지원) |
+| Android TextToSpeech | TTS (완전 오프라인) |
+| OkHttp | 서버 연동 (선택 사항) |
+| WifiManager | WiFi SSID 수집 |
 
 ---
 
 ### MODULE B: FastAPI 서버 (허브)
 **담당**: 신유득 | **브랜치**: `feature/api`  
-**파일**: `src/api/main.py`, `src/api/routes.py`, `src/api/db.py`
-
-> 신유득은 팀의 허브입니다. 김재현, 문수찬, 임명광의 함수를 받아서 연결합니다.
+**파일**: `src/api/main.py`, `src/api/routes.py`, `src/api/db.py`, `src/api/tracker.py`
 
 ```python
-# 메인 탐지 API
+# 메인 탐지 API (5모드 처리 + scene_analysis 포함)
 POST /detect
-  Params: image, wifi_ssid, camera_orientation, mode, query_text
-  Modes:  장애물 / 찾기 / 확인 / 저장 / 위치목록
-  Returns: { sentence, objects, hazards, changes, depth_source }
+  Body: image, wifi_ssid, camera_orientation, mode, query_text
+  Returns: { sentence, objects, hazards, scene, changes, depth_source }
+  # scene = { safe_direction, crowd_warning, danger_warning, person_count }
 
-# 개인 네비게이팅 API ⭐
-POST /locations/save          # 현재 WiFi에 장소 이름 저장
-GET  /locations               # 저장된 장소 목록 조회
-GET  /locations/find/{label}  # 특정 장소 검색 + 현재위치 일치 여부
-DELETE /locations/{label}     # 장소 삭제
+# 개인 네비게이팅 ⭐
+POST   /locations/save         # WiFi SSID + 장소 이름 저장
+GET    /locations              # 저장된 장소 목록
+GET    /locations/find/{label} # 장소 검색 + 현재 위치 일치 여부
+DELETE /locations/{label}      # 장소 삭제
 
-# 기타
-POST /spaces/snapshot         # 공간 스냅샷 수동 저장
-POST /stt                     # PC 마이크 음성인식 (Gradio 데모용)
+POST /spaces/snapshot          # 공간 스냅샷 수동 저장
+POST /stt                      # PC 마이크 STT (Gradio용)
 ```
 
-SQLite DB 스키마:
 ```sql
+-- 공간 기억 (WiFi 기반 재방문 변화 감지)
 CREATE TABLE snapshots (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    space_id  TEXT NOT NULL,   -- WiFi SSID
-    timestamp TEXT NOT NULL,   -- ISO 8601
-    objects   TEXT NOT NULL    -- JSON 직렬화
+    id INTEGER PRIMARY KEY, space_id TEXT, timestamp TEXT, objects TEXT
 );
-
-CREATE TABLE saved_locations (  -- 개인 네비게이팅 ⭐
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    label     TEXT NOT NULL,    -- "편의점", "화장실" 등
-    wifi_ssid TEXT NOT NULL,    -- 저장 당시 WiFi SSID
-    timestamp TEXT NOT NULL
+-- 개인 네비게이팅 ⭐
+CREATE TABLE saved_locations (
+    id INTEGER PRIMARY KEY, label TEXT, wifi_ssid TEXT, timestamp TEXT
 );
 ```
 
-공간 기억 데이터 흐름:
-```
-1회 방문:  YOLO 탐지 결과 + 공간 ID(WiFi SSID) → 서버 DB 저장
-2회 이후:  이전 기록 vs 현재 탐지 비교 → 변화 감지 → "의자가 1개 더 있어요" 안내
-```
-
-변화 감지 로직:
 ```python
-def detect_space_change(current_objects, previous_snapshot):
-    changes = []
-    for obj_class in current_objects:
-        curr_count = current_objects[obj_class]["count"]
-        prev_count = previous_snapshot.get(obj_class, {}).get("count", 0)
-        if curr_count > prev_count:
-            changes.append(f"{obj_class}이 {curr_count - prev_count}개 더 있어요")
-        elif curr_count < prev_count:
-            changes.append(f"{obj_class}이 {prev_count - curr_count}개 줄었어요")
-    return changes
+# EMA 객체 추적기 (src/api/tracker.py)
+alpha = 0.55  # 현재 55% + 이전 45% → jitter 제거
+# 접근 감지: 이전보다 0.4m 이상 가까워지고 2.5m 이내 → "가방이 가까워지고 있어요"
+# 소멸 감지: 3m 이내였던 물체 사라짐 → "의자가 사라졌어요"
 ```
 
 ---
@@ -316,80 +318,63 @@ def detect_space_change(current_objects, previous_snapshot):
 **파일**: `src/vision/detect.py`
 
 ```python
-def detect_objects(image_bytes: bytes) -> list[dict]:
-    """yolo11m_indoor.pt로 이미지에서 장애물+계단 탐지"""
+# 반환: (top3_objects, scene_analysis) tuple
+def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
 
-# 방향 판단
-# 8시~4시 시계 방향 9구역으로 판별
-# cx_norm = bbox중심x / 이미지폭
-# 0.00~0.11 → 8시(왼쪽), ..., 0.44~0.56 → 12시(바로앞), ..., 0.89~1.00 → 4시(오른쪽)
+# COCO80 전체 + 계단 파인튜닝 = 81클래스
+# 계단 학습: 404장, RTX 5060, 9분 → mAP50=0.992
 
-# 위험도 스코어
-dir_score  = {"center": 1.0, "left": 0.7, "right": 0.7}[direction]
-dist_score = {"가까이": 1.0, "보통": 0.6, "멀리": 0.3}[distance]
-risk_score = round(dir_score * dist_score, 2)
-# → 상위 2개만 반환 (위험도 내림차순)
+# 클래스별 위험도 배수 (기본 1.0 = 일반 장애물)
+CLASS_RISK_MULTIPLIER = {
+    "car": 3.0, "bus": 3.5, "truck": 3.5, "train": 4.0,  # 이동 차량
+    "bicycle": 2.0, "skateboard": 2.0,                    # 이동 수단
+    "elephant": 4.0, "bear": 4.0, "horse": 2.5,           # 위험 동물
+    "dog": 1.8, "cow": 2.0,
+    "knife": 2.5, "scissors": 2.0,                        # 날카로운 물체
+}
+
+# 야외 차량: conf 낮춰서 멀리서도 일찍 감지 (안전 우선)
+CLASS_MIN_CONF = { "car": 0.38, "motorcycle": 0.38, "bus": 0.38 }
+
+# scene_analysis (전체 탐지 결과 분석)
+# - safe_direction: 정면 위험 시 가장 안전한 방향
+# - crowd_warning:  3명+ 군중 경고
+# - danger_warning: 칼·가위 3m 이내 경고
 ```
 
 ---
 
 ### MODULE D: Depth 거리 추정 + STT/TTS
 **담당**: 문수찬 | **브랜치**: `feature/voice`  
-**파일**: `src/depth/depth.py`, `src/voice/stt.py`, `src/voice/tts.py`
-
-**거리 측정 방식 비교 및 선택:**
-
-| | 방법 A — bbox 비율 | 방법 B — Depth Anything V2 | 방법 C — Depth Pro |
-|---|---|---|---|
-| 난이도 | 낮음 | 중간 | 높음 |
-| 정확도 | 낮음 | 중간~높음 | 높음 |
-| 모바일 지원 | O | O (ONNX 변환) | X |
-| 추가 비용 | 없음 | 없음 (오픈소스) | 없음 (오픈소스) |
-| **적용 단계** | MVP 빠른 검증 | **본 구현 목표** | 고도화 단계 |
-
-MVP 단계 (bbox 비율):
-```python
-bbox_area = (x2 - x1) * (y2 - y1)
-frame_area = frame_w * frame_h
-ratio = bbox_area / frame_area
-
-if ratio > 0.15:   distance = "가까이"
-elif ratio > 0.05: distance = "보통"
-else:              distance = "멀리"
-```
-
-서버 연동 후 (Depth Anything V2):
-```python
-from depth_anything_v2.dpt import DepthAnythingV2
-
-model = DepthAnythingV2(encoder='vits', features=64, out_channels=[48, 96, 192, 384])
-model.load_state_dict(torch.load('depth_anything_v2_vits.pth'))
-model.eval()
-
-depth_map = model.infer_image(raw_img)  # HxW numpy array
-
-# YOLO bbox 중심의 깊이값 추출
-cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-depth_val = depth_map[cy][cx]
-
-# 주의: 상대적(relative) depth → 임계값은 4/28 실내 실험으로 결정
-if depth_val < 0.3:   distance_label = "가까이"
-elif depth_val < 0.6: distance_label = "보통"
-else:                 distance_label = "멀리"
-```
+**파일**: `src/depth/depth.py`, `src/depth/hazard.py`, `src/voice/stt.py`, `src/voice/tts.py`
 
 ```python
-def estimate_distance(image_np, x1, y1, x2, y2) -> str:
-    """bbox 중심점 depth 값으로 거리 분류 → "가까이" / "보통" / "멀리" """
+# 반환: (objects, hazards, scene) 3-tuple
+def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict], dict]:
 
-def listen_and_classify() -> tuple[str, str]:
-    """Returns: (원문 텍스트, 모드명)
-    모드: "장애물" / "찾기" / "확인" / "저장" / "위치목록"
-    키워드 미매칭 시 → "장애물" (기본값, unknown으로 버리지 않음)
-    """
+# Depth Anything V2 (NeurIPS 2024, ViT-S, Apache-2.0)
+# - GPU 자동 감지 (CUDA/CPU)
+# - 보수 추정: bbox 내 하위 30% 깊이값 사용 (더 가깝게 → 조기 경고)
+# - 거리 임계값: 0.8m/2.0m/4.0m/7.0m (5단계)
+# - 모델 없을 때: bbox 면적 기반 자동 fallback
 
-def speak(text: str):
-    """한국어 텍스트 → 음성 재생 (gTTS 사용)"""
+# 계단·낙차·턱 감지 (hazard.py)
+# - 이미지 하단 바닥 영역을 12개 수평 밴드로 분할
+# - 깊이 1.2m 이상 급증 → "낙차/계단" / 1.0m 이상 급감 → "턱"
+# - YOLO가 못 잡는 바닥 위험 보완
+
+# STT (stt.py) — 5모드, 키워드 15개+, fallback
+KEYWORDS = {
+    "장애물": ["앞에 뭐 있어", "주변 알려줘", "분석해줘", ...],  # 17개
+    "찾기":   ["찾아줘", "어디있어", "어디야", ...],
+    "확인":   ["이거 뭐야", "이게 뭐야", ...],
+    "저장":   ["여기 저장", "저장해줘", "기억해줘", ...],
+    "위치목록": ["저장된 곳", "내 장소", ...],
+}
+# 미매칭 시 → "장애물" 모드 (버리지 않음)
+
+# TTS (tts.py)
+# gTTS → MD5 해시 캐시 → pygame 재생 (동일 문장 즉시 재생)
 ```
 
 ---
@@ -399,27 +384,49 @@ def speak(text: str):
 **파일**: `src/nlg/sentence.py`, `src/nlg/templates.py`
 
 ```python
-def build_sentence(objects: list[dict], changes: list[str]) -> str:
-    """
-    규칙:
-    1. objects가 비어있으면 → "주변에 장애물이 없어요."
-    2. risk_score 가장 높은 것을 먼저 안내
-    3. changes가 있으면 마지막에 추가
-    4. 문장은 최대 2문장
-    """
+# 긴박도 4단계 분기
+def build_sentence(objects, changes, camera_orientation="front") -> str:
+    if dist_m < 0.5:   → "위험! 바로 앞 의자!"           # 최단 문장
+    if dist_m < 1.0:   → "바로 앞에 의자가 있어요. 약 80cm. 멈추세요."
+    if dist_m < 2.5:   → "왼쪽 앞에 의자가 있어요. 약 1.5m. 피해가세요."
+    else:              → "왼쪽에 의자가 있어요. 약 3.0m."   # 정보만
 
-TEMPLATES = {
-    ("left",   "가까이"): "{obj}가 왼쪽 바로 앞에 있어요. 오른쪽으로 비켜보세요.",
-    ("center", "가까이"): "{obj}가 정면 가까이에 있어요. 멈추세요.",
-    ("right",  "가까이"): "{obj}가 오른쪽 바로 앞에 있어요. 왼쪽으로 비켜보세요.",
-    ("left",   "보통"):   "{obj}가 왼쪽에 있어요.",
-    ("center", "보통"):   "{obj}가 앞에 있어요. 조심하세요.",
-    ("right",  "보통"):   "{obj}가 오른쪽에 있어요.",
-    ("left",   "멀리"):   "{obj}가 왼쪽 멀리에 있어요.",
-    ("center", "멀리"):   "{obj}가 멀리 앞에 있어요.",
-    ("right",  "멀리"):   "{obj}가 오른쪽 멀리에 있어요.",
-    # 30~50개로 확장 예정
-}
+# 차량·동물 전용 긴급 문장
+if is_vehicle and dist_m < 3.0: → "위험! 오른쪽에 자동차가 있어요! 즉시 멈추세요!"
+if is_animal:                   → "조심! 왼쪽에 개가 있어요. 천천히 피해가세요."
+
+# 안전경로 + 군중 + 위험물체 (scene_analysis 결과 문장화)
+def build_scene_sentence(scene) -> str
+# 예: "왼쪽 방향이 가장 안전해요." / "사람이 많아요. 천천히 이동하세요."
+
+# 한국어 조사 자동화 (받침 유무 판별)
+def _i_ga(word):   → "의자가" / "책이"
+def _un_neun(word) → "의자는" / "책은"
+def _eul_reul(word)→ "의자를" / "책을"
+
+# 물건 찾기 모드
+def build_find_sentence(target, objects) -> str
+# "의자 찾아줘" → "의자는 왼쪽 앞에 있어요. 약 2m." / "의자는 보이지 않아요."
+
+# 개인 네비게이팅 모드
+def build_navigation_sentence(label, action, locations) -> str
+# save → "편의점을 저장했어요."
+# list → "저장된 장소는 편의점, 화장실이에요."
+```
+
+---
+
+### 전체 파이프라인 코드 (신유득 통합)
+
+```python
+# src/api/routes.py — /detect 흐름 요약
+objects, hazards, scene = detect_and_depth(image_bytes)   # C+D
+objects, motion_changes = tracker.update(objects)          # B
+space_changes = _space_changes(objects, db.get_snapshot()) # B
+sentence = build_sentence(objects, all_changes)            # E
+sentence += scene_warnings(scene)                         # E+C
+
+return { sentence, objects, hazards, scene, changes }
 ```
 
 ---
@@ -528,20 +535,18 @@ refactor(depth): depth 임계값 하드코딩 제거
 
 | 날짜 | 정환주 (Android) | 신유득 (서버) | 김재현 (YOLO) | 문수찬 (Depth+음성) | 임명광 (문장+발표) |
 |------|------|------|------|------|------|
-| 4/24 ✅ | Android 환경 세팅 | FastAPI + Gradio MVP | YOLO11m + 방향 판단 | gTTS/pygame TTS | 문장 템플릿 시작 |
-| 4/25 ✅ | CameraX + ONNX 온디바이스 + failsafe | Depth V2 통합 + EMA 추적 + 공간 DB | **파인튜닝 계단 mAP50=0.992** | STT + 계단·낙차 감지 | NLG 긴박도 4단계 |
-| **4/26 ✅🔥** | **Android 독립 앱 완성** | **개인 네비게이팅 + COCO81 + 안전경로** | **41개 테스트 폴더 + YOLO-World** | **STT 5모드 + 키워드 확장** | **LEARN.md + 발표 자료** |
-| 4/27 (월) | APK 실기기 배포 테스트 | 전체 통합 테스트 + 버그 수정 | 테스트 이미지 수집 시작 | STT 소음 환경 테스트 | PPT 초안 작성 |
-| 4/28 | 실기기 QA | 서버 안정화 | 인식률 측정 | 임계값 튜닝 | 서비스 비교표 |
-| 4/29 | 서버 통신 구현 | 공간 API 작성 | `detect()` 함수 작성 | 임계값 튜닝 | 기존 서비스 비교표 |
-| 4/30 | 이미지 전송 | ngrok 설정 | 인식률 테스트 | STT 소음 환경 테스트 | 데모 스크립트 |
-| 5/1  | 시나리오 1 완성 | 서버 안정화 | 테스트 이미지 수집 | `detect_and_depth()` 작성 | PPT 구조 확정 |
-| 5/2  | 공간 기억 연동 | 공간 연동 테스트 | 오차 케이스 분석 | `build_sentence` 지원 | PPT 본문 작성 |
-| 5/6  | 시나리오 2·3 완성 | 통합 테스트 | 최종 인식률 정리 | 전체 음성 흐름 점검 | PPT 완성 |
-| 5/7  | UI 개선 | 서버 문서화 | 함수 최종 완성 | 함수 최종 완성 | 발표 대본 작성 |
-| 5/8  | **전체 통합 테스트 + 오류 수정** ||||| 
-| 5/9  | **데모 영상 1차 녹화** |||||
-| 5/12 | **리허설 1~2회** |||||
+| 4/24 ✅ | Android 개발환경 세팅, 카메라 캡처 기초 | FastAPI 구조 설계, Gradio MVP | YOLO11m 설치, 9구역 방향 판단 | gTTS/pygame TTS, Google STT 연결 | 방향+거리+행동 문장 템플릿 설계 |
+| 4/25 ✅ | CameraX 1초 캡처, Android TTS, ONNX 온디바이스 | EMA 객체 추적기, SQLite 공간 DB, /detect API | **계단 파인튜닝 mAP50=0.992**, 위험도 스코어 | **Depth V2 서버 통합**, 계단·낙차 Depth 감지 | **NLG 긴박도 4단계**, 이/가 조사 자동화 |
+| **4/26 ✅🔥** | **Android 독립 앱** (서버 없이 동작), failsafe | **개인 네비게이팅** API (저장/찾기/목록) | **COCO80→81 전체**, YOLO-World 스텁, 테스트 폴더 41개 | **STT 5모드 + 키워드 15개+**, fallback | **안전경로·군중 경고** 문장, LEARN.md |
+| 4/27 (월) | APK 빌드 + 실기기 설치·동작 확인 | 전체 end-to-end 통합 테스트 | 테스트 이미지 수집 (차량·동물 등) | 소음 환경 STT 인식률 테스트 | PPT 초안 + 문제 정의 슬라이드 |
+| 4/28 | 앱 버그 수정 + UI 개선 | 서버 안정화, 예외 처리 | 인식률 측정 + 오인식 케이스 정리 | Depth 임계값 튜닝 | 경쟁 서비스 비교표 작성 |
+| 4/29 | 시나리오 1·2·3 앱에서 검증 | 공간 기억 연동 테스트 | 위험도 파라미터 최적화 | TTS 발음 자연스러움 개선 | 기술 슬라이드 작성 |
+| 4/30 | 데모 시나리오 영상 촬영 | ngrok 외부 접근 확인 | 테스트 이미지 추가 수집 | STT 소음 환경 재테스트 | 데모 스크립트 완성 |
+| 5/1~5/2 | 실기기 최종 QA | 서버 통합 안정화 | 전체 클래스 인식률 정리 | 음성 흐름 전체 점검 | PPT 본문 완성 |
+| 5/6~5/7 | 앱 최종 완성 | 서버 문서화 | 최종 인식률 데이터 정리 | 함수 최종 완성 | 발표 대본 완성 |
+| 5/8 | **전체 통합 테스트 + 오류 수정** ||||| 
+| 5/9  | **데모 영상 최종 녹화** |||||
+| 5/12 | **발표 리허설 1~2회** |||||
 | 5/13 | **최종 발표** |||||
 
 ---
