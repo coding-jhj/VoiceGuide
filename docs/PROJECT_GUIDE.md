@@ -81,10 +81,16 @@
 | Depth Anything V2 거리 추정 | ✅ 완료 | GPU 자동 감지, bbox 자동 fallback |
 | **계단/낙차/턱 감지** | ✅ 완료 | depth map 12구역 분석 (YOLO 보완) |
 | **YOLO11m 파인튜닝** | ✅ 완료 | 계단 클래스 추가, mAP50=0.992 |
+| **COCO 80→81 전체 클래스** | ✅ 완료 | 야외 차량·동물·날카로운 물체 포함 |
+| 차량 위험도 강화 | ✅ 완료 | 자동차·버스 3.5×, 기차 4.0× |
+| **안전 경로 제안** | ✅ 완료 | 정면 위험 시 가장 안전한 방향 자동 안내 |
+| **군중 밀집 경고** | ✅ 완료 | 3명+ "사람이 많아요", 5명+ "매우 혼잡" |
+| **위험 물체 경고** | ✅ 완료 | 칼·가위 3m 이내 시 즉시 경고 |
 | **객체 추적기 (EMA)** | ✅ 완료 | 프레임 jitter 제거, 접근/소멸 감지 |
-| STT 음성 명령 | ✅ 완료 | Android SpeechRecognizer, 3모드 전환 |
+| STT 음성 명령 | ✅ 완료 | Android SpeechRecognizer, **5모드** |
+| **개인 네비게이팅** | ✅ 완료 | 장소 저장·찾기·목록 (WiFi SSID 기반) |
+| **Android 완전 독립 동작** | ✅ 완료 | 서버 없이 폰 단독 ONNX 추론 |
 | 카메라 방향 자동 감지 | ✅ 완료 | 가속도 센서, front/left/right/back |
-| 온디바이스 추론 (ONNX) | ✅ 완료 | yolo11m.onnx 76.8MB, 서버 없이 동작 |
 | **Failsafe 음성 경고** | ✅ 완료 | 3회 실패/6초 무응답 → 음성 경고 |
 
 ---
@@ -117,8 +123,8 @@ uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 **2단계: 앱 실행 (폰)**
 
 1. VoiceGuide 앱 실행
-2. URL 입력란에 `http://172.30.1.36:8000` 입력
-3. **분석 시작** 버튼 탭
+2. **분석 시작** 버튼 탭 (URL 없이도 온디바이스 모드로 즉시 동작)
+3. 서버 연동 원할 시: URL 입력란에 `http://172.30.1.36:8000` 입력
 4. 카메라가 켜지며 **1초**마다 자동 분석 + 음성 안내 시작
 
 ### 데모 시나리오
@@ -485,7 +491,7 @@ conda install pyaudio
 
 # 3. 패키지 설치 + gradio_client 패치
 pip install -r requirements.txt
-python patch_gradio_client.py   # pip 재설치 후마다 재실행
+python tools/patch_gradio_client.py   # pip 재설치 후마다 재실행
 
 # 4. 환경변수
 cp .env.example .env
