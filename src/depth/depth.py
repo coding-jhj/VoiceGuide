@@ -107,14 +107,15 @@ def _label(dist_m: float) -> str:
     else:                             return "매우 멀리"
 
 
-def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict]]:
+def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict], dict]:
     """
     YOLO 탐지 + Depth V2 거리 정제 + 바닥 위험 감지.
     depth map을 이미지당 1회만 추론해 성능 최적화.
 
     Returns:
-        objects  — YOLO 탐지 결과 (거리 정제 포함)
+        objects  — YOLO 탐지 결과 (거리 정제 포함), 최대 3개
         hazards  — 계단/낙차/턱 등 바닥 위험 (Depth 기반, YOLO 불가 영역)
+        scene    — 안전경로·군중경고·위험물체 분석 결과
     """
     import cv2
     from src.depth.hazard import detect_floor_hazards

@@ -69,7 +69,7 @@ def bench_detection_pipeline(image_bytes: bytes) -> dict:
     """detect_and_depth() 반환값 구조 검증 및 탐지 동작 확인"""
     from src.depth.depth import detect_and_depth
 
-    objects, hazards = detect_and_depth(image_bytes)
+    objects, hazards, scene = detect_and_depth(image_bytes)
 
     required_fields = {"class", "class_ko", "bbox", "direction",
                         "distance", "distance_m", "risk_score", "is_ground_level"}

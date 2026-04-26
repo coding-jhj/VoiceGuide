@@ -17,7 +17,7 @@ def process_image(image, mode: str = "장애물"):
     _, encoded = cv2.imencode(".jpg", img_np)
     image_bytes = encoded.tobytes()
 
-    objects, hazards = detect_and_depth(image_bytes)
+    objects, hazards, scene = detect_and_depth(image_bytes)
 
     # 모드별 문장 생성
     if hazards and mode == "장애물":
@@ -33,6 +33,15 @@ def process_image(image, mode: str = "장애물"):
         sentence = f"카메라 중앙의 물체는 {center_objs[0]['class_ko']}입니다."
     else:
         sentence = build_sentence(objects, [])
+
+    # 안전 경로·군중·위험 물체 경고 추가
+    extras = [v for v in [
+        scene.get("danger_warning"),
+        scene.get("crowd_warning"),
+        scene.get("safe_direction"),
+    ] if v]
+    if extras:
+        sentence = sentence + " " + " ".join(extras)
 
     elapsed_ms = (time.time() - t0) * 1000
     speak(sentence)
@@ -98,8 +107,8 @@ demo = gr.Interface(
     ],
     title="VoiceGuide — 시각장애인 실내 보행 음성 안내 시스템",
     description=(
-        "YOLO11m 장애물 탐지 + Depth Anything V2 거리 추정 + 깊이 기반 계단/낙차 감지\n"
-        "Android 앱에서는 2초마다 자동 촬영 → 서버 전송 → 음성 출력이 실시간으로 이루어집니다."
+        "YOLO11m 81클래스 + Depth Anything V2 거리 추정 + 계단/낙차 감지 + 안전 경로 제안\n"
+        "Android 앱에서는 1초마다 자동 촬영 → 온디바이스 추론 → 음성 출력이 실시간으로 이루어집니다."
     ),
 )
 
