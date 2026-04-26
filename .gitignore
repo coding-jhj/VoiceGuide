@@ -22,8 +22,13 @@ venv/
 # macOS
 .DS_Store
 
-# 테스트 이미지 / 데이터셋 (용량 큼 — 별도 공유)
-data/test_images/
+# 테스트 이미지 파일 (용량 큼 — 별도 공유). 폴더 구조는 .gitkeep으로 유지
+data/test_images/**/*.jpg
+data/test_images/**/*.jpeg
+data/test_images/**/*.png
+data/test_images/**/*.JPG
+data/test_images/**/*.JPEG
+data/test_images/**/*.PNG
 datasets/
 
 # 학습 실행 결과 (로컬 전용)
