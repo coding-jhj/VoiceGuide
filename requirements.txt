@@ -11,7 +11,7 @@ torchvision==0.19.1
 # 2.x로 올리면 opencv, ultralytics 동작 충돌 발생
 numpy==1.26.4
 
-# 객체 탐지 (YOLO11n)
+# 객체 탐지 (YOLO11m + 파인튜닝)
 ultralytics==8.3.2
 
 # 이미지 처리
@@ -36,6 +36,13 @@ huggingface_hub<0.26
 fastapi==0.115.5
 uvicorn==0.32.1
 python-multipart==0.0.12
+
+# ONNX 내보내기 (export_tflite.py용)
+onnx
+onnxscript
+
+# 파인튜닝 데이터 수집 (train/prepare_dataset.py용)
+ddgs
 
 # 테스트
 httpx
