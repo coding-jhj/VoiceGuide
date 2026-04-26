@@ -491,7 +491,8 @@ refactor(depth): depth 임계값 하드코딩 제거
 | 4/24 ✅ | Android 환경 세팅 | FastAPI + Gradio MVP | YOLO11m + 방향 판단 | gTTS/pygame TTS | 문장 템플릿 시작 |
 | 4/25 ✅ | CameraX + ONNX 온디바이스 + failsafe | Depth V2 통합 + EMA 추적 + 공간 DB | **파인튜닝 계단 mAP50=0.992** | STT + 계단·낙차 감지 | NLG 긴박도 4단계 |
 | **4/26 ✅🔥** | **Android 독립 앱 완성** | **개인 네비게이팅 + COCO81 + 안전경로** | **41개 테스트 폴더 + YOLO-World** | **STT 5모드 + 키워드 확장** | **LEARN.md + 발표 자료** |
-| 4/28 | HTTP 기초 연결 | DAv2 연동 지원 | 위험도 스코어 | DAv2 서버 탑재·임계값 실험 | 유튜브 영상 3~5개 분석 |
+| 4/27 (월) | APK 실기기 배포 테스트 | 전체 통합 테스트 + 버그 수정 | 테스트 이미지 수집 시작 | STT 소음 환경 테스트 | PPT 초안 작성 |
+| 4/28 | 실기기 QA | 서버 안정화 | 인식률 측정 | 임계값 튜닝 | 서비스 비교표 |
 | 4/29 | 서버 통신 구현 | 공간 API 작성 | `detect()` 함수 작성 | 임계값 튜닝 | 기존 서비스 비교표 |
 | 4/30 | 이미지 전송 | ngrok 설정 | 인식률 테스트 | STT 소음 환경 테스트 | 데모 스크립트 |
 | 5/1  | 시나리오 1 완성 | 서버 안정화 | 테스트 이미지 수집 | `detect_and_depth()` 작성 | PPT 구조 확정 |
@@ -600,29 +601,62 @@ ipconfig   # Windows
 
 ---
 
-## 현재 구현 상태 (2026-04-26 기준)
+## 현재 구현 완료 목록 (2026-04-26 기준)
 
-### 완료된 기능
+### AI·비전
 
-| 기능 | 상태 | 비고 |
+| 기능 | 상태 | 상세 |
 |------|------|------|
-| YOLO11m 장애물 탐지 | ✅ 완료 | 신뢰도 0.60, 33종 클래스 |
-| 8방향 시계 방향 판단 | ✅ 완료 | 8시~4시, 위험도 가중치 |
-| Depth Anything V2 거리 추정 | ✅ 완료 | GPU 자동 감지, bbox fallback |
-| 위험도 스코어링 | ✅ 완료 | 방향 × 거리 × 바닥 여부 |
-| 한국어 문장 생성 | ✅ 완료 | 4단계 긴급도, 이/가 자동 조사 |
-| TTS 음성 출력 | ✅ 완료 | gTTS + 파일 캐시 (반복 재생 즉시) |
-| FastAPI 서버 | ✅ 완료 | `/detect`, `/spaces/snapshot` |
-| 공간 메모리 (WiFi SSID) | ✅ 완료 | SQLite, 등장/소멸 변화 감지 |
-| 객체 추적 (프레임 간) | ✅ 완료 | EMA 거리 평균화, 접근 경고 |
-| Gradio 데모 UI | ✅ 완료 | 바운딩 박스 시각화, 추론 시간 표시 |
-| Android 앱 | ✅ 완료 | CameraX, 2초 자동 캡처, Android TTS |
+| YOLO11m **COCO80 전체 + 계단** | ✅ | 81클래스, conf 클래스별 차등 적용 |
+| **계단 파인튜닝** | ✅ | 404장 학습, mAP50=**0.992** (정밀도 91.7% / 재현율 100%) |
+| 9방향 시계 방향 판단 | ✅ | 8시~4시, 위험도 가중치 (정면 1.0 → 양끝 0.3) |
+| 차량 위험도 강화 | ✅ | 자동차·버스·트럭 3.5×, 기차 4.0× |
+| 동물 위험도 | ✅ | 개 1.8×, 말 2.5×, 코끼리·곰 4.0× |
+| 날카로운 물체 경고 | ✅ | 칼 2.5×, 가위 2.0×, 유리잔 1.5× |
+| Depth Anything V2 거리 추정 | ✅ | GPU 자동 감지, bbox 면적 기반 fallback |
+| 깊이 맵 계단·낙차·턱 감지 | ✅ | 바닥 12구역 분석, YOLO 사각지대 보완 |
+| **안전 경로 제안** ⭐ | ✅ | 정면 위험 시 가장 안전한 방향 자동 안내 |
+| **군중 밀집 경고** ⭐ | ✅ | 3명+ "사람 많아요", 5명+ "매우 혼잡" |
+| **위험 물체 경고** ⭐ | ✅ | 칼·가위 3m 이내 시 즉시 경고 |
+| **YOLO-World 확장** ⭐ | ✅ | `YOLO_WORLD=1`로 전동킥보드·볼라드 등 추가 |
+| 위험도 스코어링 | ✅ | 방향 × 거리 × 바닥 여부 × 클래스 배수 |
+| 객체 추적 (EMA) | ✅ | 프레임 간 jitter 제거, 접근·소멸 감지 |
 
-| STT 음성 명령 (Android) | ✅ 완료 | "주변 알려줘" / "찾아줘" / "이거 뭐야" 3모드 |
-| STT 모드 선택 (Gradio) | ✅ 완료 | 장애물/찾기/확인 라디오 버튼 |
-| STT 엔드포인트 (서버) | ✅ 완료 | POST /stt |
-| 카메라 방향 자동 감지 | ✅ 완료 | 가속도 센서 기반, front/left/right/back |
-| ONNX 온디바이스 추론 | ✅ 완료 | yolo11m.onnx + NMS, 서버 fallback |
+### 서버·API
+
+| 기능 | 상태 | 상세 |
+|------|------|------|
+| FastAPI `/detect` | ✅ | 5모드 처리 + scene_analysis 응답 |
+| **개인 네비게이팅 API** ⭐ | ✅ | POST/GET/DELETE `/locations/*` |
+| 공간 기억 DB | ✅ | SQLite, WiFi SSID 기반 재방문 변화 감지 |
+| 서버 워밍업 | ✅ | 첫 요청 지연 없음 (lifespan 방식) |
+| 전역 예외 핸들러 | ✅ | 오류 시에도 음성 안내 반환 |
+| Gradio 데모 | ✅ | 바운딩 박스 시각화, 추론 시간 표시 |
+
+### Android 앱
+
+| 기능 | 상태 | 상세 |
+|------|------|------|
+| **완전 독립 동작** ⭐ | ✅ | 서버 URL 없이 즉시 실행 |
+| **ONNX 온디바이스 추론** | ✅ | yolo11m.onnx, 서버 연결 실패 시 자동 전환 |
+| CameraX 1초 자동 캡처 | ✅ | 즉시 첫 캡처, 같은 문장 반복 방지 |
+| Android TTS | ✅ | 한국어, 속도 1.1배 |
+| STT **5모드 음성 명령** | ✅ | 장애물/찾기/확인/저장/위치목록, 키워드 15개+ |
+| STT 미인식 fallback | ✅ | 어떤 말을 해도 기본 장애물 모드로 동작 |
+| **개인 네비게이팅** ⭐ | ✅ | SharedPreferences 장소 저장·찾기·목록 |
+| 카메라 방향 자동 감지 | ✅ | 가속도 센서 → front/left/right/back |
+| WiFi SSID 수집 | ✅ | 공간 기억 연동 |
+| Failsafe + Watchdog | ✅ | 3회 실패 경고, 6초 무응답 경고 |
+
+### 문서·도구
+
+| 파일 | 내용 |
+|------|------|
+| `docs/LEARN.md` | 팀원 공부용 코드 주석 가이드 |
+| `docs/TEAM_BRIEFING.md` | 발표 대본 + Q&A 대비 + 리스크 대응 |
+| `docs/PRESENTATION.md` | 경쟁사 비교 + APK 설치 방법 |
+| `tools/benchmark.py` | 자동 성능 측정 (방향·문장·응답시간) |
+| `data/test_images/` | 41개 카테고리 폴더 (실내외 전체) |
 
 ---
 
@@ -640,11 +674,38 @@ ipconfig   # Windows
 
 ## 참고 자료
 
-| 자료 | 내용 |
+### AI 모델
+
+| 자료 | 링크 |
 |------|------|
-| Depth Anything V2 (NeurIPS 2024) | 단안 depth estimation SOTA, Small 모델 Apache-2.0 라이선스 |
-| [Depth Anything Android](https://github.com/shubham0204/Depth-Anything-Android) | ONNX 기반 Android 온디바이스 구현 오픈소스 |
-| Apple Depth Pro (ICLR 2025) | 절대 미터 단위 depth 출력, 라이선스 제한으로 고도화 단계 검토 |
-| VISA 시스템 논문 — J. Imaging 2025, 11(1):9 | 시각장애인 실내 내비게이션, AR+YOLO+depth 결합 구현 사례 |
-| UC Davis 사용자 조사 — arxiv:2504.06379 | 시각장애인 내비게이션 니즈 정성 조사, 행동 안내 부재가 핵심 불편 |
-| Nature Scientific Reports — DOI:10.1038/s41598-025-91755-w | 시각장애인 가정 내 보조기기 사용 현황 통계 |
+| Depth Anything V2 (NeurIPS 2024) | [depth-anything-v2.github.io](https://depth-anything-v2.github.io) |
+| Depth Anything V2 논문 | [arxiv.org/abs/2406.09414](https://arxiv.org/abs/2406.09414) |
+| Depth Anything V2 모델 가중치 | [huggingface.co/depth-anything](https://huggingface.co/depth-anything/Depth-Anything-V2-Small) |
+| YOLO11 공식 문서 | [docs.ultralytics.com/models/yolo11](https://docs.ultralytics.com/models/yolo11/) |
+| YOLO11 GitHub | [github.com/ultralytics/ultralytics](https://github.com/ultralytics/ultralytics) |
+| Apple Depth Pro (ICLR 2025) | [machinelearning.apple.com/research/depth-pro](https://machinelearning.apple.com/research/depth-pro) |
+
+### Android 구현
+
+| 자료 | 링크 |
+|------|------|
+| Depth Anything Android (ONNX) | [github.com/shubham0204/Depth-Anything-Android](https://github.com/shubham0204/Depth-Anything-Android) |
+| ONNX Runtime Android 가이드 | [onnxruntime.ai/docs/tutorials/mobile](https://onnxruntime.ai/docs/tutorials/mobile/) |
+| CameraX 공식 문서 | [developer.android.com/training/camerax](https://developer.android.com/training/camerax) |
+
+### 사용자 조사 · 논문
+
+| 자료 | 링크 |
+|------|------|
+| UC Davis 사용자 조사 (2024) — 행동 안내 부재가 핵심 불편 | [arxiv.org/abs/2504.06379](https://arxiv.org/abs/2504.06379) |
+| Nature Scientific Reports (2025) — 보조기기 실사용 포기 원인 | [doi.org/10.1038/s41598-025-91755-w](https://doi.org/10.1038/s41598-025-91755-w) |
+| VISA 시스템 논문 (J. Imaging 2025) — AR+YOLO+Depth 실내 내비 | [doi.org/10.3390/jimaging11010009](https://doi.org/10.3390/jimaging11010009) |
+| WHO 시각장애 통계 — 전 세계 2억 8500만 명 | [who.int/news-room/fact-sheets/detail/blindness-and-visual-impairment](https://www.who.int/news-room/fact-sheets/detail/blindness-and-visual-impairment) |
+
+### 경쟁 서비스
+
+| 서비스 | 링크 |
+|--------|------|
+| Google Lookout | [lookout.app](https://lookout.app) |
+| Microsoft Seeing AI | [microsoft.com/en-us/ai/seeing-ai](https://www.microsoft.com/en-us/ai/seeing-ai) |
+| Be My Eyes | [bemyeyes.com](https://www.bemyeyes.com) |
