@@ -25,7 +25,11 @@ class YoloDetector(context: Context) {
     private val iouThreshold = 0.45f
 
     init {
-        val bytes = context.assets.open("yolo11m.onnx").readBytes()
+        // yolo11m.onnx가 있으면 우선 사용, 없으면 yolo11n.onnx fallback
+        val modelName = try {
+            context.assets.open("yolo11m.onnx").close(); "yolo11m.onnx"
+        } catch (_: Exception) { "yolo11n.onnx" }
+        val bytes = context.assets.open(modelName).readBytes()
         session = env.createSession(bytes, OrtSession.SessionOptions())
     }
 
