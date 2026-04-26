@@ -73,7 +73,7 @@ RISK_DIST = {
 # ── 위험 카테고리별 배수 ─────────────────────────────────────────────────
 # 이동 차량은 정적 장애물보다 훨씬 위험 → 위험도 배수 적용
 VEHICLE_CLASSES = {"car", "motorcycle", "bus", "truck", "train"}
-ANIMAL_CLASSES  = {"dog", "horse", "cat"}   # 개/말은 돌발 행동 위험
+ANIMAL_CLASSES  = {"dog", "horse", "cat", "cow", "bird", "sheep"}  # 돌발 행동 위험
 
 # 클래스별 위험도 배수 (기본 1.0 = 일반 장애물)
 CLASS_RISK_MULTIPLIER = {
@@ -88,6 +88,9 @@ CLASS_RISK_MULTIPLIER = {
     # 동물 — 돌발 행동
     "dog":        1.8,
     "horse":      2.5,
+    "cow":        2.0,   # 소: 체구 크고 예측 어려움
+    "bird":       1.2,   # 새: 갑자기 날아오를 수 있음
+    "sheep":      1.5,
     # 교통 시설 — 정보용
     "traffic light": 0.8,
     "stop sign":     0.6,
@@ -116,6 +119,9 @@ TARGET_CLASSES = {
     "dog":           "개",
     "cat":           "고양이",
     "horse":         "말",
+    "cow":           "소",
+    "bird":          "새",
+    "sheep":         "양",
 
     # 대형 가구·구조물 (실내외)
     "bench":         "벤치",
@@ -156,8 +162,11 @@ CLASS_CALIB_RATIO = {
     "truck":         0.50,   # 폭 220cm + 높이 280cm
     "motorcycle":    0.08,   # 폭 80cm
     "bicycle":       0.06,   # 폭 60cm
-    "dog":           0.04,   # 중형견 기준
+    "dog":           0.04,
     "horse":         0.20,
+    "cow":           0.18,
+    "bird":          0.01,
+    "sheep":         0.06,
     "bench":         0.15,
     "chair":         0.06,
     "couch":         0.20,
