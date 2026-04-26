@@ -3,7 +3,7 @@ VoiceGuide 자동 성능 실험 스크립트
 ====================================
 사용법:
     conda activate ai_env
-    python benchmark.py
+    python tools/benchmark.py
 
 측정 항목:
     1. 5종 탐지 성공률 (목표: 80% 이상)
@@ -13,6 +13,11 @@ VoiceGuide 자동 성능 실험 스크립트
 
 결과는 results/eval_log.md 에 자동 기록됩니다.
 """
+import sys
+from pathlib import Path
+# tools/ 에서 실행해도 src/ 등 루트 패키지를 찾을 수 있도록
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
@@ -20,7 +25,7 @@ import time
 import cv2
 import numpy as np
 from datetime import datetime
-from pathlib import Path
+
 
 # ── 테스트 이미지 생성 ──────────────────────────────────────────────────────
 def _make_dummy_image(h=480, w=640):
@@ -55,7 +60,7 @@ def bench_response_time(image_bytes: bytes, n: int = 5) -> dict:
         "mean_ms":  round(sum(times) / len(times), 1),
         "min_ms":   round(min(times), 1),
         "max_ms":   round(max(times), 1),
-        "pass":     (sum(times) / len(times)) < 3000,  # 목표: 3초 이내
+        "pass":     (sum(times) / len(times)) < 3000,
     }
 
 
@@ -70,7 +75,7 @@ def bench_detection_pipeline(image_bytes: bytes) -> dict:
                         "distance", "distance_m", "risk_score", "is_ground_level"}
     field_ok = all(
         required_fields.issubset(set(obj.keys())) for obj in objects
-    ) if objects else True  # 랜덤 이미지에서는 탐지 0개여도 정상
+    ) if objects else True
 
     direction_ok = all(
         obj["direction"] in {"8시","9시","10시","11시","12시","1시","2시","3시","4시"}
@@ -105,8 +110,6 @@ def bench_direction_accuracy() -> dict:
     """
     from src.vision.detect import ZONE_BOUNDARIES
 
-    # 이미지 너비 1000px 기준으로 각 방향 중심 x 좌표 계산
-    # 예: 12시 = 0.44~0.56 → 중심 0.50
     DIRECTION_CENTERS = {
         "8시":  0.055,
         "9시":  0.165,
@@ -123,7 +126,7 @@ def bench_direction_accuracy() -> dict:
     errors = []
 
     for expected_dir, cx_ratio in DIRECTION_CENTERS.items():
-        predicted_dir = "4시"  # 기본값
+        predicted_dir = "4시"
         for boundary, label in ZONE_BOUNDARIES:
             if cx_ratio <= boundary:
                 predicted_dir = label
@@ -140,7 +143,7 @@ def bench_direction_accuracy() -> dict:
         "correct":  correct,
         "accuracy": accuracy,
         "errors":   errors,
-        "pass":     accuracy >= 90.0,  # 목표: 90% 이상
+        "pass":     accuracy >= 90.0,
     }
 
 
@@ -170,7 +173,6 @@ def bench_sentence_generation() -> dict:
         except Exception as e:
             errors.append(f"오류({obj['direction']} {obj['distance']}): {e}")
 
-    # 빈 objects 처리
     empty_result = build_sentence([], [])
     empty_ok = empty_result == "주변에 장애물이 없어요."
 
@@ -197,7 +199,7 @@ def bench_depth_model() -> dict:
 # ── eval_log.md 업데이트 ──────────────────────────────────────────────────────
 def update_eval_log(results: dict):
     """results/eval_log.md 기존 내용 유지 + 새 실험 결과 추가"""
-    log_path = Path("results/eval_log.md")
+    log_path = Path(__file__).parent.parent / "results" / "eval_log.md"
     existing = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -213,7 +215,7 @@ def update_eval_log(results: dict):
 ## 자동 실험 결과 — {now}
 
 ### 실험 환경
-- 스크립트: `benchmark.py` (자동 실행)
+- 스크립트: `tools/benchmark.py` (자동 실행)
 - Python: 3.10 (conda ai_env)
 - Depth 모드: {dep['mode']} (device: {dep['device']})
 - 테스트 이미지: 640×480 랜덤 JPEG + 실제 테스트 이미지
@@ -257,7 +259,6 @@ def update_eval_log(results: dict):
 {('- 오류 케이스: ' + str(nlg['errors'])) if nlg['errors'] else '- 오류 없음 ✅'}
 """
 
-    # 기존 내용 맨 뒤에 추가 (삭제 없음)
     log_path.write_text(existing + new_block, encoding="utf-8")
     print(f"\n✅ 결과 저장 완료: {log_path}")
 
@@ -268,8 +269,7 @@ def main():
     print("VoiceGuide 자동 성능 실험 시작")
     print("=" * 60)
 
-    # 실제 테스트 이미지 우선 사용, 없으면 랜덤
-    real_img_path = "test_chair.jpg"
+    real_img_path = "data/test_images/chair/chair_000.jpg"
     image_bytes = _load_real_image(real_img_path) or _make_dummy_image()
     img_label = real_img_path if _load_real_image(real_img_path) else "랜덤 더미 이미지"
     print(f"\n[이미지] {img_label}")
@@ -321,5 +321,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import sys
     sys.exit(main())
