@@ -42,7 +42,8 @@ def _primary(obj: dict, abs_clock: str) -> str:
     # 바닥 장애물 (발에 걸릴 위험)
     if is_ground and dist_m < 2.0:
         if dist_m < 0.8:
-            return f"조심! 발 아래 {name}. {action}."
+            # "발 아래 가방" → "발 앞에 가방이 있어요" 로 자연스럽게
+            return f"조심! 바로 앞 바닥에 {name}{ig} 있어요. {action}."
         return f"조심! {direction} 바닥에 {name}{ig} 있어요. {action}."
 
     # 거리별 긴급도 — 짧을수록 더 짧고 강한 문장
@@ -51,8 +52,8 @@ def _primary(obj: dict, abs_clock: str) -> str:
         return f"위험! {direction} {name}!"
 
     if dist_m < 1.0:
-        # 긴급: 행동 먼저
-        return f"{action}! {direction}에 {name}{ig} 있어요. {dist_str}."
+        # 긴급: 방향+물체 먼저 → 행동. "피해가세요! 왼쪽에 의자" 보다 "왼쪽에 의자가 있어요. 피해가세요."가 더 직관적
+        return f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
 
     if dist_m < 2.5:
         # 경고: 방향 + 거리 + 행동
@@ -118,5 +119,6 @@ def build_hazard_sentence(
         return h_msg
 
     # 중간 위험: 계단 경고 + 주요 장애물 1개 이어서 안내
+    # "또한," → "그리고" 로 구어체 자연스럽게
     obj_sentence = build_sentence(objects[:1], [], camera_orientation)
-    return f"{h_msg} 또한, {obj_sentence}"
+    return f"{h_msg} 그리고 {obj_sentence}"
