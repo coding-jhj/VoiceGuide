@@ -123,7 +123,7 @@ def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict]]:
     nparr    = np.frombuffer(image_bytes, np.uint8)
     image_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    objects = detect_objects(image_bytes)
+    objects, scene = detect_objects(image_bytes)   # scene_analysis도 받음
     hazards: list[dict] = []
 
     if _check_model():
@@ -144,4 +144,4 @@ def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict]]:
         for obj in objects:
             obj["depth_source"] = "bbox"
 
-    return objects, hazards
+    return objects, hazards, scene

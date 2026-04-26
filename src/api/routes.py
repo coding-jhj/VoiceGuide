@@ -57,7 +57,7 @@ async def detect(
 
     # ── 이미지 분석 공통 흐름 ─────────────────────────────────────────────────
     image_bytes = await image.read()
-    objects, hazards = detect_and_depth(image_bytes)
+    objects, hazards, scene = detect_and_depth(image_bytes)
 
     tracker = get_tracker(wifi_ssid or "__default__")
     objects, motion_changes = tracker.update(objects)
@@ -88,12 +88,22 @@ async def detect(
     else:
         sentence = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
 
+    # 안전 경로·군중·위험 물체 경고를 문장 뒤에 추가 (있을 때만)
+    extras = [v for v in [
+        scene.get("danger_warning"),
+        scene.get("crowd_warning"),
+        scene.get("safe_direction"),
+    ] if v]
+    if extras:
+        sentence = sentence + " " + " ".join(extras)
+
     return {
-        "sentence":    sentence,
-        "objects":     objects,
-        "hazards":     hazards,
-        "changes":     all_changes,
-        "depth_source": objects[0].get("depth_source", "bbox") if objects else "bbox",
+        "sentence":      sentence,
+        "objects":       objects,
+        "hazards":       hazards,
+        "changes":       all_changes,
+        "scene":         scene,
+        "depth_source":  objects[0].get("depth_source", "bbox") if objects else "bbox",
     }
 
 
