@@ -42,6 +42,7 @@ class SessionTracker:
                         changes.append(f"{name}{_i_ga(name)} 사라졌어요")
                     del self._tracks[cls]
 
+
         # ── EMA 평균화 + 접근 감지 ─────────────────────────────────────────
         smoothed = []
         for obj in objects:
