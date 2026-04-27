@@ -146,7 +146,7 @@ def _primary(obj: dict, abs_clock: str) -> str:
     # 이유: 차량은 0.5m까지 기다리면 이미 늦음
     if is_vehicle:
         if dist_m < 3.0:
-            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 즉시 {action}!"
+            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"
         if dist_m < 8.0:
             # "접근 중"이라고 표현해서 이동 물체임을 강조
             return f"조심! {direction}에 {name}{ig}접근 중이에요. {dist_str}. {action}."
