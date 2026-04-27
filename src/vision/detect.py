@@ -254,21 +254,36 @@ _GROUND_CLASSES = {
 
 
 def _detect_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
-    """물체 중심부 색상을 HSV로 감지."""
+    """
+    물체 중심부를 잘라서 HSV 색공간으로 색상을 분류합니다.
+
+    왜 BGR이 아닌 HSV인가?
+      BGR(파란/초록/빨간 채널 혼합)은 색상 판별에 부적합합니다.
+      HSV = Hue(색조) / Saturation(채도) / Value(명도)
+      → H값 하나로 색상 분류 가능, 조명 밝기 변화에 덜 민감
+
+    HSV H값 범위 (OpenCV 기준 0~180):
+      빨강: 0~15 또는 165~180 (원형이라 양쪽에 있음)
+      주황: 15~30, 노랑: 30~45, 초록: 45~75
+      파랑: 75~130, 보라: 130~165
+    """
     import cv2
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+    # 물체 중심의 작은 정사각형 영역만 분석 (배경 제외)
     r = max(5, min((x2 - x1) // 4, (y2 - y1) // 4))
     crop = img[max(0, cy - r):cy + r, max(0, cx - r):cx + r]
     if crop.size == 0:
         return "알 수 없음"
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    h_val = float(hsv[:, :, 0].mean())
-    s_val = float(hsv[:, :, 1].mean())
-    v_val = float(hsv[:, :, 2].mean())
+    h_val = float(hsv[:, :, 0].mean())  # 색조 평균
+    s_val = float(hsv[:, :, 1].mean())  # 채도 평균 (낮으면 무채색)
+    v_val = float(hsv[:, :, 2].mean())  # 명도 평균
+    # 채도가 낮으면 무채색 계열 (흰/회/검)
     if s_val < 40:
         if v_val > 180: return "흰색"
         if v_val > 80:  return "회색"
         return "검은색"
+    # 채도 있으면 H값으로 색상 분류
     if h_val < 15 or h_val >= 165: return "빨간색"
     if h_val < 30:  return "주황색"
     if h_val < 45:  return "노란색"
@@ -279,21 +294,36 @@ def _detect_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
 
 
 def _detect_traffic_light_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
-    """신호등 bbox 내 빨간불/초록불 구별."""
+    """
+    신호등 bbox에서 빨간불/초록불을 구별합니다.
+
+    신호등 구조 (수직형 기준):
+      위쪽 1/3 → 빨간불 위치
+      아래쪽 1/3 → 초록불 위치
+
+    판별 방법:
+      - 해당 영역을 HSV로 변환
+      - 빨강 마스크: H=0~15 or 165~180, S>=100, V>=100
+      - 초록 마스크: H=40~85, S>=100, V>=100
+      - 해당 색 픽셀이 전체의 5% 이상이면 그 색으로 판정
+      - 5% 미만이면 "unknown" (야간, 가림막 등)
+    """
     import cv2
     crop = img[y1:y2, x1:x2]
     if crop.size == 0 or crop.shape[0] < 6:
         return "unknown"
     h = crop.shape[0]
-    top    = crop[:h // 3]
-    bottom = crop[h * 2 // 3:]
+    top    = crop[:h // 3]       # 위쪽 1/3 (빨간불 영역)
+    bottom = crop[h * 2 // 3:]   # 아래쪽 1/3 (초록불 영역)
     hsv_top = cv2.cvtColor(top,    cv2.COLOR_BGR2HSV)
     hsv_bot = cv2.cvtColor(bottom, cv2.COLOR_BGR2HSV)
+    # 빨강은 HSV H값이 0근처와 180근처 두 곳에 걸쳐 있음 → OR 결합
     red_mask = (
         cv2.inRange(hsv_top, (0, 100, 100),   (15, 255, 255)) |
         cv2.inRange(hsv_top, (165, 100, 100), (180, 255, 255))
     )
     green_mask = cv2.inRange(hsv_bot, (40, 100, 100), (85, 255, 255))
+    # mean()/255: 마스크 픽셀 비율 (0.0~1.0), 5% 이상이면 해당 색으로 판정
     if green_mask.mean() / 255 > 0.05:
         return "green"
     if red_mask.mean() / 255 > 0.05:
@@ -303,69 +333,99 @@ def _detect_traffic_light_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
 
 def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
     """
-    반환: (top3_objects, scene_analysis)
-    scene_analysis = {
-        "safe_direction": str | None,   # 안전 경로 제안
-        "crowd_warning":  str | None,   # 군중 경고
-        "danger_warning": str | None,   # 위험 물체 경고
-        "person_count":   int,
-    }
+    YOLO로 물체를 탐지하고 방향·거리·위험도·색상·신호등 상태를 계산합니다.
+
+    처리 순서:
+      1. 이미지 디코딩 + 좌우 flip (mirror 보정)
+      2. YOLO 추론 → 모든 bbox 추출
+      3. 각 bbox마다: 방향 구역, 면적 기반 거리, 위험도 점수, 경고 레벨 계산
+      4. 신호등이면 색상 감지, 모든 물체에 색상 감지 실행
+      5. 점자 블록 경로 위 장애물 확인
+      6. scene_analysis: 안전경로·군중·위험물체·신호등 전체 분석
+      7. 위험도 상위 3개만 반환
+
+    Returns:
+      top3_objects: 위험도 높은 물체 최대 3개
+      scene: 안전경로·군중경고·위험물체경고·신호등·점자블록 경고
     """
     import numpy as np
     import cv2
 
+    # 이미지 바이트 → numpy 배열 → OpenCV 이미지
     nparr = np.frombuffer(image_bytes, np.uint8)
     img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    img   = cv2.flip(img, 1)   # 좌우 반전 보정 (카메라 mirror 현상)
-    h, w  = img.shape[:2]
+    img   = cv2.flip(img, 1)   # 좌우 반전: 카메라 mirror 현상 보정 (오른쪽↔왼쪽 교정)
+    h, w  = img.shape[:2]      # 이미지 높이, 너비
 
+    # YOLO 추론: conf=CONF_THRESHOLD 미만 박스는 자동 필터링
     results    = model(img, conf=CONF_THRESHOLD)[0]
     all_detections = []
 
     for box in results.boxes:
-        cls_name = model.names[int(box.cls)]
+        cls_name = model.names[int(box.cls)]  # 영어 클래스명 (예: "chair")
+
+        # TARGET_CLASSES에 없는 클래스는 무시 (COCO 중 보행 무관한 것들)
         if cls_name not in TARGET_CLASSES:
             continue
 
+        # 클래스별 최소 신뢰도 적용 (소형 물체는 높게, 차량은 낮게)
         conf = float(box.conf[0])
         if conf < CLASS_MIN_CONF.get(cls_name, CONF_THRESHOLD):
             continue
 
+        # bbox 좌표: xyxy 포맷 (왼쪽상단x, 왼쪽상단y, 오른쪽하단x, 오른쪽하단y)
         x1, y1, x2, y2 = map(int, box.xyxy[0])
-        cx_norm = ((x1 + x2) / 2) / w
 
-        direction = "4시"
+        # 방향 판단: bbox 중심의 x좌표를 이미지 너비로 정규화 (0~1)
+        # → ZONE_BOUNDARIES와 비교해서 8시~4시 중 어느 구역인지 결정
+        cx_norm = ((x1 + x2) / 2) / w
+        direction = "4시"  # 기본값: 오른쪽 끝
         for boundary, label in ZONE_BOUNDARIES:
             if cx_norm <= boundary:
                 direction = label
                 break
 
+        # 거리 판단: bbox가 이미지에서 차지하는 면적 비율
+        # 크게 보일수록(면적 클수록) 가까이 있는 것
         area_ratio = ((x2 - x1) * (y2 - y1)) / (w * h)
-        if area_ratio > DIST_VERY_NEAR:   distance = "매우 가까이"
-        elif area_ratio > DIST_NEAR:      distance = "가까이"
-        elif area_ratio > DIST_MID:       distance = "보통"
-        elif area_ratio > DIST_FAR:       distance = "멀리"
-        else:                             distance = "매우 멀리"
+        if area_ratio > DIST_VERY_NEAR:   distance = "매우 가까이"  # 25% 이상
+        elif area_ratio > DIST_NEAR:      distance = "가까이"        # 12% 이상
+        elif area_ratio > DIST_MID:       distance = "보통"          # 4% 이상
+        elif area_ratio > DIST_FAR:       distance = "멀리"          # 1% 이상
+        else:                             distance = "매우 멀리"     # 1% 미만
 
+        # 미터 단위 거리 추정: 물체 실제 크기(calib)와 면적 비율로 역산
+        # 공식: dist = sqrt(calib / area_ratio)
+        # 예) 의자(calib=0.06) 면적 6% → sqrt(0.06/0.06) = 1.0m
+        # depth.py의 Depth V2가 더 정확하므로, 여기서는 초기 추정값만 계산
         calib      = CLASS_CALIB_RATIO.get(cls_name, _DEFAULT_CALIB)
         distance_m = round(math.sqrt(calib / area_ratio), 1) if area_ratio > 0 else 15.0
-        distance_m = min(distance_m, 20.0)
+        distance_m = min(distance_m, 20.0)  # 최대 20m로 cap
 
-        y2_norm        = y2 / h
-        is_ground      = y2_norm > 0.65 or cls_name in _GROUND_CLASSES
-        is_vehicle     = cls_name in {"car","motorcycle","bus","truck","train","bicycle","airplane","boat"}
-        is_animal      = cls_name in {"dog","cat","horse","cow","sheep","bird","elephant","bear","zebra","giraffe"}
-        is_dangerous   = cls_name in {"knife","scissors","wine glass","baseball bat"}
-        is_bus         = cls_name == "bus"
+        # 바닥 장애물 판별: bbox 하단이 이미지 65% 아래에 있거나 바닥 클래스이면
+        # → 발에 걸릴 가능성이 높은 물체 (가중치 1.4배)
+        y2_norm    = y2 / h
+        is_ground  = y2_norm > 0.65 or cls_name in _GROUND_CLASSES
+        is_vehicle = cls_name in {"car","motorcycle","bus","truck","train","bicycle","airplane","boat"}
+        is_animal  = cls_name in {"dog","cat","horse","cow","sheep","bird","elephant","bear","zebra","giraffe"}
+        is_dangerous = cls_name in {"knife","scissors","wine glass","baseball bat"}
+        is_bus     = cls_name == "bus"
 
-        ground_mult    = 1.4 if is_ground and distance in ("매우 가까이","가까이","보통") else 1.0
-        class_mult     = CLASS_RISK_MULTIPLIER.get(cls_name, 1.0)
-        risk_score     = round(
+        # 위험도 점수 계산:
+        # risk = 방향가중치 × 거리가중치 × 바닥가중치 × 클래스배수
+        # 예) 12시 방향 + 가까이 + 바닥 + 자동차:
+        #     1.0 × 0.8 × 1.0 × 3.0 = 2.4 → min(2.4, 1.0) = 1.0 (최고 위험)
+        ground_mult = 1.4 if is_ground and distance in ("매우 가까이","가까이","보통") else 1.0
+        class_mult  = CLASS_RISK_MULTIPLIER.get(cls_name, 1.0)
+        risk_score  = round(
             RISK_DIR.get(direction, 0.5) * RISK_DIST[distance] * ground_mult * class_mult, 2
         )
-        risk_score = min(risk_score, 1.0)
+        risk_score = min(risk_score, 1.0)  # 1.0 초과 방지
 
-        # 경고 레벨 분류
+        # 경고 레벨: Android에서 음성 vs 비프음 결정에 사용
+        # danger  → 즉시 음성 안내 (차량 접근, 칼 근처)
+        # warning → 음성 안내 (일반 장애물 가까이)
+        # info    → 비프음만 (멀리 있는 물체, 정보성)
         if (is_vehicle and distance_m < 8.0) or (is_dangerous and distance_m < 3.0):
             alert_level = "danger"
         elif risk_score > 0.35 or distance_m < 1.5:
