@@ -282,6 +282,8 @@ Android 앱 TTS 출력
 |------|----------|------|------|
 | 객체 탐지 | Ultralytics YOLO11m | 8.4.x | yolo11m.pt 사전 학습 모델 |
 | 깊이 추정 | Depth Anything V2 | vits | ✅ GPU 활성화, depth_source="v2" |
+| OCR (서버) | EasyOCR | 1.7.x | 버스 번호 정밀 인식 (GPU 지원) |
+| Vision AI | GPT-4o Vision API | — | 옷 매칭·패턴 분석 (OPENAI_API_KEY 필요) |
 | 딥러닝 | PyTorch | 2.x | CUDA (RTX 5060) |
 | 이미지 처리 | OpenCV (headless) | 4.10.0.84 | 서버 환경용 |
 | 수치 연산 | NumPy | 1.26.4 | **반드시 1.x** |
@@ -292,8 +294,22 @@ Android 앱 TTS 출력
 | 데모 UI | Gradio | 4.44.1 | **반드시 4.x** |
 | DB | SQLite (내장) | — | 공간 스냅샷 저장 |
 | Android 카메라 | CameraX | 1.3.1 | 라이브 프리뷰 + 자동 캡처 |
+| Android OCR | ML Kit Text Recognition Korean | 16.0.1 | 글자 읽기·버스 번호 1차 인식 |
+| Android 바코드 | ML Kit Barcode Scanning | 17.2.0 | 상품 바코드 스캔 |
 | Android HTTP | OkHttp | 4.12.0 | 서버 통신 |
 | 외부 터널 | ngrok | 3.38.0 | 다른 네트워크 연결 시 |
+
+### Android 권한
+
+| 권한 | 용도 |
+|------|------|
+| CAMERA | 카메라 캡처 |
+| RECORD_AUDIO | STT 음성 명령 |
+| ACCESS_FINE_LOCATION | GPS 하차 알림 |
+| SEND_SMS | 보호자 SOS 문자 |
+| VIBRATE | 긴급 알림 진동 |
+| ACCESS_WIFI_STATE | WiFi SSID 수집 (공간 기억) |
+| SCHEDULE_EXACT_ALARM | 약 복용 정확한 시간 알림 |
 
 ---
 
