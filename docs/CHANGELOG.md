@@ -1,5 +1,36 @@
 # VoiceGuide 작업 내역 (2026-04-27 최신)
 
+---
+
+## 2026-04-27 후반 수정 (조장 정환주)
+
+```bash
+git pull origin main
+pip install -r requirements.txt  # websockets 버전 업데이트 포함
+```
+
+### 버그 수정
+
+| 파일 | 수정 내용 |
+|------|---------|
+| `src/vision/detect.py` | `stairs` 최소 신뢰도 0.50→0.72 (키보드 계단 오탐 방지) |
+| `src/vision/detect.py` | `tie`·`umbrella`·`handbag`·`wine glass`·`cup`·`bowl` 신뢰도 상향 (실내 오탐) |
+| `src/voice/tts.py` | ElevenLabs SDK 완전 제거 → gTTS 기본, Naver Clova 준비 |
+| `src/api/routes.py` | `/tts` 엔드포인트 추가 (Android 앱 TTS용 mp3 반환) |
+| `requirements.txt` | `websockets>=12.0,<13.0` (ElevenLabs SDK websockets 충돌 해결) |
+| `android/.../MainActivity.kt` | `isListening` 플래그 — STT 중 TTS 차단, STT 시작 시 TTS 즉시 중단 |
+| `android/.../MainActivity.kt` | `promptAutoStart` 폴링 방식 — TTS 끝난 후 STT 시작 ("네" 무반응 해결) |
+| `android/.../MainActivity.kt` | `ttsRequestId` — stale 재생 방지 (겹침 완전 해결) |
+| `android/.../MainActivity.kt` | `lastDetectionTime` — 탐지 텍스트 3초 유지 후 "장애물 없음" 전환 |
+| `android/.../MainActivity.kt` | `speakElevenLabs` → `ttsExecutor` 직렬화 + MediaPlayer 단일 인스턴스 |
+
+### TTS 구조 변경
+
+- **서버**: gTTS(무료) 기본 → `.env`에 `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` 추가 시 Naver Clova 자동 전환
+- **앱**: 서버 URL 있으면 서버 `/tts` mp3 스트리밍, 없으면 Android 내장 TTS
+
+---
+
 > 팀원 공유용 — 오늘 추가/수정된 내용 전체 정리
 
 ---

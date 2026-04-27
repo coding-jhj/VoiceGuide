@@ -8,8 +8,8 @@
 |------|----------|------|------|
 | 객체 탐지 | Ultralytics YOLO11m | 8.4.x | yolo11m.pt 사전 학습 모델 |
 | 깊이 추정 | Depth Anything V2 | vits | ✅ GPU 활성화 (depth_anything_v2_vits.pth 필요) |
-| 음성 합성 (서버) | ElevenLabs + pygame | >=2.0.0 / 2.6.1 | Anna Kim 보이스, Gradio 데모용 |
-| 음성 합성 (앱) | Android TTS | 내장 | 미디어 볼륨 스트림 |
+| 음성 합성 (서버) | gTTS + pygame | 2.5.3 / 2.6.1 | 무료, 한국어. Naver Clova 키 있으면 자동 전환 |
+| 음성 합성 (앱) | Android TTS (내장) + 서버 /tts | 내장 | 서버 URL 있으면 서버 TTS, 없으면 내장 TTS |
 | 음성 인식 | SpeechRecognition | 3.10.4 | Google Speech API |
 | 딥러닝 | PyTorch | 2.4.1 | CPU 실행 |
 | 이미지 처리 | OpenCV (headless) | 4.10.0.84 | 서버 환경용 |
@@ -64,12 +64,24 @@ conda install pyaudio
 
 ---
 
-### 5. ElevenLabs 음성 재생 안 됨
+### 5. ElevenLabs 402 오류
 ```
-pygame.error: No available audio device
+[TTS] ElevenLabs 오류 402: {"detail":{"type":"payment_required",...}}
 ```
-**원인**: 서버/헤드리스 환경에서 오디오 장치 없음  
-**해결**: 로컬 실행 환경에서만 TTS 동작. Android 앱은 기기 내장 TTS 사용으로 해결
+**원인**: ElevenLabs 무료 플랜에서 보이스 라이브러리 사용 불가 (정책 변경)  
+**해결**: 현재 gTTS(구글)로 전환됨. Naver Clova 사용 시 `.env`에 키 추가:
+```
+NAVER_CLIENT_ID=...
+NAVER_CLIENT_SECRET=...
+```
+
+### 5-1. ElevenLabs SDK websockets 충돌
+```
+ImportError: The websockets package is required for realtime speech-to-text
+ModuleNotFoundError: No module named 'websockets.asyncio'
+```
+**원인**: ElevenLabs SDK가 내부적으로 `websockets 13+` 요구, gradio-client는 `<13.0` 요구  
+**해결**: ElevenLabs SDK 제거 → REST API 직접 호출 방식으로 교체 완료 (재발 없음)
 
 ---
 
@@ -148,8 +160,24 @@ pip install ultralytics
 
 ### 12. 없는 물체를 인식하는 오탐
 **원인**: 신뢰도 임계값이 낮으면 손/팔 등을 다른 물체로 인식  
-**현재 설정**: `CONF_THRESHOLD = 0.60` (`src/vision/detect.py`) — 소형 물체는 0.65~0.72  
-**조정 방법**: 오탐 많으면 0.65~0.70으로 올리고 서버 재시작
+**현재 설정**: `CONF_THRESHOLD = 0.50` (`src/vision/detect.py`)  
+**클래스별 최소 신뢰도** (`CLASS_MIN_CONF`):
+- `stairs`: 0.72 (키보드·에스컬레이터 오탐 방지)
+- `tie`: 0.75, `umbrella`: 0.68, `handbag`: 0.65 (실내 오탐 방지)
+- `wine glass`/`cup`/`bowl`: 0.65~0.70  
+**조정 방법**: 오탐 많으면 해당 클래스 값 올리고 서버 재시작
+
+### 16. 앱 시작 시 "네" 말해도 반응 없음
+**원인**: TTS가 말하는 중에 STT 마이크가 켜져서 TTS 목소리를 인식함  
+**해결**: TTS 종료 후 600ms 대기 → STT 시작 (폴링 방식, 현재 적용됨)
+
+### 17. 음성 안내 중 내 목소리 인식 실패
+**원인**: TTS 재생 중 마이크에 TTS 소리가 들어가 STT 오인식  
+**해결**: 음성 명령 버튼 누르면 TTS 즉시 중단 후 STT 시작. STT 활성 중 TTS 차단 (현재 적용됨)
+
+### 18. 탐지 텍스트가 너무 빨리 사라짐
+**원인**: 매 1초 분석에서 장애물 없으면 즉시 "장애물 없음"으로 덮어씀  
+**해결**: 마지막 탐지 후 3초간 텍스트 유지 (현재 적용됨)
 
 ### 13. 계단 앞에서 경고가 안 나올 때
 **원인**: hazard 감지 임계값이 너무 높거나 Depth V2 모델 없음  
