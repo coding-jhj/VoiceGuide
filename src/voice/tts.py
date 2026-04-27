@@ -4,7 +4,7 @@ import requests
 import pygame
 
 _api_key  = os.environ.get("ELEVENLABS_API_KEY", "")
-_VOICE_ID = "uyVNoMrnUku1dZyVEXwD"   # Anna Kim (한국어)
+_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"   # Rachel (무료 플랜 지원, 한국어 가능)
 _MODEL_ID = "eleven_multilingual_v2"
 
 _CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__tts_cache__")
