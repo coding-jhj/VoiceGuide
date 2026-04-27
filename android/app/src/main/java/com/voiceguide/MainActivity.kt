@@ -1061,11 +1061,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     Request.Builder().url("$serverUrl/detect").post(body).build()
                 ).execute()
 
-                val json     = JSONObject(response.body?.string() ?: "{}")
-                val sentence = json.optString("sentence", "주변에 장애물이 없어요.")
-                val beep     = json.optBoolean("beep", false)
+                val json      = JSONObject(response.body?.string() ?: "{}")
+                val sentence  = json.optString("sentence", "주변에 장애물이 없어요.")
+                val alertMode = json.optString("alert_mode", "critical")
                 checkWaitingBus(json)   // 버스 대기 모드 자동 감지
-                handleSuccess(sentence, beep)
+                handleSuccess(sentence, alertMode)
             } catch (_: Exception) {
                 handleFail()
             } finally {
@@ -1095,7 +1095,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
-    private fun handleSuccess(sentence: String, beep: Boolean = false) {
+    private fun handleSuccess(sentence: String, alertMode: String = "critical") {
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
         isSending.set(false)
@@ -1103,13 +1103,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         runOnUiThread {
             if (sentence == "주변에 장애물이 없어요.") {
                 tvStatus.text = "장애물 없음"
-            } else if (sentence != lastSentence && !tts.isSpeaking) {
-                lastSentence = sentence
-                tvStatus.text = sentence
-                if (beep) {
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-                } else {
+                return@runOnUiThread
+            }
+            tvStatus.text = sentence
+            when (alertMode) {
+                "critical" -> {
+                    // 위험 경고 — 말 중이어도 끊고 빠르게 읽음
+                    lastSentence = sentence
+                    tts.setSpeechRate(1.25f)
                     speak(sentence)
+                }
+                "beep" -> {
+                    // 1m 이내 일반 장애물 — 비프음만 (경고 피로 방지)
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                }
+                "silent" -> {
+                    // 무음 — UI만 업데이트
+                }
+                else -> {
+                    if (sentence != lastSentence && !tts.isSpeaking) {
+                        lastSentence = sentence
+                        tts.setSpeechRate(1.1f)
+                        speak(sentence)
+                    }
                 }
             }
         }
