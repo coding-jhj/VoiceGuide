@@ -1186,9 +1186,45 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     } catch (_: Exception) { "" }
 
     private fun speak(text: String) {
+        val serverUrl = etServerUrl.text.toString().trim()
+        if (serverUrl.isNotEmpty()) {
+            speakElevenLabs(text, serverUrl)
+        } else {
+            speakBuiltIn(text)
+        }
+    }
+
+    private fun speakBuiltIn(text: String) {
         val params = Bundle()
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "vg")
+    }
+
+    private fun speakElevenLabs(text: String, serverUrl: String) {
+        val mediaPlayer = android.media.MediaPlayer()
+        Thread {
+            try {
+                val body = okhttp3.FormBody.Builder().add("text", text).build()
+                val req = okhttp3.Request.Builder()
+                    .url("$serverUrl/tts")
+                    .post(body)
+                    .build()
+                val resp = httpClient.newCall(req).execute()
+                if (!resp.isSuccessful) { speakBuiltIn(text); return@Thread }
+                val tmpFile = File(cacheDir, "tts_${System.currentTimeMillis()}.mp3")
+                tmpFile.writeBytes(resp.body!!.bytes())
+                mediaPlayer.apply {
+                    setDataSource(tmpFile.absolutePath)
+                    setAudioAttributes(android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
+                    prepare()
+                    start()
+                    setOnCompletionListener { tmpFile.delete(); release() }
+                }
+            } catch (_: Exception) {
+                speakBuiltIn(text)
+            }
+        }.start()
     }
 
     override fun onInit(status: Int) {
