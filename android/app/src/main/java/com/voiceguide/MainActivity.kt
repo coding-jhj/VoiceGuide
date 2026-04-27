@@ -94,6 +94,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // AtomicInteger: 연속 실패 횟수 (3회 이상이면 경고 음성)
     private val consecutiveFails = AtomicInteger(0)
     private var lastSuccessTime  = System.currentTimeMillis()
+    private var lastDetectionTime = 0L   // 마지막으로 실제 장애물이 탐지된 시간
 
     // ── 가속도 센서: 카메라 방향 자동 감지 ────────────────────────────
     private lateinit var sensorManager: SensorManager
@@ -1115,9 +1116,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
         runOnUiThread {
             if (sentence == "주변에 장애물이 없어요.") {
-                tvStatus.text = "장애물 없음"
+                // 마지막 탐지 후 3초 지난 경우에만 "장애물 없음"으로 교체
+                if (System.currentTimeMillis() - lastDetectionTime > 3000) {
+                    tvStatus.text = "장애물 없음"
+                }
                 return@runOnUiThread
             }
+            lastDetectionTime = System.currentTimeMillis()
             tvStatus.text = sentence
             when (alertMode) {
                 "critical" -> {
