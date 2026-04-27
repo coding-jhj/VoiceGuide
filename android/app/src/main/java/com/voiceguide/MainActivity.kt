@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private lateinit var btnToggle: Button
     private lateinit var btnStt: Button
     private lateinit var previewView: PreviewView
+    private lateinit var boundingBoxOverlay: BoundingBoxOverlay // 디버그 바운드박스 오버레이
 
     // ── Camera ──────────────────────────────────────────────────────────
     private var imageCapture: ImageCapture? = null
@@ -105,7 +106,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         tvMode      = findViewById(R.id.tvMode)
         btnToggle   = findViewById(R.id.btnToggle)
         btnStt      = findViewById(R.id.btnStt)
-        previewView = findViewById(R.id.previewView)
+        previewView         = findViewById(R.id.previewView)
+        boundingBoxOverlay  = findViewById(R.id.boundingBoxOverlay) // 디버그 오버레이 바인딩
 
         // 저장된 서버 URL 복원 (없어도 무관)
         etServerUrl.setText(
@@ -314,6 +316,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         handler.removeCallbacksAndMessages(null)
         btnToggle.text = "분석 시작"
         tvStatus.text  = "분석 중지됨"
+        boundingBoxOverlay.clearDetections() // 분석 중지 시 바운드박스 제거
     }
 
     private fun scheduleNext() {
@@ -361,6 +364,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val detections = yoloDetector!!.detect(bmp)
                 bmp.recycle()
                 imageFile.delete()
+
+                // 디버그: 탐지된 물체의 바운드박스를 프리뷰 위에 표시
+                runOnUiThread { boundingBoxOverlay.setDetections(detections) }
 
                 val sentence = when (currentMode) {
                     "찾기"  -> SentenceBuilder.buildFind(findTarget, detections)
