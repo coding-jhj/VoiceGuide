@@ -1201,8 +1201,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun promptAutoStart() {
         awaitingStartConfirm = true
-        speak("음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.")
-        handler.postDelayed({ if (awaitingStartConfirm) startListening() }, 2500)
+        tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+            override fun onDone(utteranceId: String?) {
+                if (utteranceId == "prompt_start" && awaitingStartConfirm) {
+                    handler.postDelayed({ startListening() }, 500)
+                }
+            }
+            override fun onError(utteranceId: String?) {}
+        })
+        val params = Bundle()
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+        tts.speak("음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.",
+            TextToSpeech.QUEUE_FLUSH, params, "prompt_start")
     }
 
     override fun onRequestPermissionsResult(
