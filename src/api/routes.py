@@ -20,6 +20,7 @@ Android 앱과 Gradio 데모가 호출하는 API 엔드포인트를 정의합니
 from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, Form
+from fastapi.responses import FileResponse
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import (
     build_sentence, build_hazard_sentence, build_find_sentence,
@@ -229,6 +230,28 @@ def _extract_find_target(text: str) -> str:
 
 # ── 장소 저장/조회 전용 엔드포인트 ───────────────────────────────────────────
 # Android MainActivity에서 직접 호출 가능 (detect API 거치지 않고 빠르게 처리)
+
+@router.post("/tts")
+async def tts_endpoint(text: str = Form("")):
+    """ElevenLabs TTS — 텍스트를 음성 파일로 변환해 Android 앱에 반환."""
+    from src.voice.tts import _cache_path, client, _VOICE_ID, _MODEL_ID, _api_key
+    import os
+    if not text:
+        return {"error": "text is empty"}
+    if not _api_key:
+        return {"error": "no api key"}
+    path = _cache_path(text)
+    if not os.path.exists(path):
+        try:
+            audio = client.text_to_speech.convert(
+                voice_id=_VOICE_ID, text=text, model_id=_MODEL_ID)
+            with open(path, "wb") as f:
+                for chunk in audio:
+                    f.write(chunk)
+        except Exception as e:
+            return {"error": str(e)}
+    return FileResponse(path, media_type="audio/mpeg")
+
 
 @router.post("/vision/clothing")
 async def vision_clothing(
