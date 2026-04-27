@@ -23,7 +23,7 @@ from fastapi import APIRouter, UploadFile, Form
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import (
     build_sentence, build_hazard_sentence, build_find_sentence,
-    build_navigation_sentence, _i_ga, _un_neun,
+    build_navigation_sentence, get_alert_mode, _i_ga, _un_neun,
 )
 from src.api import db
 from src.api.tracker import get_tracker
@@ -122,8 +122,7 @@ async def detect(
             "objects":     objects,
             "hazards":     [],
             "changes":     [],
-            "alert_level": "info",
-            "beep":        False,
+            "alert_mode":  "silent",
             "depth_source": objects[0].get("depth_source","bbox") if objects else "bbox",
         }
 
@@ -133,6 +132,7 @@ async def detect(
         sentence = build_find_sentence(target, objects, camera_orientation)
         return {
             "sentence":    sentence,
+            "alert_mode":  "critical",  # 사용자가 명시적으로 요청한 것 → 항상 즉각 안내
             "objects":     objects,
             "hazards":     hazards,
             "changes":     all_changes,
@@ -143,9 +143,13 @@ async def detect(
     if hazards:
         # 계단·낙차·턱이 감지되면 최우선 안내 (YOLO 결과보다 우선)
         top_hazard = max(hazards, key=lambda h: h.get("risk", 0))
-        sentence = build_hazard_sentence(top_hazard, objects, all_changes, camera_orientation)
+        sentence   = build_hazard_sentence(top_hazard, objects, all_changes, camera_orientation)
+        alert_mode = get_alert_mode(objects[0], is_hazard=True) if objects else "critical"
     else:
-        sentence = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
+        sentence   = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
+        # risk_score 1위 객체 기준으로 알림 모드 결정
+        # "silent"이면 프론트엔드는 TTS 호출 안 함, "beep"이면 비프음만 재생
+        alert_mode = get_alert_mode(objects[0]) if objects else "silent"
 
     # 부가 경고 추가: 위험 물체·점자블록·군중·신호등·안전경로
     # 메인 문장 뒤에 붙임 (있을 때만)
@@ -159,20 +163,13 @@ async def detect(
     if extras:
         sentence = sentence + " " + " ".join(extras)
 
-    # alert_level: Android에서 음성(danger/warning) vs 비프음(info) 결정에 사용
-    alert_level = objects[0].get("alert_level", "info") if objects else "info"
-    # beep: True이면 Android가 TTS 대신 짧은 비프음만 냄
-    # 조건: 위험도 낮은 물체만 있고, 계단·경고·신호등 등 추가 정보 없을 때
-    beep = (alert_level == "info" and not hazards and not extras)
-
     return {
         "sentence":      sentence,
+        "alert_mode":    alert_mode,  # "critical" | "beep" | "silent" — 프론트엔드 TTS/비프 분기용
         "objects":       objects,
         "hazards":       hazards,
         "changes":       all_changes,
         "scene":         scene,
-        "alert_level":   alert_level,
-        "beep":          beep,
         "depth_source":  objects[0].get("depth_source", "bbox") if objects else "bbox",
     }
 
