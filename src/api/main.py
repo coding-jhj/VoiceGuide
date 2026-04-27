@@ -34,8 +34,8 @@ def _warmup_tts():
     try:
         from src.voice.tts import warmup_cache
         warmup_cache()
-    except Exception as e:
-        print(f"[main] TTS 캐시 워밍업 실패: {e}")
+    except Exception:
+        pass  # TTS 워밍업 실패해도 서버 동작에 영향 없음 (첫 요청 시 자동 생성)
 
 
 app = FastAPI(title="VoiceGuide API", lifespan=lifespan)

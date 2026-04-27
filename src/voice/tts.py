@@ -93,6 +93,11 @@ def warmup_cache():
     """서버 시작 시 자주 쓰는 문장을 미리 생성해 캐시 — 첫 요청 지연 방지."""
     if not _api_key:
         return
+    try:
+        # ElevenLabs realtime 기능 import 오류 사전 차단 (websockets 버전 충돌 방지)
+        import elevenlabs  # noqa: F401
+    except Exception:
+        return
     for phrase in _WARMUP_PHRASES:
         path = _cache_path(phrase)
         if not os.path.exists(path):
