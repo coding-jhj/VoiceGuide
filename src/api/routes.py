@@ -200,8 +200,10 @@ def _build_meal_sentence(objects: list[dict]) -> str:
         return "식기나 음식이 보이지 않아요. 카메라를 식탁 쪽으로 향해 주세요."
     parts = []
     for obj in meal_items[:3]:
-        name = obj["class_ko"]
-        direction = CLOCK_TO_DIRECTION.get(obj.get("direction","12시"), "앞")
+        name = obj.get("class_ko", "")
+        if not name:
+            continue
+        direction = CLOCK_TO_DIRECTION.get(obj.get("direction", "12시"), "앞")
         dist = obj.get("distance_m", 1.0)
         ig = _i_ga(name)
         loc = _MEAL_DIRECTIONS.get(direction, f"{direction}에")
@@ -238,6 +240,8 @@ async def vision_clothing(
 ):
     """옷 매칭·패턴 분석 — GPT-4o Vision 활용."""
     from src.vision.gpt_vision import analyze_clothing
+    if type not in ("matching", "pattern"):
+        type = "matching"   # 잘못된 값이면 기본값으로 fallback
     image_bytes = await image.read()
     sentence = analyze_clothing(image_bytes, type)
     return {"sentence": sentence}

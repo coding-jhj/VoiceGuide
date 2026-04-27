@@ -647,6 +647,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── SOS 긴급 호출 ──────────────────────────────────────────────────
 
+    /**
+     * 긴급 상황 처리: 진동 + 보호자 SMS 자동 발송.
+     * "살려줘" 음성 명령 또는 낙상 감지 10초 무응답 시 자동 호출.
+     * guardianPhone이 비어있으면 알림만 내고 종료.
+     */
     private fun triggerSOS() {
         val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
         // 긴 진동 패턴으로 긴급 상황 알림
@@ -658,9 +663,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             speak("보호자 번호가 설정되어 있지 않아요. 설정에서 먼저 등록해 주세요.")
             return
         }
+        // 런타임 권한 확인 후 SMS 발송
+        if (!hasPerm(Manifest.permission.SEND_SMS)) {
+            speak("문자 발송 권한이 없어요. 앱 설정에서 SMS 권한을 허용해 주세요.")
+            return
+        }
         try {
             val sms = android.telephony.SmsManager.getDefault()
-            // 현재 위치 포함 메시지 전송
             val msg = "[VoiceGuide 긴급] 도움이 필요합니다. 앱에서 자동 발송된 메시지입니다."
             sms.sendTextMessage(guardianPhone, null, msg, null, null)
             speak("${guardianPhone}으로 도움 요청 문자를 보냈어요.")
@@ -674,17 +683,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private fun scheduleFallCheck() {
         fallCheckJob?.cancel()
         speak("괜찮으세요? 10초 안에 '괜찮아'라고 말씀해 주세요.")
-        var confirmed = false
-        // 10초 내 "괜찮아" 응답 없으면 자동 SOS
+        // AtomicBoolean: Timer 스레드 ↔ 메인 스레드 간 안전한 공유 (var은 race condition 위험)
+        val confirmed = AtomicBoolean(false)
         val timer = java.util.Timer()
         timer.schedule(object : java.util.TimerTask() {
             override fun run() {
-                if (!confirmed) runOnUiThread { triggerSOS() }
+                // 10초 내 "괜찮아" 응답 없으면 자동 SOS
+                if (!confirmed.get()) runOnUiThread { triggerSOS() }
             }
         }, 10_000)
         fallCheckJob = timer
-        // 음성 인식 시작 — 결과가 오면 confirmed 처리
-        handler.postDelayed({ startListeningForFallConfirm { confirmed = true; timer.cancel() } }, 1000)
+        handler.postDelayed({
+            startListeningForFallConfirm { confirmed.set(true); timer.cancel() }
+        }, 1000)
     }
 
     private fun startListeningForFallConfirm(onOk: () -> Unit) {
@@ -719,6 +730,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 옷 매칭·패턴 (서버 GPT Vision) ───────────────────────────────
 
+    /**
+     * 옷 사진을 서버 GPT Vision API로 분석.
+     * type="matching" → 두 옷이 어울리는지, type="pattern" → 패턴(체크/줄무늬 등) 설명.
+     * 서버 URL이 없으면 안내 후 종료. OpenAI API 키는 서버 .env에 설정 필요.
+     */
     private fun captureForClothingAdvice(type: String) {
         val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
         if (serverUrl.isEmpty()) {
@@ -752,6 +768,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 지폐 인식 (색상 기반) ─────────────────────────────────────────
 
+    /**
+     * 카메라 이미지 중앙 영역의 RGB 평균으로 한국 지폐 권종 판별.
+     * 정확도 한계: 조명·각도에 따라 오인식 가능. 지폐를 화면에 가득 채워야 정확함.
+     * 판별 순서: 50000원(황금) → 5000원(적갈) → 10000원(초록) → 1000원(파랑)
+     */
     private fun captureForCurrency() {
         val file = File.createTempFile("vg_curr_", ".jpg", cacheDir)
         imageCapture?.takePicture(
@@ -777,16 +798,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                             val n = pixels.size.toFloat()
                             val r = rSum / n; val g = gSum / n; val b = bSum / n
 
-                            // 한국 지폐 색상 특성:
-                            // 50000원: 노란/황금색 (R>G>B, R 높음)
-                            // 10000원: 초록색 (G > R, G > B)
-                            // 5000원:  빨간/적갈색 (R > G > B, R 매우 높음)
-                            // 1000원:  파란색 (B > R, B > G)
+                            // 한국 지폐 색상 (when 순서 중요: 겹치는 조건은 더 구체적인 것 먼저)
+                            // 50000원: 황금색  R>180 G>150 B<130  → 반드시 5000원보다 먼저 체크
+                            // 5000원:  적갈색  R이 G의 1.3배 이상, R이 B의 1.5배 이상
+                            // 10000원: 초록색  G가 지배적
+                            // 1000원:  파란색  B가 지배적
                             val sentence = when {
-                                b > r && b > g -> "1000원권 같아요."
-                                g > b && g > r * 0.9f && r < 180 -> "10000원권 같아요."
-                                r > g * 1.3f && r > b * 1.5f -> "5000원권 같아요."
                                 r > 180 && g > 150 && b < 130 -> "50000원권 같아요."
+                                r > g * 1.3f && r > b * 1.5f -> "5000원권 같아요."
+                                g > b && g > r * 0.9f && r < 180 -> "10000원권 같아요."
+                                b > r && b > g -> "1000원권 같아요."
                                 else -> "지폐를 정확히 인식하지 못했어요. 카메라에 지폐를 가득 채워보세요."
                             }
                             runOnUiThread { speak(sentence) }
@@ -800,6 +821,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 약 복용 알림 ─────────────────────────────────────────────────
 
+    /**
+     * 매일 특정 시간에 약 복용 알림을 설정.
+     * java.util.Timer 사용: 앱이 살아있는 동안만 동작 (앱 종료 시 소멸).
+     * 완전한 알람은 AlarmManager + BroadcastReceiver 필요 (향후 개선).
+     * 오늘 해당 시간이 지났으면 내일부터 시작.
+     */
     private fun setMedicationAlarm(hour: Int) {
         medicationTimer?.cancel()
         val now = java.util.Calendar.getInstance()
@@ -826,6 +853,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── GPS 하차 알림 ────────────────────────────────────────────────
 
+    /**
+     * GPS로 현재 위치를 저장하고, 200m 이내로 돌아오면 알림.
+     * 5초(5000ms) 간격, 50m 이상 이동 시 업데이트.
+     * 현재는 "저장된 위치 근처" 방식 — 향후 목적지 좌표 직접 설정으로 개선 가능.
+     */
     @Suppress("MissingPermission")
     private fun startGpsTracking() {
         try {
@@ -883,9 +915,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun requestPermissions() {
         val needed = mutableListOf<String>()
-        // 카메라와 마이크 권한이 없으면 요청 목록에 추가
-        if (!hasPerm(Manifest.permission.CAMERA))       needed.add(Manifest.permission.CAMERA)
-        if (!hasPerm(Manifest.permission.RECORD_AUDIO)) needed.add(Manifest.permission.RECORD_AUDIO)
+        if (!hasPerm(Manifest.permission.CAMERA))              needed.add(Manifest.permission.CAMERA)
+        if (!hasPerm(Manifest.permission.RECORD_AUDIO))        needed.add(Manifest.permission.RECORD_AUDIO)
+        if (!hasPerm(Manifest.permission.ACCESS_FINE_LOCATION)) needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        if (!hasPerm(Manifest.permission.SEND_SMS))            needed.add(Manifest.permission.SEND_SMS)
         if (needed.isEmpty()) startCamera()
         else ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERM_CODE)
     }
@@ -1043,7 +1076,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 결과 처리 & Failsafe ────────────────────────────────────────────
 
-    // 버스 대기 모드: 서버 응답에 버스가 포함되어 있으면 자동으로 번호 OCR 실행
+    /**
+     * 버스 대기 모드 자동 감지.
+     * 서버 응답 objects에 "bus" 클래스가 있으면 captureForBusNumber()를 자동 실행.
+     * waitingBusNumber가 비어있으면 즉시 반환 (성능 최적화).
+     * 번호 일치 시 captureForBusNumber 내부에서 진동+음성 알림 후 waitingBusNumber 초기화.
+     */
     private fun checkWaitingBus(json: org.json.JSONObject) {
         if (waitingBusNumber.isEmpty()) return
         val objects = json.optJSONArray("objects") ?: return
