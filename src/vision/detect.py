@@ -422,17 +422,6 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
         )
         risk_score = min(risk_score, 1.0)  # 1.0 초과 방지
 
-        # 경고 레벨: Android에서 음성 vs 비프음 결정에 사용
-        # danger  → 즉시 음성 안내 (차량 접근, 칼 근처)
-        # warning → 음성 안내 (일반 장애물 가까이)
-        # info    → 비프음만 (멀리 있는 물체, 정보성)
-        if (is_vehicle and distance_m < 8.0) or (is_dangerous and distance_m < 3.0):
-            alert_level = "danger"
-        elif risk_score > 0.35 or distance_m < 1.5:
-            alert_level = "warning"
-        else:
-            alert_level = "info"
-
         # 색상 감지
         color = _detect_color(img, x1, y1, x2, y2)
 
@@ -457,7 +446,6 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
             "is_vehicle":           is_vehicle,
             "is_animal":            is_animal,
             "is_dangerous":         is_dangerous,
-            "alert_level":          alert_level,
             "color":                color,
             "traffic_light_state":  traffic_light_state,
             "bus_crop":             bus_crop,

@@ -22,7 +22,7 @@ def process_image(image, mode: str = "장애물"):
     # 모드별 문장 생성
     if hazards and mode == "장애물":
         top_hazard = max(hazards, key=lambda h: h.get("risk", 0))
-        sentence = build_hazard_sentence(top_hazard, objects, [])
+        sentence = build_hazard_sentence(top_hazard, objects, [], camera_orientation="front")
     elif mode == "찾기" and objects:
         obj = max(objects, key=lambda o: o["conf"])
         direction_ko = CLOCK_TO_DIRECTION.get(obj["direction"], obj["direction"])
@@ -32,7 +32,7 @@ def process_image(image, mode: str = "장애물"):
             (o["bbox"][0] + o["bbox"][2]) / 2 / img_np.shape[1] - 0.5))
         sentence = f"카메라 중앙의 물체는 {center_objs[0]['class_ko']}입니다."
     else:
-        sentence = build_sentence(objects, [])
+        sentence = build_sentence(objects, [], camera_orientation="front")
 
     # 안전 경로·군중·위험 물체 경고 추가
     extras = [v for v in [

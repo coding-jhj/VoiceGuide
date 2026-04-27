@@ -38,6 +38,9 @@ def _get_db_url() -> str:
     )
 
 
+# ITEMS_TABLE을 startup보다 먼저 선언 — _startup() 내부에서 참조하므로
+ITEMS_TABLE = os.getenv("POSTGRES_ITEMS_TABLE", "items")
+
 pool: ConnectionPool | None = None
 
 
@@ -84,15 +87,6 @@ def read_root():
         "message": "서버가 정상 작동 중입니다!",
         "endpoints": ["/health", "/items", "/items/{id}"],
     }
-
-
-# 예시 테이블: public.items
-# 권장 스키마(예시):
-# - id: bigint (identity) PK
-# - name: text not null
-# - mode: int4 null
-# - created_at: timestamptz default now()
-ITEMS_TABLE = os.getenv("POSTGRES_ITEMS_TABLE", "items")
 
 
 class ItemCreate(BaseModel):
