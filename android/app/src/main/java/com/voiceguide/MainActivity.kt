@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 음성 자동 시작 ─────────────────────────────────────────────────
     private var awaitingStartConfirm = false
+    @Volatile private var isListening = false  // STT 활성 중 → TTS 차단
 
     // ── ElevenLabs MediaPlayer (겹침 방지용 단일 인스턴스) ───────────────
     private var currentMediaPlayer: android.media.MediaPlayer? = null
@@ -296,7 +297,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 handleSttResult(text)
             }
             override fun onError(error: Int) {
-                // 소음, 타임아웃, 네트워크 오류 등 → 재시도 안내
+                isListening = false
                 runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
             }
             // 아래는 RecognitionListener 인터페이스 필수 구현 (사용하지 않음)
@@ -314,6 +315,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             tvMode.text = "음성 인식 미지원 기기"; return
         }
+        // TTS 즉시 중단 후 STT 시작 (간섭 방지)
+        tts.stop()
+        currentMediaPlayer?.let { try { if (it.isPlaying) it.stop(); it.release() } catch (_: Exception) {} }
+        currentMediaPlayer = null
+        isElevenLabsSpeaking = false
+        isListening = true
         val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
@@ -325,6 +332,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     /** STT 결과 처리 — 이미지 분석 불필요 모드는 즉시 처리 */
     private fun handleSttResult(text: String) {
+        isListening = false
         val mode = classifyKeyword(text)
         runOnUiThread { tvMode.text = "모드: $mode  |  방향: 정면" }
 
@@ -1198,6 +1206,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     } catch (_: Exception) { "" }
 
     private fun speak(text: String) {
+        if (isListening) return  // STT 중엔 TTS 차단 (마이크 간섭 방지)
         val serverUrl = etServerUrl.text.toString().trim()
         if (serverUrl.isNotEmpty()) {
             speakElevenLabs(text, serverUrl)
