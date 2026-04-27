@@ -4,7 +4,8 @@ from fastapi import APIRouter, UploadFile, Form
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import (
     build_sentence, build_hazard_sentence, build_find_sentence,
-    build_navigation_sentence, _i_ga, _un_neun,
+    build_navigation_sentence, get_alert_mode,  # [추가] 경고 피로 방지를 위한 알림 모드 분류 함수
+    _i_ga, _un_neun,
 )
 from src.api import db
 from src.api.tracker import get_tracker
@@ -75,6 +76,8 @@ async def detect(
         sentence = build_find_sentence(target, objects, camera_orientation)
         return {
             "sentence":    sentence,
+            # [추가] 찾기 모드는 사용자가 명시적으로 요청한 것이므로 항상 즉각 음성 안내
+            "alert_mode":  "critical",
             "objects":     objects,
             "hazards":     hazards,
             "changes":     all_changes,
@@ -84,9 +87,15 @@ async def detect(
     # ── 장애물 / 확인 모드 ───────────────────────────────────────────────────
     if hazards:
         top_hazard = max(hazards, key=lambda h: h.get("risk", 0))
-        sentence = build_hazard_sentence(top_hazard, objects, all_changes, camera_orientation)
+        sentence   = build_hazard_sentence(top_hazard, objects, all_changes, camera_orientation)
+        # [추가] hazard(계단·낙차 등)는 낙상 위험이 있으므로 항상 즉각 음성 경고로 고정.
+        # objects[0]이 있더라도 is_hazard=True를 전달해 거리와 무관하게 critical 반환을 보장한다.
+        alert_mode = get_alert_mode(objects[0], is_hazard=True) if objects else "critical"
     else:
-        sentence = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
+        sentence   = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
+        # [추가] risk_score 1위 객체(objects[0])를 기준으로 알림 모드를 결정한다.
+        # "silent"이면 프론트엔드는 TTS를 호출하지 않고, "beep"이면 비프음만 재생한다.
+        alert_mode = get_alert_mode(objects[0]) if objects else "silent"
 
     # 안전 경로·군중·위험 물체 경고를 문장 뒤에 추가 (있을 때만)
     extras = [v for v in [
@@ -99,6 +108,7 @@ async def detect(
 
     return {
         "sentence":      sentence,
+        "alert_mode":    alert_mode,  # [추가] "critical" | "beep" | "silent" — 프론트엔드 TTS/비프 분기용
         "objects":       objects,
         "hazards":       hazards,
         "changes":       all_changes,
