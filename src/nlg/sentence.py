@@ -26,7 +26,36 @@ from src.nlg.templates import (
 _VEHICLE_KO = {"자동차", "오토바이", "버스", "트럭", "기차", "자전거"}
 
 # 동물: 돌발 행동 가능 → 일반 장애물보다 주의 어조
-_ANIMAL_KO  = {"개", "말"}
+_ANIMAL_KO  = {"개", "말", "고양이"}
+
+
+# ── 경고 피로(alert fatigue) 방지 ─────────────────────────────────────────────
+# 매 프레임마다 TTS를 읽어주면 사용자가 경고에 둔감해지는 문제가 있었음.
+# critical/beep/silent 3단계로 나눠 불필요한 음성 안내를 줄인다.
+
+def get_alert_mode(obj: dict, is_hazard: bool = False) -> str:
+    """탐지 객체 하나의 알림 모드 반환.
+
+    Returns:
+        "critical" — 즉각 TTS 음성 경고
+        "beep"     — 비프음만, 음성 없음
+        "silent"   — 무음 (사용자가 명시적으로 물어볼 때만 안내)
+    """
+    dist_m     = obj.get("distance_m", 99.0)
+    is_vehicle = obj.get("is_vehicle", False)
+    is_animal  = obj.get("is_animal",  False)
+
+    if is_hazard:                          # 계단·낙차 — 낙상 위험이므로 거리 무관 경고
+        return "critical"
+    if is_vehicle and dist_m < 8.0:        # 차량 — 이동 속도 때문에 여유 거리 넉넉히
+        return "critical"
+    if is_animal and dist_m < 3.0:         # 동물 — 돌발 행동 위험
+        return "critical"
+    if dist_m < 0.5:                       # 코앞 장애물 — 충돌 직전
+        return "critical"
+    if dist_m < 1.0:                       # 1m 이내 — 위험하지만 비프음으로 피로 줄임
+        return "beep"
+    return "silent"
 
 
 # ── 한국어 조사 자동화 ────────────────────────────────────────────────────────
@@ -168,14 +197,10 @@ def _secondary(obj: dict, abs_clock: str) -> str:
     action     = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
     is_vehicle = obj.get("is_vehicle", name in _VEHICLE_KO)
 
-    # 차량은 두 번째여도 행동 안내 포함 (생략하면 위험)
+    # 2순위 물체는 action까지 넣으면 정보 과다 → 방향+거리만 안내
     if is_vehicle and dist_m < 8.0:
-        return f"{direction}에 {name}도 있어요! {dist_str}. {action}."
-    # 1.5m 이내 가까운 물체는 행동 안내 포함
-    if dist_m < 1.5 and action:
-        return f"{direction}에 {name}도 있어요. {dist_str}. {action}."
-    # 그 외: 방향 + 거리만
-    return f"{direction}에 {name}도 있어요. {dist_str}."
+        return f"{direction}으로 {dist_str}에 {name}도 있어요!"
+    return f"{direction}으로 {dist_str}에 {name}도 있어요."
 
 
 # ── 공개 함수들 ───────────────────────────────────────────────────────────────
@@ -269,7 +294,7 @@ def build_find_sentence(
         direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
         dist_str  = _format_dist(obj.get("distance_m", 0.0))
         un        = _un_neun(target)
-        return f"{target}{un} {direction}에 있어요. {dist_str}."
+        return f"{target}{un} {direction} {dist_str} 거리에 있어요."
 
     # 못 찾음 — 주변 물체라도 안내해서 사용자가 방향 감각을 잃지 않게
     un = _un_neun(target)
