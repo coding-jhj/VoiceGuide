@@ -44,60 +44,88 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
+/**
+ * VoiceGuide 메인 액티비티
+ *
+ * 앱의 모든 기능을 총괄합니다:
+ *   - CameraX로 1초마다 이미지 캡처
+ *   - ONNX 온디바이스 추론 (서버 없이 폰 단독 동작)
+ *   - 서버 연동 시 Depth V2 정밀 거리 추정
+ *   - STT로 음성 명령 인식 (11가지 모드)
+ *   - TTS로 한국어 음성 안내
+ *   - 위험도 낮은 알림은 비프음으로만 (경고 피로 방지)
+ *   - 조도 센서로 어두운 환경 감지
+ *   - 앱 시작 시 음성으로 자동 시작 확인
+ *
+ * 전체 흐름:
+ *   onCreate → TTS 초기화 → "시작할까요?" 음성 → "네" → 카메라 권한 요청
+ *   → 카메라 시작 → 1초마다 캡처 → ONNX 또는 서버 추론 → TTS 안내
+ */
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEventListener {
 
-    // ── UI ──────────────────────────────────────────────────────────────
+    // ── UI 뷰 참조 ─────────────────────────────────────────────────────
     private lateinit var tts: TextToSpeech
-    private lateinit var etServerUrl: EditText
-    private lateinit var tvStatus: TextView
-    private lateinit var tvMode: TextView
-    private lateinit var btnToggle: Button
-    private lateinit var btnStt: Button
-    private lateinit var previewView: PreviewView
+    private lateinit var etServerUrl: EditText   // 서버 IP 입력 (없어도 온디바이스 동작)
+    private lateinit var tvStatus: TextView      // 현재 안내 문장 표시
+    private lateinit var tvMode: TextView        // 현재 모드 + 카메라 방향 표시
+    private lateinit var btnToggle: Button       // 분석 시작/중지
+    private lateinit var btnStt: Button          // 음성 명령 버튼
+    private lateinit var previewView: PreviewView // 카메라 라이브 프리뷰
 
-    // ── Camera ──────────────────────────────────────────────────────────
+    // ── 카메라 & 분석 루프 ─────────────────────────────────────────────
     private var imageCapture: ImageCapture? = null
+    // newSingleThreadExecutor: 카메라 캡처를 UI 스레드와 분리 (UI 멈춤 방지)
     private val cameraExecutor = Executors.newSingleThreadExecutor()
+    // Handler: 메인 스레드에서 지연 작업 예약 (1초 간격 루프, Watchdog)
     private val handler = Handler(Looper.getMainLooper())
-    private val isAnalyzing = AtomicBoolean(false)
-    private val isSending   = AtomicBoolean(false)
-    private var lastSentence = ""
+    // AtomicBoolean: 여러 스레드가 동시에 접근해도 안전한 boolean
+    private val isAnalyzing = AtomicBoolean(false) // 분석 중인지 여부
+    private val isSending   = AtomicBoolean(false) // 현재 요청 전송 중인지 (중복 방지)
+    private var lastSentence = ""                  // 직전 안내 문장 (반복 방지)
 
-    // ── 네트워크 (선택 — 서버 없어도 동작) ──────────────────────────────
+    // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
+    // connectTimeout: 서버 연결 최대 대기 5초
+    // readTimeout: 서버 응답 최대 대기 8초 (YOLO+Depth 추론 시간 고려)
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
+    // AtomicInteger: 연속 실패 횟수 (3회 이상이면 경고 음성)
     private val consecutiveFails = AtomicInteger(0)
     private var lastSuccessTime  = System.currentTimeMillis()
 
-    // ── 센서: 카메라 방향 자동 감지 ────────────────────────────────────
+    // ── 가속도 센서: 카메라 방향 자동 감지 ────────────────────────────
     private lateinit var sensorManager: SensorManager
-    @Volatile private var cameraOrientation = "front"
+    // @Volatile: 여러 스레드에서 읽을 때 최신값 보장
+    @Volatile private var cameraOrientation = "front"  // front/back/left/right
 
-    // ── STT 음성 명령 ───────────────────────────────────────────────────
+    // ── STT 음성 명령 ──────────────────────────────────────────────────
     private lateinit var speechRecognizer: SpeechRecognizer
-    @Volatile private var currentMode  = "장애물"
-    @Volatile private var findTarget   = ""   // 찾기 모드에서 탐색할 물체
+    @Volatile private var currentMode = "장애물"  // 현재 활성 모드
+    @Volatile private var findTarget  = ""        // 찾기 모드에서 탐색할 물체 이름
 
-    // ── 조도 센서 ────────────────────────────────────────────────────────
-    @Volatile private var lastLux = 100f
+    // ── 조도 센서 (빛 감지) ────────────────────────────────────────────
+    @Volatile private var lastLux = 100f  // 이전 프레임 밝기 (lux 단위)
+    // by lazy: 처음 사용 시에만 생성 (앱 시작 시 오디오 초기화 지연)
+    // ToneGenerator: 짧은 비프음 재생기 (위험도 낮은 알림용)
     private val toneGen by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 60) }
 
-    // ── 자동 시작 플래그 ─────────────────────────────────────────────────
+    // ── 음성 자동 시작 ─────────────────────────────────────────────────
+    // true: "음성 안내를 시작할까요?" 에 대한 답변 대기 중
     private var awaitingStartConfirm = false
 
-    // ── ONNX 온디바이스 추론 ────────────────────────────────────────────
+    // ── ONNX 온디바이스 추론 ───────────────────────────────────────────
+    // null이면 서버 모드, null이 아니면 온디바이스 모드
     private var yoloDetector: YoloDetector? = null
 
     companion object {
-        private const val PERM_CODE        = 100
-        private const val PREFS_NAME       = "voiceguide"
-        private const val PREF_URL         = "server_url"
-        private const val PREF_LOCATIONS   = "saved_locations"   // JSON 배열
-        private const val INTERVAL_MS      = 1000L
-        private const val SILENCE_WARN_MS  = 6000L
-        private const val FAIL_WARN_COUNT  = 3
+        private const val PERM_CODE        = 100           // 권한 요청 코드 (임의 숫자)
+        private const val PREFS_NAME       = "voiceguide"  // SharedPreferences 이름
+        private const val PREF_URL         = "server_url"  // 저장된 서버 URL 키
+        private const val PREF_LOCATIONS   = "saved_locations"  // 저장 장소 JSON 배열 키
+        private const val INTERVAL_MS      = 1000L         // 캡처 간격: 1초
+        private const val SILENCE_WARN_MS  = 6000L         // 6초 무응답 시 Watchdog 경고
+        private const val FAIL_WARN_COUNT  = 3             // 연속 3회 실패 시 경고
     }
 
     // ── 생명주기 ─────────────────────────────────────────────────────────
@@ -141,7 +169,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     override fun onResume() {
         super.onResume()
+        // 화면이 다시 보일 때마다 센서 리스너 등록
         sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
+            // SENSOR_DELAY_NORMAL: 약 200ms 간격 (배터리 절약, 방향 감지에 충분)
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
         sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)?.let {
@@ -151,21 +181,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     override fun onPause() {
         super.onPause()
+        // 화면 안 보일 때 센서 해제 → 배터리 절약
         sensorManager.unregisterListener(this)
     }
 
     override fun onDestroy() {
+        // 앱 종료 시 모든 리소스 해제 (메모리 누수 방지)
         tts.shutdown()
         speechRecognizer.destroy()
-        yoloDetector?.close()
-        cameraExecutor.shutdown()
-        handler.removeCallbacksAndMessages(null)
+        yoloDetector?.close()         // ONNX 세션 닫기
+        cameraExecutor.shutdown()     // 카메라 스레드 종료
+        handler.removeCallbacksAndMessages(null)  // 예약된 루프 전부 취소
         super.onDestroy()
     }
 
-    // ── 센서: 카메라 방향 ───────────────────────────────────────────────
+    // ── 센서 이벤트 처리 ───────────────────────────────────────────────
 
     override fun onSensorChanged(event: SensorEvent) {
+        // 조도 센서: 밝기가 10 lux 미만으로 떨어지면 어두움 경고
+        // 10 lux ≈ 촛불 수준, 일반 실내는 100~500 lux
         if (event.sensor.type == Sensor.TYPE_LIGHT) {
             val lux = event.values[0]
             if (lastLux >= 10f && lux < 10f && isAnalyzing.get()) {
@@ -174,21 +208,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             lastLux = lux
             return
         }
+
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+
+        // 가속도 센서로 폰 기울기 판단:
+        //   x: 좌우 기울기 (양수=오른쪽, 음수=왼쪽)
+        //   y: 앞뒤 기울기 (양수=앞, 음수=뒤)
+        //   중력(9.8m/s²)이 지배적 → 가만히 있어도 값이 있음
         val x = event.values[0]; val y = event.values[1]
         val prev = cameraOrientation
         cameraOrientation = when {
+            // |y| >= |x|: 위아래로 더 많이 기울어짐 → 앞면 or 뒷면
             abs(y) >= abs(x) -> if (y >= 0) "front" else "back"
-            x < 0            -> "left"
-            else             -> "right"
+            x < 0            -> "left"   // 왼쪽으로 기울어짐
+            else             -> "right"  // 오른쪽으로 기울어짐
         }
+        // 방향이 바뀌었을 때만 UI 업데이트 (매 프레임 업데이트는 불필요)
         if (cameraOrientation != prev) {
             val label = mapOf("front" to "정면", "back" to "뒤", "left" to "왼쪽", "right" to "오른쪽")
             runOnUiThread { tvMode.text = "모드: $currentMode  |  방향: ${label[cameraOrientation]}" }
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}  // 정확도 변화 무시
 
     // ── STT 초기화 & 실행 ──────────────────────────────────────────────
 
@@ -196,13 +238,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onResults(results: Bundle) {
+                // RESULTS_RECOGNITION: 인식된 텍스트 후보 배열 (확신도 높은 순)
                 val text = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    ?.firstOrNull() ?: return
+                    ?.firstOrNull() ?: return  // 가장 확신도 높은 1개 사용
                 handleSttResult(text)
             }
             override fun onError(error: Int) {
+                // 소음, 타임아웃, 네트워크 오류 등 → 재시도 안내
                 runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
             }
+            // 아래는 RecognitionListener 인터페이스 필수 구현 (사용하지 않음)
             override fun onReadyForSpeech(p: Bundle?) {}
             override fun onBeginningOfSpeech()         {}
             override fun onRmsChanged(v: Float)         {}
@@ -301,6 +346,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
+    /**
+     * "글자 읽어줘" 명령 처리 — ML Kit OCR로 카메라 이미지의 텍스트 인식.
+     *
+     * KoreanTextRecognizerOptions: 한국어 인식 최적화 옵션
+     * InputImage.fromBitmap(bmp, 0): 두 번째 파라미터 0 = 회전 없음
+     * ML Kit는 온디바이스 처리 → 인터넷 불필요
+     */
     private fun captureForOcr() {
         val file = File.createTempFile("vg_ocr_", ".jpg", cacheDir)
         imageCapture?.takePicture(
@@ -318,7 +370,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                                 .addOnSuccessListener { result ->
                                     val text = result.text.trim()
                                     if (text.isEmpty()) speak("텍스트를 찾지 못했어요.")
-                                    else speak(text)
+                                    else speak(text)  // 인식된 텍스트 전체를 TTS로 읽음
                                     file.delete()
                                 }
                                 .addOnFailureListener { speak("텍스트 인식에 실패했어요."); file.delete() }
@@ -329,6 +381,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             })
     }
 
+    /**
+     * "바코드" 명령 처리 — ML Kit Barcode Scanning으로 상품 정보 인식.
+     *
+     * BarcodeScanning.getClient(): 기본 클라이언트 (EAN, QR 등 모든 포맷 지원)
+     * displayValue: 바코드의 텍스트 값 (상품명이 아닌 원시 바코드 값일 수 있음)
+     *   → 정확한 상품명은 외부 API(Open Food Facts 등) 연동 필요 (향후 개선 과제)
+     */
     private fun captureForBarcode() {
         val file = File.createTempFile("vg_bc_", ".jpg", cacheDir)
         imageCapture?.takePicture(
@@ -355,22 +414,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             })
     }
 
-    /** STT 텍스트 → 모드 분류. 미매칭 시 장애물(기본) */
+    /**
+     * STT 텍스트 → 모드 분류.
+     * VoiceGuideConstants.kt의 STT_KEYWORDS 맵에서 순서대로 검색.
+     * 어떤 키워드에도 안 걸리면 "장애물" 반환 → 안내 누락 없음.
+     */
     private fun classifyKeyword(text: String): String {
         for ((mode, keywords) in STT_KEYWORDS) {
             if (keywords.any { text.contains(it) }) return mode
         }
-        return "장애물"
+        return "장애물"  // fallback: 무슨 말을 해도 기본 모드로 동작
     }
 
     // ── ONNX 온디바이스 추론 초기화 ────────────────────────────────────
 
     private fun tryInitYoloDetector() {
+        // 백그라운드 스레드에서 초기화 (모델 로딩이 느려서 UI 스레드에서 하면 앱 멈춤)
         Thread {
             try {
-                yoloDetector = YoloDetector(this)
+                yoloDetector = YoloDetector(this)  // assets에서 ONNX 로드
                 runOnUiThread { tvStatus.text = "온디바이스 준비 완료 — 분석 시작을 누르세요" }
             } catch (_: Exception) {
+                // yolo11m.onnx 파일이 assets에 없는 경우 → 서버 모드 안내
                 runOnUiThread { tvStatus.text = "ONNX 모델 없음 — 서버 URL을 입력하세요" }
             }
         }.start()
@@ -380,6 +445,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun requestPermissions() {
         val needed = mutableListOf<String>()
+        // 카메라와 마이크 권한이 없으면 요청 목록에 추가
         if (!hasPerm(Manifest.permission.CAMERA))       needed.add(Manifest.permission.CAMERA)
         if (!hasPerm(Manifest.permission.RECORD_AUDIO)) needed.add(Manifest.permission.RECORD_AUDIO)
         if (needed.isEmpty()) startCamera()
@@ -428,23 +494,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     private fun scheduleNext() {
+        // postDelayed: INTERVAL_MS(1초) 후에 실행, 재귀 호출로 루프 구성
+        // isAnalyzing 체크: 분석 중지 버튼을 누르면 루프 종료
         handler.postDelayed({
             if (isAnalyzing.get()) { captureAndProcess(); scheduleNext() }
         }, INTERVAL_MS)
     }
 
     private fun scheduleWatchdog() {
+        // Watchdog: 6초 동안 성공 응답이 없으면 음성으로 경고
+        // 이유: 네트워크 끊김, 서버 다운 등으로 조용히 멈추는 상황 방지
+        // tts.isSpeaking 체크: 이미 말 중이면 경고 안 함 (겹침 방지)
         handler.postDelayed({
             if (!isAnalyzing.get()) return@postDelayed
             if (System.currentTimeMillis() - lastSuccessTime >= SILENCE_WARN_MS && !tts.isSpeaking) {
                 speak("분석이 중단됐어요. 주의해서 이동하세요.")
                 runOnUiThread { tvStatus.text = "⚠ 분석 중단 — 주의하세요" }
             }
-            scheduleWatchdog()
+            scheduleWatchdog()  // 재귀 호출로 계속 감시
         }, SILENCE_WARN_MS)
     }
 
     private fun captureAndProcess() {
+        // isSending 체크: 이전 요청이 아직 진행 중이면 새 캡처 스킵 (중복 방지)
         if (isSending.get()) return
         val file = File.createTempFile("vg_", ".jpg", cacheDir)
         imageCapture?.takePicture(
@@ -453,6 +525,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     isSending.set(true)
+                    // yoloDetector 있으면 온디바이스, 없으면 서버로
                     if (yoloDetector != null) processOnDevice(file)
                     else sendToServer(file)
                 }
@@ -463,15 +536,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             })
     }
 
-    // ── 온디바이스 추론 (기본) ──────────────────────────────────────────
+    // ── 온디바이스 추론 ─────────────────────────────────────────────────
 
     private fun processOnDevice(imageFile: File) {
+        // 백그라운드 스레드: 추론이 느려서 UI 스레드에서 하면 앱 멈춤
         Thread {
             try {
+                // BitmapFactory: EXIF 회전 정보를 자동 적용 (서버의 cv2.imdecode와 다른 점)
                 val bmp        = android.graphics.BitmapFactory.decodeFile(imageFile.absolutePath)
                 val detections = yoloDetector!!.detect(bmp)
-                bmp.recycle()
-                imageFile.delete()
+                bmp.recycle()      // 메모리 해제 (Android Bitmap 누수 방지)
+                imageFile.delete() // 임시 파일 삭제
 
                 val sentence = when (currentMode) {
                     "찾기"  -> SentenceBuilder.buildFind(findTarget, detections)
@@ -480,8 +555,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 handleSuccess(sentence)
             } catch (_: Exception) {
                 imageFile.delete()
-                // 온디바이스 실패 → 서버로 fallback
-                val file2 = File.createTempFile("vg_fb_", ".jpg", cacheDir)
+                // 온디바이스 실패(모델 오류 등) → 서버로 fallback 시도
                 try {
                     sendToServer(File(imageFile.absolutePath))
                 } catch (_: Exception) {
