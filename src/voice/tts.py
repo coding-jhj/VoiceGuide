@@ -34,8 +34,8 @@ import pygame
 from elevenlabs.client import ElevenLabs
 from elevenlabs import save
 
-ELEVENLABS_API_KEY = "4b5d06defa6ff5ec4d323a909ce756a3c75610b260338ec90c378fa986f0418f" # 개인 api key 입니다 사용 후 지워주세요
-client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+_api_key = os.environ.get("ELEVENLABS_API_KEY", "")
+client = ElevenLabs(api_key=_api_key)
 
 _CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__tts_cache__")
 os.makedirs(_CACHE_DIR, exist_ok=True)
