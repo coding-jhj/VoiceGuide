@@ -149,7 +149,7 @@ def _primary(obj: dict, abs_clock: str) -> str:
             return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"
         if dist_m < 8.0:
             # "접근 중"이라고 표현해서 이동 물체임을 강조
-            return f"조심! {direction}에 {name}{ig}접근 중이에요. {dist_str}. {action}."
+            return f"조심! {direction}에 {name}{ig} 접근 중이에요. {dist_str}. {action}."
         return f"{direction}에 {name}{ig} 있어요. {dist_str}."
 
     # ── 동물: "천천히" 어조 — 급격한 움직임 자제 유도 ───────────────────
