@@ -111,11 +111,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private val toneGen by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 60) }
 
     // ── 음성 자동 시작 ─────────────────────────────────────────────────
-    // true: "음성 안내를 시작할까요?" 에 대한 답변 대기 중
     private var awaitingStartConfirm = false
 
+    // ── 특정 버스 대기 ──────────────────────────────────────────────────
+    @Volatile private var waitingBusNumber = ""  // 기다리는 버스 번호 ("37", "N37")
+
+    // ── 보호자 SOS ──────────────────────────────────────────────────────
+    private var guardianPhone = ""  // SharedPreferences에 저장된 보호자 번호
+
+    // ── 낙상 감지 ────────────────────────────────────────────────────────
+    @Volatile private var lastAccelTotal = 9.8f  // 직전 가속도 크기
+    private var fallCheckJob: java.util.Timer? = null
+
+    // ── 약 복용 알림 ─────────────────────────────────────────────────────
+    private var medicationTimer: java.util.Timer? = null
+
+    // ── GPS 하차 알림 ────────────────────────────────────────────────────
+    private var locationManager: android.location.LocationManager? = null
+    private var targetBusStop: android.location.Location? = null
+    private val locationListener = android.location.LocationListener { loc ->
+        targetBusStop?.let { target ->
+            if (loc.distanceTo(target) < 200f) {
+                speak("내릴 정류장에 거의 다 왔어요. 준비하세요.")
+                stopGpsTracking()
+            }
+        }
+    }
+
     // ── ONNX 온디바이스 추론 ───────────────────────────────────────────
-    // null이면 서버 모드, null이 아니면 온디바이스 모드
     private var yoloDetector: YoloDetector? = null
 
     companion object {
@@ -147,9 +170,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         etServerUrl.setText(
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREF_URL, ""))
 
-        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        sensorManager   = getSystemService(SENSOR_SERVICE) as SensorManager
+        locationManager = getSystemService(LOCATION_SERVICE) as android.location.LocationManager
         initSpeechRecognizer()
         tryInitYoloDetector()
+
+        // 보호자 번호 로드
+        guardianPhone = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            .getString("guardian_phone", "") ?: ""
+
+        // Google Assistant shortcut intent 처리
+        when (intent?.action) {
+            "com.voiceguide.ACTION_START" -> handler.postDelayed({ requestPermissions() }, 1500)
+            "com.voiceguide.ACTION_SOS"   -> handler.postDelayed({ triggerSOS() }, 1500)
+        }
 
         // 서버 URL 유무와 관계없이 바로 시작 가능
         btnToggle.setOnClickListener {
@@ -211,10 +245,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
 
-        // 가속도 센서로 폰 기울기 판단:
-        //   x: 좌우 기울기 (양수=오른쪽, 음수=왼쪽)
-        //   y: 앞뒤 기울기 (양수=앞, 음수=뒤)
-        //   중력(9.8m/s²)이 지배적 → 가만히 있어도 값이 있음
+        // ── 낙상 감지 ────────────────────────────────────────────────────
+        // 가속도 크기(magnitude) = sqrt(x²+y²+z²)
+        // 정상: 약 9.8 m/s² (중력)
+        // 낙상: 자유낙하(~0) 직후 충격(>25) 패턴
+        val ax = event.values[0]; val ay = event.values[1]; val az = event.values[2]
+        val magnitude = kotlin.math.sqrt((ax*ax + ay*ay + az*az).toDouble()).toFloat()
+        if (lastAccelTotal < 3.0f && magnitude > 25.0f) {
+            // 자유낙하 후 충격 감지 → 낙상 의심
+            scheduleFallCheck()
+        }
+        lastAccelTotal = magnitude
+
         val x = event.values[0]; val y = event.values[1]
         val prev = cameraOrientation
         cameraOrientation = when {
@@ -342,6 +384,70 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             "버스번호" -> {
                 speak("버스 번호를 확인할게요.")
                 captureForBusNumber()
+            }
+            "버스대기" -> {
+                // "37번 버스 기다려줘" → "37" 추출
+                val num = Regex("\\d{1,4}").find(text)?.value ?: ""
+                if (num.isEmpty()) {
+                    speak("몇 번 버스를 기다릴까요? 예) 37번 버스 기다려줘.")
+                } else {
+                    waitingBusNumber = num
+                    speak("${num}번 버스를 기다릴게요. 가까이 오면 알려드릴게요.")
+                }
+            }
+            "다시읽기" -> {
+                if (lastSentence.isEmpty()) speak("아직 안내한 내용이 없어요.")
+                else speak(lastSentence)
+            }
+            "볼륨업" -> {
+                val am = getSystemService(AUDIO_SERVICE) as AudioManager
+                am.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                speak("소리를 높였어요.")
+            }
+            "볼륨다운" -> {
+                val am = getSystemService(AUDIO_SERVICE) as AudioManager
+                am.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                speak("소리를 낮췄어요.")
+            }
+            "중지" -> {
+                stopAnalysis()
+                speak("분석을 잠깐 멈출게요.")
+            }
+            "재시작" -> {
+                if (!isAnalyzing.get()) {
+                    speak("다시 시작할게요.")
+                    handler.postDelayed({ requestPermissions() }, 800)
+                } else speak("이미 분석 중이에요.")
+            }
+            "긴급" -> triggerSOS()
+            "식사" -> {
+                currentMode = "식사"
+                speak("식사 도우미 모드예요. 식기와 음식 위치를 알려드릴게요.")
+                captureAndProcess()
+            }
+            "옷매칭" -> {
+                speak("옷 매칭을 확인할게요.")
+                captureForClothingAdvice("matching")
+            }
+            "옷패턴" -> {
+                speak("옷 패턴을 확인할게요.")
+                captureForClothingAdvice("pattern")
+            }
+            "돈" -> {
+                speak("지폐를 확인할게요.")
+                captureForCurrency()
+            }
+            "약알림" -> {
+                // "8시에 약 먹어야 해" → 시간 추출
+                val hour = Regex("(\\d{1,2})시").find(text)?.groupValues?.get(1)?.toIntOrNull()
+                if (hour != null) setMedicationAlarm(hour)
+                else speak("몇 시에 약을 드실 건가요? 예) 8시에 약 먹어야 해.")
+            }
+            "하차알림" -> {
+                speak("현재 위치를 기준으로 200미터 이내에 도착하면 알려드릴게요. GPS를 켜주세요.")
+                startGpsTracking()
             }
             else -> {
                 currentMode = mode
@@ -479,9 +585,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                                         .distinct()
 
                                     if (numbers.isNotEmpty()) {
-                                        // ML Kit 성공 → 즉시 읽어줌
                                         val best = numbers.minByOrNull { it.length } ?: numbers[0]
-                                        speak("${best}번 버스예요.")
+                                        // 기다리는 버스와 일치하면 강한 알림
+                                        if (waitingBusNumber.isNotEmpty() && best == waitingBusNumber) {
+                                            val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+                                            vibrator.vibrate(android.os.VibrationEffect.createWaveform(
+                                                longArrayOf(0, 400, 100, 400, 100, 400), -1))
+                                            speak("${best}번 버스 왔어요! 지금 손을 드세요!")
+                                            waitingBusNumber = ""  // 대기 해제
+                                        } else {
+                                            speak("${best}번 버스예요.")
+                                        }
                                         origBmp.recycle(); processedBmp.recycle(); file.delete()
                                     } else {
                                         // ML Kit 실패 → 서버 EasyOCR fallback
@@ -529,6 +643,213 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 imageFile.delete()
             }
         }.start()
+    }
+
+    // ── SOS 긴급 호출 ──────────────────────────────────────────────────
+
+    private fun triggerSOS() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+        // 긴 진동 패턴으로 긴급 상황 알림
+        vibrator.vibrate(android.os.VibrationEffect.createWaveform(
+            longArrayOf(0, 500, 200, 500, 200, 500), -1))
+        speak("보호자에게 도움을 요청할게요.")
+
+        if (guardianPhone.isEmpty()) {
+            speak("보호자 번호가 설정되어 있지 않아요. 설정에서 먼저 등록해 주세요.")
+            return
+        }
+        try {
+            val sms = android.telephony.SmsManager.getDefault()
+            // 현재 위치 포함 메시지 전송
+            val msg = "[VoiceGuide 긴급] 도움이 필요합니다. 앱에서 자동 발송된 메시지입니다."
+            sms.sendTextMessage(guardianPhone, null, msg, null, null)
+            speak("${guardianPhone}으로 도움 요청 문자를 보냈어요.")
+        } catch (_: Exception) {
+            speak("문자 발송에 실패했어요. 직접 전화해 주세요.")
+        }
+    }
+
+    // ── 낙상 감지 후처리 ───────────────────────────────────────────────
+
+    private fun scheduleFallCheck() {
+        fallCheckJob?.cancel()
+        speak("괜찮으세요? 10초 안에 '괜찮아'라고 말씀해 주세요.")
+        var confirmed = false
+        // 10초 내 "괜찮아" 응답 없으면 자동 SOS
+        val timer = java.util.Timer()
+        timer.schedule(object : java.util.TimerTask() {
+            override fun run() {
+                if (!confirmed) runOnUiThread { triggerSOS() }
+            }
+        }, 10_000)
+        fallCheckJob = timer
+        // 음성 인식 시작 — 결과가 오면 confirmed 처리
+        handler.postDelayed({ startListeningForFallConfirm { confirmed = true; timer.cancel() } }, 1000)
+    }
+
+    private fun startListeningForFallConfirm(onOk: () -> Unit) {
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) return
+        val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        val fallRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        fallRecognizer.setRecognitionListener(object : RecognitionListener {
+            override fun onResults(results: Bundle) {
+                val text = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                    ?.firstOrNull() ?: ""
+                if (text.contains("괜찮") || text.contains("없어") || text.contains("아니")) {
+                    speak("다행이에요. 조심하세요.")
+                    onOk()
+                }
+                fallRecognizer.destroy()
+            }
+            override fun onError(e: Int) { fallRecognizer.destroy() }
+            override fun onReadyForSpeech(p: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(v: Float) {}
+            override fun onBufferReceived(b: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+            override fun onPartialResults(p: Bundle?) {}
+            override fun onEvent(t: Int, p: Bundle?) {}
+        })
+        fallRecognizer.startListening(intent)
+    }
+
+    // ── 옷 매칭·패턴 (서버 GPT Vision) ───────────────────────────────
+
+    private fun captureForClothingAdvice(type: String) {
+        val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
+        if (serverUrl.isEmpty()) {
+            speak("옷 분석은 서버 연결이 필요해요."); return
+        }
+        val file = File.createTempFile("vg_cloth_", ".jpg", cacheDir)
+        imageCapture?.takePicture(
+            ImageCapture.OutputFileOptions.Builder(file).build(), cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(o: ImageCapture.OutputFileResults) {
+                    Thread {
+                        try {
+                            val body = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                                .addFormDataPart("image", "cloth.jpg",
+                                    file.asRequestBody("image/jpeg".toMediaType()))
+                                .addFormDataPart("type", type)
+                                .build()
+                            val resp = httpClient.newCall(
+                                okhttp3.Request.Builder().url("$serverUrl/vision/clothing").post(body).build()
+                            ).execute()
+                            val sentence = org.json.JSONObject(resp.body?.string() ?: "{}")
+                                .optString("sentence", "분석하지 못했어요.")
+                            runOnUiThread { speak(sentence) }
+                        } catch (_: Exception) { runOnUiThread { speak("옷 분석에 실패했어요.") } }
+                        finally { file.delete() }
+                    }.start()
+                }
+                override fun onError(e: ImageCaptureException) { speak("사진을 찍지 못했어요.") }
+            })
+    }
+
+    // ── 지폐 인식 (색상 기반) ─────────────────────────────────────────
+
+    private fun captureForCurrency() {
+        val file = File.createTempFile("vg_curr_", ".jpg", cacheDir)
+        imageCapture?.takePicture(
+            ImageCapture.OutputFileOptions.Builder(file).build(), cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(o: ImageCapture.OutputFileResults) {
+                    Thread {
+                        try {
+                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            // 중앙 영역 HSV 평균으로 지폐 색상 판별
+                            val cx = bmp.width / 2; val cy = bmp.height / 2
+                            val size = minOf(bmp.width, bmp.height) / 4
+                            val pixels = IntArray(size * size)
+                            bmp.getPixels(pixels, 0, size, cx - size/2, cy - size/2, size, size)
+                            bmp.recycle()
+
+                            var rSum = 0f; var gSum = 0f; var bSum = 0f
+                            pixels.forEach { p ->
+                                rSum += ((p shr 16) and 0xFF)
+                                gSum += ((p shr 8)  and 0xFF)
+                                bSum += (p and 0xFF)
+                            }
+                            val n = pixels.size.toFloat()
+                            val r = rSum / n; val g = gSum / n; val b = bSum / n
+
+                            // 한국 지폐 색상 특성:
+                            // 50000원: 노란/황금색 (R>G>B, R 높음)
+                            // 10000원: 초록색 (G > R, G > B)
+                            // 5000원:  빨간/적갈색 (R > G > B, R 매우 높음)
+                            // 1000원:  파란색 (B > R, B > G)
+                            val sentence = when {
+                                b > r && b > g -> "1000원권 같아요."
+                                g > b && g > r * 0.9f && r < 180 -> "10000원권 같아요."
+                                r > g * 1.3f && r > b * 1.5f -> "5000원권 같아요."
+                                r > 180 && g > 150 && b < 130 -> "50000원권 같아요."
+                                else -> "지폐를 정확히 인식하지 못했어요. 카메라에 지폐를 가득 채워보세요."
+                            }
+                            runOnUiThread { speak(sentence) }
+                        } catch (_: Exception) { runOnUiThread { speak("지폐 인식에 실패했어요.") } }
+                        finally { file.delete() }
+                    }.start()
+                }
+                override fun onError(e: ImageCaptureException) { speak("사진을 찍지 못했어요.") }
+            })
+    }
+
+    // ── 약 복용 알림 ─────────────────────────────────────────────────
+
+    private fun setMedicationAlarm(hour: Int) {
+        medicationTimer?.cancel()
+        val now = java.util.Calendar.getInstance()
+        val target = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            if (before(now)) add(java.util.Calendar.DAY_OF_YEAR, 1) // 오늘 지났으면 내일
+        }
+        val delayMs = target.timeInMillis - now.timeInMillis
+        speak("매일 ${hour}시에 약 복용 알림을 설정했어요.")
+        medicationTimer = java.util.Timer(true)
+        medicationTimer?.schedule(object : java.util.TimerTask() {
+            override fun run() {
+                runOnUiThread {
+                    speak("약 드실 시간이에요. ${hour}시 약 복용 알림이에요.")
+                    val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(
+                        longArrayOf(0, 300, 200, 300), -1))
+                }
+            }
+        }, delayMs, 24 * 60 * 60 * 1000) // 24시간마다 반복
+    }
+
+    // ── GPS 하차 알림 ────────────────────────────────────────────────
+
+    @Suppress("MissingPermission")
+    private fun startGpsTracking() {
+        try {
+            locationManager?.requestLocationUpdates(
+                android.location.LocationManager.GPS_PROVIDER,
+                5000L, 50f, locationListener
+            )
+            // 현재 위치를 목적지로 저장 (나중에 목적지 설정 기능 추가 가능)
+            val lastLoc = locationManager?.getLastKnownLocation(
+                android.location.LocationManager.GPS_PROVIDER)
+            if (lastLoc != null) {
+                targetBusStop = lastLoc
+                speak("현재 위치에서 200미터 이내로 돌아오면 알려드릴게요.")
+            } else {
+                speak("GPS 신호를 찾는 중이에요. 잠시 후 다시 시도해 주세요.")
+            }
+        } catch (_: Exception) {
+            speak("GPS를 사용할 수 없어요.")
+        }
+    }
+
+    private fun stopGpsTracking() {
+        locationManager?.removeUpdates(locationListener)
+        targetBusStop = null
     }
 
     /**
@@ -710,6 +1031,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val json     = JSONObject(response.body?.string() ?: "{}")
                 val sentence = json.optString("sentence", "주변에 장애물이 없어요.")
                 val beep     = json.optBoolean("beep", false)
+                checkWaitingBus(json)   // 버스 대기 모드 자동 감지
                 handleSuccess(sentence, beep)
             } catch (_: Exception) {
                 handleFail()
@@ -720,6 +1042,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     // ── 결과 처리 & Failsafe ────────────────────────────────────────────
+
+    // 버스 대기 모드: 서버 응답에 버스가 포함되어 있으면 자동으로 번호 OCR 실행
+    private fun checkWaitingBus(json: org.json.JSONObject) {
+        if (waitingBusNumber.isEmpty()) return
+        val objects = json.optJSONArray("objects") ?: return
+        for (i in 0 until objects.length()) {
+            val obj = objects.getJSONObject(i)
+            if (obj.optString("class") == "bus") {
+                // 버스 감지됨 → 자동으로 번호 인식 시도
+                captureForBusNumber()
+                return
+            }
+        }
+    }
 
     private fun handleSuccess(sentence: String, beep: Boolean = false) {
         consecutiveFails.set(0)

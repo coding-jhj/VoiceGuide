@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- "OK Google, 보이스가이드 시작해줘" -->
+    <shortcut
+        android:shortcutId="start_analysis"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_start"
+        android:shortcutLongLabel="@string/shortcut_start_long">
+        <intent
+            android:action="com.voiceguide.ACTION_START"
+            android:targetPackage="com.voiceguide"
+            android:targetClass="com.voiceguide.MainActivity" />
+    </shortcut>
+
+    <!-- "OK Google, 보이스가이드로 도움 요청" -->
+    <shortcut
+        android:shortcutId="sos"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_sos"
+        android:shortcutLongLabel="@string/shortcut_sos_long">
+        <intent
+            android:action="com.voiceguide.ACTION_SOS"
+            android:targetPackage="com.voiceguide"
+            android:targetClass="com.voiceguide.MainActivity" />
+    </shortcut>
+
+</shortcuts>
