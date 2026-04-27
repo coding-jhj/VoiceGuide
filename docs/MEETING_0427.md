@@ -133,4 +133,55 @@ Depth 맵 바닥 12구역 분석 확장.
 
 ---
 
+## Seeing AI 기능 — VoiceGuide 반영 계획
+
+Microsoft Seeing AI의 9가지 기능 전체를 VoiceGuide에 흡수하는 방향.
+
+| Seeing AI 기능 | 설명 | VoiceGuide 구현 방향 | 난이도 |
+|--------------|------|-------------------|------|
+| **Short Text** | 카메라에 보이는 짧은 텍스트 즉시 읽기 | Google ML Kit Text Recognition (온디바이스 OCR) | 🟢 쉬움 |
+| **Documents** | 문서·서류 전체를 읽고 음성 출력 | ML Kit Document Scanner + TTS | 🟡 중간 |
+| **Handwriting** | 손글씨 인식 후 읽기 | ML Kit Handwriting Recognition | 🟡 중간 |
+| **Products** | 바코드 스캔 → 상품명 읽기 | ML Kit Barcode Scanning (ZXing 대체 가능) | 🟢 쉬움 |
+| **Currency** | 지폐 종류 인식 → "만원권입니다" | 분류 모델 or GPT Vision API | 🔴 어려움 |
+| **People** | 얼굴 인식 → 이름·표정·나이 추정 | ML Kit Face Detection + 등록 기능 | 🔴 어려움 |
+| **Scene** | 주변 전체 상황을 문장으로 설명 | 이미 YOLO로 일부 구현, GPT Vision으로 확장 가능 | 🟡 중간 |
+| **Color** | 물체·옷 색상을 말해줌 | YOLO bbox 영역 HSV 분석 → 색상명 변환 | 🟢 쉬움 |
+| **Light** | 주변 밝기를 소리로 알려줌 | Android 조도 센서 (카메라 불필요) | 🟢 쉬움 |
+
+### 당장 붙일 수 있는 것 (ML Kit 기반, 온디바이스)
+
+- **Short Text** — "텍스트 읽기" 음성 명령 → 카메라 화면 텍스트 즉시 읽기
+- **Products** — "이거 뭐야" + 바코드 감지 시 자동으로 상품 정보 읽기
+- **Color** — "색깔 알려줘" 명령 → 중앙 물체 색상 말해줌
+- **Light** — 조도 센서로 어두운 환경 자동 감지 → "주변이 어두워요"
+
+### 중기 목표
+
+- **Scene** — GPT Vision API로 전체 상황 한 문장 요약 ("카페 내부, 앞에 테이블과 의자가 있어요")
+- **Documents** — 문서 촬영 모드 추가, 처방전·메뉴판 등 읽기
+- **Handwriting** — 손글씨 메모 읽기
+
+### 보류 (복잡도 대비 효용 낮음)
+
+- **Currency** — 한국 지폐 전용 모델 필요, 별도 학습 필요
+- **People** — 얼굴 등록 시스템 필요, 개인정보 이슈
+
+### 음성 명령 모드 확장 (Seeing AI 흡수 후)
+
+| 음성 명령 | 기능 |
+|---------|------|
+| "주변 알려줘" / "장애물 모드" | 기존 장애물 탐지 |
+| "이거 찾아줘 [물체]" | 특정 물체 찾기 |
+| "이거 뭐야" | 물체 확인 + 바코드 스캔 |
+| "글자 읽어줘" | Short Text OCR |
+| "문서 읽어줘" | Document 모드 |
+| "색깔 알려줘" | Color 감지 |
+| "신호등 봐줘" | 신호등 파란불 감지 |
+| "밝기 알려줘" | 조도 센서 |
+| "여기 저장해줘 [이름]" | 개인 네비게이팅 |
+| "저장된 곳 알려줘" | 장소 목록 |
+
+---
+
 *2026-04-27 미팅 후 정리*
