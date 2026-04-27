@@ -31,12 +31,11 @@ def _un_neun(word: str) -> str:
 
 def _format_dist(dist_m: float) -> str:
     dist_m = max(0.1, min(dist_m, 15.0))
-    if dist_m < 0.5:
-        return "바로 코앞"
-    if dist_m < 1.0:
-        cm = round(dist_m * 100 / 10) * 10
-        return f"약 {cm:.0f}cm"
-    return f"약 {dist_m:.1f}m"
+    if dist_m < 0.5:  return "바로 코앞"
+    if dist_m < 1.0:  return "매우 가까이"
+    if dist_m < 2.5:  return "가까이"
+    if dist_m < 5.0:  return "조금 멀리"
+    return "멀리"
 
 
 def _primary(obj: dict, abs_clock: str) -> str:

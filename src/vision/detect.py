@@ -8,6 +8,7 @@ VoiceGuide 객체 탐지 모듈 (2026-04-26)
 """
 import math, os
 from ultralytics import YOLO
+from src.nlg.sentence import _i_ga
 
 # ── 모델 선택 ────────────────────────────────────────────────────────────────
 _USE_YOLO_WORLD = os.environ.get("YOLO_WORLD", "0") == "1"
@@ -252,6 +253,54 @@ _GROUND_CLASSES = {
 }
 
 
+def _detect_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
+    """물체 중심부 색상을 HSV로 감지."""
+    import cv2
+    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+    r = max(5, min((x2 - x1) // 4, (y2 - y1) // 4))
+    crop = img[max(0, cy - r):cy + r, max(0, cx - r):cx + r]
+    if crop.size == 0:
+        return "알 수 없음"
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    h_val = float(hsv[:, :, 0].mean())
+    s_val = float(hsv[:, :, 1].mean())
+    v_val = float(hsv[:, :, 2].mean())
+    if s_val < 40:
+        if v_val > 180: return "흰색"
+        if v_val > 80:  return "회색"
+        return "검은색"
+    if h_val < 15 or h_val >= 165: return "빨간색"
+    if h_val < 30:  return "주황색"
+    if h_val < 45:  return "노란색"
+    if h_val < 75:  return "초록색"
+    if h_val < 130: return "파란색"
+    if h_val < 165: return "보라색"
+    return "알 수 없음"
+
+
+def _detect_traffic_light_color(img, x1: int, y1: int, x2: int, y2: int) -> str:
+    """신호등 bbox 내 빨간불/초록불 구별."""
+    import cv2
+    crop = img[y1:y2, x1:x2]
+    if crop.size == 0 or crop.shape[0] < 6:
+        return "unknown"
+    h = crop.shape[0]
+    top    = crop[:h // 3]
+    bottom = crop[h * 2 // 3:]
+    hsv_top = cv2.cvtColor(top,    cv2.COLOR_BGR2HSV)
+    hsv_bot = cv2.cvtColor(bottom, cv2.COLOR_BGR2HSV)
+    red_mask = (
+        cv2.inRange(hsv_top, (0, 100, 100),   (15, 255, 255)) |
+        cv2.inRange(hsv_top, (165, 100, 100), (180, 255, 255))
+    )
+    green_mask = cv2.inRange(hsv_bot, (40, 100, 100), (85, 255, 255))
+    if green_mask.mean() / 255 > 0.05:
+        return "green"
+    if red_mask.mean() / 255 > 0.05:
+        return "red"
+    return "unknown"
+
+
 def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
     """
     반환: (top3_objects, scene_analysis)
@@ -267,6 +316,7 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
 
     nparr = np.frombuffer(image_bytes, np.uint8)
     img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    img   = cv2.flip(img, 1)   # 좌우 반전 보정 (카메라 mirror 현상)
     h, w  = img.shape[:2]
 
     results    = model(img, conf=CONF_THRESHOLD)[0]
@@ -306,6 +356,7 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
         is_vehicle     = cls_name in {"car","motorcycle","bus","truck","train","bicycle","airplane","boat"}
         is_animal      = cls_name in {"dog","cat","horse","cow","sheep","bird","elephant","bear","zebra","giraffe"}
         is_dangerous   = cls_name in {"knife","scissors","wine glass","baseball bat"}
+        is_bus         = cls_name == "bus"
 
         ground_mult    = 1.4 if is_ground and distance in ("매우 가까이","가까이","보통") else 1.0
         class_mult     = CLASS_RISK_MULTIPLIER.get(cls_name, 1.0)
@@ -314,24 +365,78 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
         )
         risk_score = min(risk_score, 1.0)
 
+        # 경고 레벨 분류
+        if (is_vehicle and distance_m < 8.0) or (is_dangerous and distance_m < 3.0):
+            alert_level = "danger"
+        elif risk_score > 0.35 or distance_m < 1.5:
+            alert_level = "warning"
+        else:
+            alert_level = "info"
+
+        # 색상 감지
+        color = _detect_color(img, x1, y1, x2, y2)
+
+        # 신호등 색상 감지
+        traffic_light_state = None
+        if cls_name == "traffic light":
+            traffic_light_state = _detect_traffic_light_color(img, x1, y1, x2, y2)
+
+        # 버스 번호 인식 (bbox 상단 영역 OCR 준비용 crop 좌표 저장)
+        bus_crop = [x1, y1, x2, min(y1 + (y2-y1)//3, y2)] if is_bus else None
+
         all_detections.append({
-            "class":           cls_name,
-            "class_ko":        TARGET_CLASSES[cls_name],
-            "bbox":            [x1, y1, x2, y2],
-            "direction":       direction,
-            "distance":        distance,
-            "distance_m":      distance_m,
-            "risk_score":      risk_score,
-            "conf":            round(conf, 2),
-            "is_ground_level": is_ground,
-            "is_vehicle":      is_vehicle,
-            "is_animal":       is_animal,
-            "is_dangerous":    is_dangerous,
+            "class":                cls_name,
+            "class_ko":             TARGET_CLASSES[cls_name],
+            "bbox":                 [x1, y1, x2, y2],
+            "direction":            direction,
+            "distance":             distance,
+            "distance_m":           distance_m,
+            "risk_score":           risk_score,
+            "conf":                 round(conf, 2),
+            "is_ground_level":      is_ground,
+            "is_vehicle":           is_vehicle,
+            "is_animal":            is_animal,
+            "is_dangerous":         is_dangerous,
+            "alert_level":          alert_level,
+            "color":                color,
+            "traffic_light_state":  traffic_light_state,
+            "bus_crop":             bus_crop,
         })
 
     scene = _compute_scene_analysis(all_detections)
+
+    # 점자 블록 위 장애물 경고: 바닥에 있는 물체가 이미지 하단 중앙 경로에 있을 때
+    _check_tactile_block_obstruction(all_detections, scene, w, h)
+
     top3  = sorted(all_detections, key=lambda x: x["risk_score"], reverse=True)[:3]
     return top3, scene
+
+
+def _check_tactile_block_obstruction(detections: list[dict], scene: dict, w: int, h: int):
+    """점자 블록 보행 경로(이미지 하단 중앙 30%) 위 장애물 감지."""
+    # 경로 영역: 하단 35% 높이, 좌우 중앙 40% 너비
+    path_x1 = w * 0.30
+    path_x2 = w * 0.70
+    path_y1 = h * 0.65
+
+    _TACTILE_BLOCKERS = {
+        "자전거", "오토바이", "스케이트보드", "유모차",
+        "배낭", "여행가방", "우산", "화분", "벤치",
+    }
+
+    for det in detections:
+        if not det.get("is_ground_level"):
+            continue
+        x1, y1, x2, y2 = det["bbox"]
+        cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+        if path_x1 <= cx <= path_x2 and cy >= path_y1:
+            name = det["class_ko"]
+            if name in _TACTILE_BLOCKERS:
+                scene["tactile_block_warning"] = f"보행 경로에 {name}{_i_ga(name)} 있어요. 우회하세요."
+            else:
+                scene.setdefault("tactile_block_warning",
+                                 f"보행 경로에 장애물이 있어요. 조심하세요.")
+            break
 
 
 def _compute_scene_analysis(detections: list[dict]) -> dict:
@@ -368,9 +473,21 @@ def _compute_scene_analysis(detections: list[dict]) -> dict:
     elif person_cnt >= 3:
         crowd_msg = "사람이 많아요. 천천히 이동하세요."
 
+    # 신호등 상태 안내
+    traffic_light_msg = None
+    for det in detections:
+        if det.get("class") == "traffic light":
+            state = det.get("traffic_light_state")
+            if state == "green":
+                traffic_light_msg = "신호등이 초록불이에요. 건너도 돼요."
+            elif state == "red":
+                traffic_light_msg = "신호등이 빨간불이에요. 멈추세요."
+            break
+
     return {
-        "safe_direction": safe_dir,
-        "crowd_warning":  crowd_msg,
-        "danger_warning": danger_msg,
-        "person_count":   person_cnt,
+        "safe_direction":    safe_dir,
+        "crowd_warning":     crowd_msg,
+        "danger_warning":    danger_msg,
+        "person_count":      person_cnt,
+        "traffic_light_msg": traffic_light_msg,
     }

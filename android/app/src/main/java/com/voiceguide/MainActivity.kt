@@ -8,6 +8,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
@@ -79,6 +80,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     @Volatile private var currentMode  = "장애물"
     @Volatile private var findTarget   = ""   // 찾기 모드에서 탐색할 물체
 
+    // ── 조도 센서 ────────────────────────────────────────────────────────
+    @Volatile private var lastLux = 100f
+    private val toneGen by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 60) }
+
+    // ── 자동 시작 플래그 ─────────────────────────────────────────────────
+    private var awaitingStartConfirm = false
+
     // ── ONNX 온디바이스 추론 ────────────────────────────────────────────
     private var yoloDetector: YoloDetector? = null
 
@@ -136,6 +144,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let {
             sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
         }
+        sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)?.let {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     override fun onPause() {
@@ -155,6 +166,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // ── 센서: 카메라 방향 ───────────────────────────────────────────────
 
     override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type == Sensor.TYPE_LIGHT) {
+            val lux = event.values[0]
+            if (lastLux >= 10f && lux < 10f && isAnalyzing.get()) {
+                speak("주변이 많이 어두워요. 조심하세요.")
+            }
+            lastLux = lux
+            return
+        }
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
         val x = event.values[0]; val y = event.values[1]
         val prev = cameraOrientation
@@ -212,6 +231,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         val mode = classifyKeyword(text)
         runOnUiThread { tvMode.text = "모드: $mode  |  방향: 정면" }
 
+        // 자동 시작 응답 처리
+        if (awaitingStartConfirm) {
+            awaitingStartConfirm = false
+            if (text.contains("네") || text.contains("예") || text.contains("응")) {
+                requestPermissions()
+            } else {
+                speak("알겠어요. 분석 시작 버튼을 누르시면 시작돼요.")
+            }
+            return
+        }
+
         when (mode) {
             "저장" -> {
                 // 이미지 불필요 — 즉시 위치 저장
@@ -237,11 +267,92 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 currentMode = "찾기"
                 speak("${findTarget.ifEmpty { "물건" }} 찾기 모드.")
             }
+            "텍스트" -> {
+                speak("텍스트를 인식할게요.")
+                captureForOcr()
+            }
+            "바코드" -> {
+                speak("바코드를 인식할게요.")
+                captureForBarcode()
+            }
+            "색상" -> {
+                speak("색상을 확인할게요.")
+                currentMode = "색상"
+                captureAndProcess()
+            }
+            "밝기" -> {
+                val desc = when {
+                    lastLux < 10  -> "매우 어두워요."
+                    lastLux < 50  -> "조금 어두운 편이에요."
+                    lastLux < 300 -> "적당히 밝아요."
+                    else          -> "매우 밝아요."
+                }
+                speak("현재 밝기는 $desc")
+            }
+            "신호등" -> {
+                speak("신호등을 확인할게요.")
+                currentMode = "신호등"
+                captureAndProcess()
+            }
             else -> {
                 currentMode = mode
                 speak("$mode 모드.")
             }
         }
+    }
+
+    private fun captureForOcr() {
+        val file = File.createTempFile("vg_ocr_", ".jpg", cacheDir)
+        imageCapture?.takePicture(
+            ImageCapture.OutputFileOptions.Builder(file).build(),
+            cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    Thread {
+                        try {
+                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            val recognizer = com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions.Builder().build()
+                                .let { com.google.mlkit.vision.text.TextRecognition.getClient(it) }
+                            val image = com.google.mlkit.vision.common.InputImage.fromBitmap(bmp, 0)
+                            recognizer.process(image)
+                                .addOnSuccessListener { result ->
+                                    val text = result.text.trim()
+                                    if (text.isEmpty()) speak("텍스트를 찾지 못했어요.")
+                                    else speak(text)
+                                    file.delete()
+                                }
+                                .addOnFailureListener { speak("텍스트 인식에 실패했어요."); file.delete() }
+                        } catch (_: Exception) { speak("텍스트 인식에 실패했어요."); file.delete() }
+                    }.start()
+                }
+                override fun onError(e: ImageCaptureException) { speak("사진을 찍지 못했어요.") }
+            })
+    }
+
+    private fun captureForBarcode() {
+        val file = File.createTempFile("vg_bc_", ".jpg", cacheDir)
+        imageCapture?.takePicture(
+            ImageCapture.OutputFileOptions.Builder(file).build(),
+            cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    Thread {
+                        try {
+                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            val scanner = com.google.mlkit.vision.barcode.BarcodeScanning.getClient()
+                            val image = com.google.mlkit.vision.common.InputImage.fromBitmap(bmp, 0)
+                            scanner.process(image)
+                                .addOnSuccessListener { barcodes ->
+                                    if (barcodes.isEmpty()) speak("바코드를 찾지 못했어요.")
+                                    else speak("${barcodes[0].displayValue ?: "알 수 없는 상품"}이에요.")
+                                    file.delete()
+                                }
+                                .addOnFailureListener { speak("바코드 인식에 실패했어요."); file.delete() }
+                        } catch (_: Exception) { speak("바코드 인식에 실패했어요."); file.delete() }
+                    }.start()
+                }
+                override fun onError(e: ImageCaptureException) { speak("사진을 찍지 못했어요.") }
+            })
     }
 
     /** STT 텍스트 → 모드 분류. 미매칭 시 장애물(기본) */
@@ -407,7 +518,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
                 val json     = JSONObject(response.body?.string() ?: "{}")
                 val sentence = json.optString("sentence", "주변에 장애물이 없어요.")
-                handleSuccess(sentence)
+                val beep     = json.optBoolean("beep", false)
+                handleSuccess(sentence, beep)
             } catch (_: Exception) {
                 handleFail()
             } finally {
@@ -418,7 +530,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 결과 처리 & Failsafe ────────────────────────────────────────────
 
-    private fun handleSuccess(sentence: String) {
+    private fun handleSuccess(sentence: String, beep: Boolean = false) {
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
         isSending.set(false)
@@ -429,7 +541,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             } else if (sentence != lastSentence && !tts.isSpeaking) {
                 lastSentence = sentence
                 tvStatus.text = sentence
-                speak(sentence)
+                if (beep) {
+                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                } else {
+                    speak(sentence)
+                }
             }
         }
     }
@@ -492,7 +608,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         if (status == TextToSpeech.SUCCESS) {
             tts.setLanguage(Locale.KOREAN)
             tts.setSpeechRate(1.1f)
+            handler.postDelayed({ promptAutoStart() }, 1000)
         }
+    }
+
+    private fun promptAutoStart() {
+        awaitingStartConfirm = true
+        speak("음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.")
+        handler.postDelayed({ if (awaitingStartConfirm) startListening() }, 2500)
     }
 
     override fun onRequestPermissionsResult(

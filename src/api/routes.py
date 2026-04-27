@@ -88,14 +88,20 @@ async def detect(
     else:
         sentence = build_sentence(objects, all_changes, camera_orientation=camera_orientation)
 
-    # 안전 경로·군중·위험 물체 경고를 문장 뒤에 추가 (있을 때만)
+    # 안전 경로·군중·위험 물체·신호등 경고를 문장 뒤에 추가 (있을 때만)
     extras = [v for v in [
         scene.get("danger_warning"),
+        scene.get("tactile_block_warning"),
         scene.get("crowd_warning"),
         scene.get("safe_direction"),
+        scene.get("traffic_light_msg"),
     ] if v]
     if extras:
         sentence = sentence + " " + " ".join(extras)
+
+    # 경고 레벨 & beep 플래그 (Android에서 TTS 대신 비프음 처리용)
+    alert_level = objects[0].get("alert_level", "info") if objects else "info"
+    beep = (alert_level == "info" and not hazards and not extras)
 
     return {
         "sentence":      sentence,
@@ -103,6 +109,8 @@ async def detect(
         "hazards":       hazards,
         "changes":       all_changes,
         "scene":         scene,
+        "alert_level":   alert_level,
+        "beep":          beep,
         "depth_source":  objects[0].get("depth_source", "bbox") if objects else "bbox",
     }
 

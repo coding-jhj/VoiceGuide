@@ -63,6 +63,14 @@ class SessionTracker:
                 elif delta < 0:
                     tr["alerted"] = False  # 멀어지면 경고 리셋
 
+                # 빠른 접근 경고 (낙하·날아오는 물체): 0.8m 이상 급격히 가까워짐
+                if delta >= 0.8 and smooth_d < 3.0 and not tr.get("alerted_fast"):
+                    name = obj["class_ko"]
+                    changes.append(f"조심! {name}{_i_ga(name)} 빠르게 다가오고 있어요!")
+                    tr["alerted_fast"] = True
+                elif delta < 0:
+                    tr["alerted_fast"] = False
+
                 tr["distance_m"] = smooth_d
                 tr["last_seen"]  = now
             else:
