@@ -421,15 +421,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     /**
      * "버스 번호 알려줘" 명령 처리.
      *
-     * 접근 방식:
-     *   1. 사진 촬영
-     *   2. ML Kit OCR로 전체 이미지의 텍스트 인식
-     *   3. 숫자만 추출 (버스 번호는 1~4자리 숫자)
-     *   4. 가장 큰 글씨(=가장 잘 보이는) 숫자를 버스 번호로 판단해서 안내
+     * 2단계 전략 (최고 성능):
+     *   1단계: Android ML Kit OCR (이미지 전처리 적용)
+     *          → 숫자 찾으면 즉시 읽어줌 (빠름, 오프라인)
+     *   2단계: 서버 EasyOCR fallback (ML Kit 실패 시)
+     *          → 이미지 전송 → EasyOCR + CLAHE 전처리 → 더 정밀하게 재시도
      *
-     * 왜 YOLO bus_crop 안 쓰나?
-     *   서버 응답 후 이미지 파일이 이미 삭제되어 crop이 불가능.
-     *   대신 전체 이미지 OCR에서 숫자 패턴만 필터링하는 방식 사용.
+     * 이미지 전처리:
+     *   그레이스케일 + 대비 강화로 번호판 글자를 더 선명하게 만들어
+     *   ML Kit 인식률을 높임
      */
     private fun captureForBusNumber() {
         val file = File.createTempFile("vg_bus_", ".jpg", cacheDir)
@@ -440,39 +440,95 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     Thread {
                         try {
-                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                            val origBmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+
+                            // ── 이미지 전처리: 대비 강화 ──────────────────────
+                            // ColorMatrix로 그레이스케일 변환 + 대비 1.5배 강화
+                            val matrix = android.graphics.ColorMatrix().apply {
+                                setSaturation(0f)  // 채도 0 = 그레이스케일
+                            }
+                            val contrastMatrix = android.graphics.ColorMatrix(floatArrayOf(
+                                1.5f, 0f, 0f, 0f, -30f,   // R
+                                0f, 1.5f, 0f, 0f, -30f,   // G
+                                0f, 0f, 1.5f, 0f, -30f,   // B
+                                0f, 0f, 0f, 1f,   0f      // A
+                            ))
+                            matrix.postConcat(contrastMatrix)
+                            val paint = android.graphics.Paint().apply {
+                                colorFilter = android.graphics.ColorMatrixColorFilter(matrix)
+                            }
+                            val processedBmp = android.graphics.Bitmap.createBitmap(
+                                origBmp.width, origBmp.height, android.graphics.Bitmap.Config.ARGB_8888
+                            )
+                            android.graphics.Canvas(processedBmp).drawBitmap(origBmp, 0f, 0f, paint)
+
+                            // ── ML Kit OCR (전처리된 이미지로) ───────────────
                             val recognizer = com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions.Builder().build()
                                 .let { com.google.mlkit.vision.text.TextRecognition.getClient(it) }
-                            val image = com.google.mlkit.vision.common.InputImage.fromBitmap(bmp, 0)
-                            recognizer.process(image)
+                            val mlkitImage = com.google.mlkit.vision.common.InputImage.fromBitmap(processedBmp, 0)
+
+                            recognizer.process(mlkitImage)
                                 .addOnSuccessListener { result ->
-                                    // OCR 결과에서 버스 번호 패턴 추출 (1~4자리 숫자)
                                     val numbers = result.textBlocks
                                         .flatMap { it.lines }
                                         .mapNotNull { line ->
                                             val clean = line.text.trim()
-                                            // 순수 숫자이고 4자리 이하인 것만
-                                            if (clean.matches(Regex("\\d{1,4}"))) clean else null
+                                            // 순수 숫자 1~4자리 또는 알파벳+숫자 (N37, M5100 등)
+                                            if (clean.matches(Regex("[A-Za-z]?\\d{1,4}"))) clean else null
                                         }
                                         .distinct()
 
-                                    when {
-                                        numbers.isEmpty() -> speak("버스 번호를 읽지 못했어요. 버스 번호판 가까이 대보세요.")
-                                        numbers.size == 1 -> speak("${numbers[0]}번 버스예요.")
-                                        else -> {
-                                            // 여러 숫자 감지 시 가장 짧은 것 (노선 번호 가능성 높음)
-                                            val best = numbers.minByOrNull { it.length } ?: numbers[0]
-                                            speak("${best}번 버스인 것 같아요.")
-                                        }
+                                    if (numbers.isNotEmpty()) {
+                                        // ML Kit 성공 → 즉시 읽어줌
+                                        val best = numbers.minByOrNull { it.length } ?: numbers[0]
+                                        speak("${best}번 버스예요.")
+                                        origBmp.recycle(); processedBmp.recycle(); file.delete()
+                                    } else {
+                                        // ML Kit 실패 → 서버 EasyOCR fallback
+                                        origBmp.recycle(); processedBmp.recycle()
+                                        sendBusOcrToServer(file)
                                     }
-                                    file.delete()
                                 }
-                                .addOnFailureListener { speak("버스 번호 인식에 실패했어요."); file.delete() }
+                                .addOnFailureListener {
+                                    origBmp.recycle(); processedBmp.recycle()
+                                    sendBusOcrToServer(file)
+                                }
                         } catch (_: Exception) { speak("버스 번호 인식에 실패했어요."); file.delete() }
                     }.start()
                 }
                 override fun onError(e: ImageCaptureException) { speak("사진을 찍지 못했어요.") }
             })
+    }
+
+    /**
+     * ML Kit 실패 시 서버 EasyOCR로 재시도.
+     * POST /ocr/bus 엔드포인트로 이미지 전송.
+     */
+    private fun sendBusOcrToServer(imageFile: File) {
+        val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
+        if (serverUrl.isEmpty()) {
+            speak("버스 번호를 읽지 못했어요. 서버를 연결하면 더 잘 인식돼요.")
+            imageFile.delete()
+            return
+        }
+        Thread {
+            try {
+                val body = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                    .addFormDataPart("image", "bus.jpg",
+                        imageFile.asRequestBody("image/jpeg".toMediaType()))
+                    .build()
+                val response = httpClient.newCall(
+                    okhttp3.Request.Builder().url("$serverUrl/ocr/bus").post(body).build()
+                ).execute()
+                val json     = org.json.JSONObject(response.body?.string() ?: "{}")
+                val sentence = json.optString("sentence", "버스 번호를 읽지 못했어요.")
+                runOnUiThread { speak(sentence) }
+            } catch (_: Exception) {
+                runOnUiThread { speak("버스 번호 인식에 실패했어요.") }
+            } finally {
+                imageFile.delete()
+            }
+        }.start()
     }
 
     /**
