@@ -12,7 +12,18 @@ async def lifespan(app: FastAPI):
     import numpy as np
     from src.vision.detect import model, CONF_THRESHOLD
     model(np.zeros((640, 640, 3), dtype=np.uint8), conf=CONF_THRESHOLD, verbose=False)
+    # EasyOCR 워밍업: 첫 요청 지연 방지 (백그라운드 스레드)
+    import threading
+    threading.Thread(target=_warmup_ocr, daemon=True).start()
     yield
+
+
+def _warmup_ocr():
+    try:
+        from src.ocr.bus_ocr import warmup
+        warmup()
+    except Exception as e:
+        print(f"[main] EasyOCR 워밍업 실패: {e}")
     # 서버 종료 시: 정리 작업 없음
 
 
