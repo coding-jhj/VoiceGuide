@@ -75,6 +75,39 @@ def speak(text: str):
     except Exception as e:
         print(f"[TTS] 재생 오류: {e}")
 
+# 서버 시작 시 미리 캐시할 자주 쓰는 문장
+_WARMUP_PHRASES = [
+    "주변에 장애물이 없어요.",
+    "위험! 바로 앞 계단이에요. 기다리세요.",
+    "조심하세요. 앞에 낙차가 있어요.",
+    "바로 앞에 사람이 있어요. 바로 코앞. 기다리세요.",
+    "오른쪽에 의자가 있어요. 가까이. 왼쪽으로 피하세요.",
+    "왼쪽에 의자가 있어요. 가까이. 오른쪽으로 피하세요.",
+    "위험! 바로 앞 자동차가 있어요!",
+    "조심! 오른쪽에 자동차가 접근 중이에요.",
+    "분석이 중단됐어요. 주의해서 이동하세요.",
+    "음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.",
+]
+
+def warmup_cache():
+    """서버 시작 시 자주 쓰는 문장을 미리 생성해 캐시 — 첫 요청 지연 방지."""
+    if not _api_key:
+        return
+    for phrase in _WARMUP_PHRASES:
+        path = _cache_path(phrase)
+        if not os.path.exists(path):
+            try:
+                audio = client.text_to_speech.convert(
+                    voice_id=_VOICE_ID, text=phrase, model_id=_MODEL_ID)
+                with open(path, "wb") as f:
+                    for chunk in audio:
+                        f.write(chunk)
+                print(f"[TTS] 캐시 완료: {phrase[:20]}...")
+            except Exception as e:
+                print(f"[TTS] 캐시 실패: {e}")
+                return  # API 키 오류 등 → 이후 시도 중단
+
+
 # 테스트 실행
 if __name__ == "__main__":
-    speak("왼쪽 앞에 의자가 있어요. 오른쪽으로 피해가세요")
+    speak("왼쪽 앞에 의자가 있어요. 오른쪽으로 피하세요")

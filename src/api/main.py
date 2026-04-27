@@ -17,7 +17,8 @@ async def lifespan(app: FastAPI):
     model(np.zeros((640, 640, 3), dtype=np.uint8), conf=CONF_THRESHOLD, verbose=False)
     # EasyOCR 워밍업: 첫 요청 지연 방지 (백그라운드 스레드)
     import threading
-    threading.Thread(target=_warmup_ocr, daemon=True).start()
+    threading.Thread(target=_warmup_ocr,  daemon=True).start()
+    threading.Thread(target=_warmup_tts,  daemon=True).start()
     yield
 
 
@@ -27,7 +28,14 @@ def _warmup_ocr():
         warmup()
     except Exception as e:
         print(f"[main] EasyOCR 워밍업 실패: {e}")
-    # 서버 종료 시: 정리 작업 없음
+
+
+def _warmup_tts():
+    try:
+        from src.voice.tts import warmup_cache
+        warmup_cache()
+    except Exception as e:
+        print(f"[main] TTS 캐시 워밍업 실패: {e}")
 
 
 app = FastAPI(title="VoiceGuide API", lifespan=lifespan)
