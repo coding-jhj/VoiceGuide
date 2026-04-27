@@ -33,7 +33,7 @@ gradio==4.44.1
 # gradio 4.44.1은 huggingface_hub 0.26+ 와 호환 문제 발생
 huggingface_hub<0.26
 # gradio-client 1.3.0은 websockets 13+ 와 충돌
-websockets>=10.0,<13.0
+websockets>=12.0,<13.0
 
 # 서버
 fastapi==0.115.5

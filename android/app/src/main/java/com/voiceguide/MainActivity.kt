@@ -117,6 +117,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // ── ElevenLabs MediaPlayer (겹침 방지용 단일 인스턴스) ───────────────
     private var currentMediaPlayer: android.media.MediaPlayer? = null
     @Volatile private var isElevenLabsSpeaking = false
+    private val ttsExecutor = Executors.newSingleThreadExecutor()
+    // 요청 ID: 네트워크 응답이 왔을 때 최신 요청인지 확인 (stale 재생 방지)
+    private val ttsRequestId = java.util.concurrent.atomic.AtomicInteger(0)
 
     // ── 특정 버스 대기 ──────────────────────────────────────────────────
     @Volatile private var waitingBusNumber = ""  // 기다리는 버스 번호 ("37", "N37")
@@ -1205,32 +1208,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     private fun speakElevenLabs(text: String, serverUrl: String) {
-        currentMediaPlayer?.let { if (it.isPlaying) it.stop(); it.release() }
+        currentMediaPlayer?.let { try { if (it.isPlaying) it.stop(); it.release() } catch (_: Exception) {} }
         currentMediaPlayer = null
         isElevenLabsSpeaking = true
-        Thread {
+        val myId = ttsRequestId.incrementAndGet()
+        ttsExecutor.execute {
             try {
                 val body = okhttp3.FormBody.Builder().add("text", text).build()
                 val req = okhttp3.Request.Builder().url("$serverUrl/tts").post(body).build()
                 val resp = httpClient.newCall(req).execute()
-                if (!resp.isSuccessful) { isElevenLabsSpeaking = false; speakBuiltIn(text); return@Thread }
-                val tmpFile = File(cacheDir, "tts_${System.currentTimeMillis()}.mp3")
+                // 네트워크 응답 도착 전에 새 요청이 왔으면 버림
+                if (ttsRequestId.get() != myId) { isElevenLabsSpeaking = false; return@execute }
+                if (!resp.isSuccessful) { isElevenLabsSpeaking = false; handler.post { speakBuiltIn(text) }; return@execute }
+                val tmpFile = File(cacheDir, "tts_$myId.mp3")
                 tmpFile.writeBytes(resp.body!!.bytes())
+                if (ttsRequestId.get() != myId) { isElevenLabsSpeaking = false; tmpFile.delete(); return@execute }
                 val mp = android.media.MediaPlayer()
-                mp.apply {
-                    setDataSource(tmpFile.absolutePath)
-                    setAudioAttributes(android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
-                    prepare()
-                    start()
-                    setOnCompletionListener { isElevenLabsSpeaking = false; tmpFile.delete(); release() }
-                }
+                mp.setDataSource(tmpFile.absolutePath)
+                mp.setAudioAttributes(android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
+                mp.prepare()
+                mp.setOnCompletionListener { isElevenLabsSpeaking = false; tmpFile.delete(); it.release() }
                 currentMediaPlayer = mp
+                mp.start()
             } catch (_: Exception) {
                 isElevenLabsSpeaking = false
-                speakBuiltIn(text)
+                if (ttsRequestId.get() == myId) handler.post { speakBuiltIn(text) }
             }
-        }.start()
+        }
     }
 
     private fun isSpeaking(): Boolean =
@@ -1247,19 +1252,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun promptAutoStart() {
         awaitingStartConfirm = true
-        tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
-            override fun onDone(utteranceId: String?) {
-                if (utteranceId == "prompt_start" && awaitingStartConfirm) {
-                    handler.postDelayed({ startListening() }, 500)
+        speakBuiltIn("음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.")
+        // TTS가 끝날 때까지 200ms마다 체크하다가 끝나면 STT 시작
+        handler.post(object : Runnable {
+            override fun run() {
+                if (tts.isSpeaking) {
+                    handler.postDelayed(this, 200)
+                } else {
+                    handler.postDelayed({ if (awaitingStartConfirm) startListening() }, 600)
                 }
             }
-            override fun onError(utteranceId: String?) {}
         })
-        val params = Bundle()
-        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
-        tts.speak("음성 안내를 시작할까요? 네 또는 아니오로 말씀해주세요.",
-            TextToSpeech.QUEUE_FLUSH, params, "prompt_start")
     }
 
     override fun onRequestPermissionsResult(
