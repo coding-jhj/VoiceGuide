@@ -5,7 +5,46 @@ from src.nlg.templates import (
 # 차량 — 5m 이내부터 긴급, 이동하는 물체이므로 별도 처리
 _VEHICLE_KO = {"자동차", "오토바이", "버스", "트럭", "기차", "자전거"}
 # 동물 — 돌발 행동 위험
-_ANIMAL_KO  = {"개", "말"}
+_ANIMAL_KO  = {"개", "말", "고양이"} # 주변에 고양이가 많이 보이는데 빠져있어서 추가
+
+
+# [추가] 경고 피로(alert fatigue) 방지를 위한 알림 모드 분류 함수.
+# 기존에는 모든 탐지 객체를 항상 TTS로 읽어줬기 때문에 사용자가 경고에 둔감해지는 문제가 있었다.
+# 객체 종류와 거리 기준으로 critical / beep / silent 3단계로 분기해 불필요한 음성 안내를 줄인다.
+def get_alert_mode(obj: dict, is_hazard: bool = False) -> str:
+    """탐지 객체 하나의 알림 모드를 반환한다.
+
+    Returns:
+        "critical" — 즉각 TTS 음성 경고
+        "beep"     — 비프음만, 음성 없음
+        "silent"   — 무음 (사용자가 명시적으로 물어볼 때만 안내)
+    """
+    dist_m     = obj.get("distance_m", 99.0)
+    is_vehicle = obj.get("is_vehicle", False)
+    is_animal  = obj.get("is_animal",  False)
+
+    # 계단·낙차 등 hazard는 항상 즉각 음성 — 낙상 위험이 크므로 거리와 무관하게 경고
+    if is_hazard:
+        return "critical"
+
+    # 차량은 8m 이내부터 즉각 경고 — 이동 속도가 빠르므로 넉넉한 여유 거리가 필요
+    if is_vehicle and dist_m < 8.0:
+        return "critical"
+
+    # 동물은 3m 이내 즉각 경고 — 돌발 행동으로 충돌 위험이 있음
+    if is_animal and dist_m < 3.0:
+        return "critical"
+
+    # 0.5m 미만 코앞 장애물은 충돌 직전이므로 즉각 경고
+    if dist_m < 0.5:
+        return "critical"
+
+    # 1m 이내 일반 장애물 — 위험하지만 즉각 음성 대신 비프음으로 경고 피로를 줄임
+    if dist_m < 1.0:
+        return "beep"
+
+    # 그 외(1m 이상, 군중 등) — 무음 처리, 사용자가 명시적으로 요청할 때만 안내
+    return "silent"
 
 
 def _josa(word: str, 받침있음: str, 받침없음: str) -> str:
@@ -53,9 +92,9 @@ def _primary(obj: dict, abs_clock: str) -> str:
     # ── 차량 (야외 이동 위협) ───────────────────────────────────────────
     if is_vehicle:
         if dist_m < 3.0:
-            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 즉시 {action}!"
+            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"
         if dist_m < 8.0:
-            return f"조심! {direction}에 {name}{ig}접근 중이에요. {dist_str}. {action}."
+            return f"조심! {direction}에 {name}{ig} 접근 중이에요. {dist_str}. {action}."
         return f"{direction}에 {name}{ig} 있어요. {dist_str}."
 
     # ── 동물 (돌발 행동 위험) ───────────────────────────────────────────
@@ -90,11 +129,14 @@ def _secondary(obj: dict, abs_clock: str) -> str:
     action    = CLOCK_ACTION.get(abs_clock, "").rstrip(".")
     is_vehicle = obj.get("is_vehicle", name in _VEHICLE_KO)
 
+    # 위험순위가 2순위인 물체가 있어서 판별했을 시 action까지 넣으면
+    # 문장도 길어지고 과다하게 정보가 들어가서 action은 빼고 거리와 물체만
+    # 설명하게 변경했어요.
     if is_vehicle and dist_m < 8.0:
-        return f"{direction}에 {name}도 있어요! {dist_str}. {action}."
+        return f"{direction}으로 {dist_str}에 {name}도 있어요!"
     if dist_m < 1.5 and action:
-        return f"{direction}에 {name}도 있어요. {dist_str}. {action}."
-    return f"{direction}에 {name}도 있어요. {dist_str}."
+        return f"{direction}으로 {dist_str}에 {name}도 있어요."
+    return f"{direction}으로 {dist_str}에 {name}도 있어요."
 
 
 def build_sentence(
@@ -154,7 +196,8 @@ def build_find_sentence(
         direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
         dist_str  = _format_dist(obj.get("distance_m", 0.0))
         un        = _un_neun(target)
-        return f"{target}{un} {direction}에 있어요. {dist_str}."
+        # 문장을 좀더 자연스럽게 나오도록 문맥 변경했어요.
+        return f"{target}{un} {direction} {dist_str} 거리에 있어요."
 
     if objects:
         scene = build_sentence(objects[:1], [], camera_orientation)
