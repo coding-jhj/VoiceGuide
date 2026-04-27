@@ -17,11 +17,25 @@
         android:textColor="#FFFFFF"
         android:textColorHint="#888888" />
 
-    <androidx.camera.view.PreviewView
-        android:id="@+id/previewView"
+    <!-- 카메라 프리뷰 + 디버그 바운드박스 오버레이를 겹치기 위해 FrameLayout으로 감쌈 -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <!-- 실제 카메라 프리뷰 -->
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 디버깅용 바운드박스 오버레이 (프리뷰 위에 겹쳐서 표시) -->
+        <com.voiceguide.BoundingBoxOverlay
+            android:id="@+id/boundingBoxOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
 
     <!-- 음성 안내 결과 -->
     <TextView

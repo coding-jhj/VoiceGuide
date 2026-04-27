@@ -53,6 +53,10 @@ python-dotenv
 # 파인튜닝 데이터 수집 (train/prepare_dataset.py용)
 ddgs
 
+# Supabase / PostgreSQL 연동 (서버_DB — 선택 사항)
+psycopg[binary]
+psycopg-pool
+
 # 테스트
 httpx
 pytest
