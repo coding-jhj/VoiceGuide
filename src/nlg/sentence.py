@@ -92,7 +92,8 @@ def _primary(obj: dict, abs_clock: str) -> str:
     # ── 차량 (야외 이동 위협) ───────────────────────────────────────────
     if is_vehicle:
         if dist_m < 3.0:
-            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"
+            #[수정] action에 나오는 말과 맞추기 위해서 변경(예 : 잠깐 기다리세요.)
+            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"             
         if dist_m < 8.0:
             return f"조심! {direction}에 {name}{ig} 접근 중이에요. {dist_str}. {action}."
         return f"{direction}에 {name}{ig} 있어요. {dist_str}."
