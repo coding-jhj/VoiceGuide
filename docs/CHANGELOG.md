@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-04-28 (3차 — 계단 제거 + Voting 온디바이스 + 오인식 재수정)
+
+### 계단 감지 전면 제거 (강사님 피드백)
+- Android: `VoiceGuideConstants.kt` class 80(계단) 제거, `StairsDetector` 호출 제거
+- Android: `SentenceBuilder.kt` 계단 우선순위 로직 제거
+- Server: `detect.py` stairs 클래스·필터·상수 전체 제거
+- Server: `tracker.py` 계단 즉시통과 로직 제거
+
+### 온디바이스 Voting 버퍼 추가 (경고 피로 방지)
+- `MainActivity.kt`에 deque 기반 `voteFilter()` 추가
+  - 최근 5프레임 기록, 3회 이상 등장한 사물만 TTS 안내
+  - 차량·칼 등 위험 클래스는 즉시 통과
+  - `YoloDetector.kt` `.take(2)` → `.take(5)` (투표 입력 확대)
+  - `SentenceBuilder.kt` 최종 출력 `.take(3)` (상위 3개 안내)
+
+### TTS 겹침 수정
+- `critical` 브랜치: 같은 문장이 이미 재생 중이면 재시작 안 함
+
+### 오인식 재수정 (폰→인형 추가 교정)
+- `prepare_cellphone.py`: `teddy_bear(77)` → `cell_phone(67)` 교정 추가
+- `VoiceGuideConstants.kt`: class 77(인형) 탐지 대상에서 제거
+- 파인튜닝 재실행
+
+---
+
 ## 2026-04-28 (2차 — 오인식 수정 + PyTorch GPU 셋업)
 
 ### 버그 수정

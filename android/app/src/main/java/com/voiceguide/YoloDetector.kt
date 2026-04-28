@@ -182,7 +182,7 @@ class YoloDetector(context: Context) {
             ))
         }
 
-        return nms(candidates.sortedByDescending { it.confidence }).take(2)
+        return nms(candidates.sortedByDescending { it.confidence }).take(5)
     }
 
     /**

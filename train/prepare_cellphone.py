@@ -25,8 +25,9 @@ LBL_VAL     = DATASET_DIR / "labels/val"
 
 VAL_RATIO   = 0.15
 CONF_THRESH = 0.30
-CELL_PHONE_CLS = 67   # COCO cell phone
-LAPTOP_CLS     = 63   # COCO laptop
+CELL_PHONE_CLS  = 67   # COCO cell phone
+LAPTOP_CLS      = 63   # COCO laptop
+TEDDY_BEAR_CLS  = 77   # COCO teddy bear (폰과 혼동 빈번)
 
 # (검색어, 실제_클래스, 목표_장수)
 # 실제_클래스: 이 검색어 이미지의 주 피사체가 무엇인지 → bbox 강제 라벨에 사용
@@ -145,8 +146,8 @@ def make_labels(img_paths_cls: list[tuple[Path, int]], lbl_dir: Path):
                 bh = (y2 - y1) / h
 
                 if target_cls == CELL_PHONE_CLS:
-                    # 휴대폰 이미지: laptop → cell_phone 교정
-                    if cls == LAPTOP_CLS:
+                    # 휴대폰 이미지: laptop·teddy_bear → cell_phone 교정
+                    if cls in (LAPTOP_CLS, TEDDY_BEAR_CLS):
                         cls = CELL_PHONE_CLS
                     if cls == CELL_PHONE_CLS:
                         has_target = True
