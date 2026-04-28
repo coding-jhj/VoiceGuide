@@ -111,31 +111,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     /**
-     * 거리 + 쿨다운 기반 분류.
+     * 거리 기반 분류.
      *
-     * 가까이(bbox 4%+) + 새 사물   → voice (음성 안내)
-     * 가까이(bbox 4%+) + 이미 안내 → beep  (비프 — 경고 피로 방지)
-     * 멀리 있음                    → beep  (멀리서 인지용 비프)
-     * 위험 사물(차량·칼 등)         → 항상 voice
+     * 가까이(bbox 8%+) → voice  (음성 안내 — 이미 말했어도 아직 가까이면 계속 안내)
+     * 멀리 있음        → beep   (있다는 것만 인지)
+     * 위험 사물        → 항상 voice
+     *
+     * 경고 피로는 CLASS_COOLDOWN_MS + lastSentence 비교로 자연스럽게 방지됨.
      */
     private fun classify(voted: List<Detection>): Pair<List<Detection>, Boolean> {
-        val now = System.currentTimeMillis()
         val voice = mutableListOf<Detection>()
         var shouldBeep = false
         for (d in voted) {
-            val isAlways    = d.classKo in ALWAYS_PASS
-            val skipCooldown = isAlways || currentMode == "찾기"
-            val isNew       = skipCooldown || (now - (classLastSpoken[d.classKo] ?: 0L)) > CLASS_COOLDOWN_MS
-            val isClose     = d.w * d.h > BEEP_AREA_THRESH  // bbox 8%+ ≈ 2m 이내
-            when {
-                isAlways           -> voice.add(d)  // 위험 → 항상 음성
-                isNew && isClose   -> voice.add(d)  // 새 사물 + 가까이 → 음성
-                isNew && !isClose  -> shouldBeep = true  // 새 사물 + 멀리 → 비프
-                !isNew && isClose  -> shouldBeep = true  // 알던 사물 + 가까이 → 비프(경고 피로 방지)
-                // 알던 사물 + 멀리 → 무시
-            }
+            val isClose = d.classKo in ALWAYS_PASS || d.w * d.h > BEEP_AREA_THRESH
+            if (isClose) voice.add(d) else shouldBeep = true
         }
-        return voice to shouldBeep
+        return voice to (shouldBeep && voice.isEmpty())
     }
 
     private fun markClassesSpoken(detections: List<Detection>) {
