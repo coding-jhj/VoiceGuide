@@ -100,4 +100,42 @@
 
 ---
 
+## 7. 개발 중 마주친 문제 & 해결 과정
+
+### 라이브러리 호환성
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| `numpy 'bool' AttributeError` | NumPy 2.x가 OpenCV·Ultralytics와 호환 불가 | `numpy==1.26.4` 고정 |
+| `gradio ImportError starlette` | Gradio 5.x가 FastAPI starlette 버전 충돌 | `gradio==4.44.1` 고정 |
+| `websockets.asyncio` 없음 | ElevenLabs SDK가 websockets 13+ 요구, gradio-client는 <13 요구 | ElevenLabs SDK 제거 → REST API 직접 호출로 교체 |
+| TFLite 변환 실패 | Python 3.13은 tensorflow 2.19 이하 미지원 | ONNX 포맷으로 대체 (ONNX Runtime Android 사용) |
+
+### 외부 서비스
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| ElevenLabs 402 오류 | 무료 플랜에서 보이스 라이브러리 정책 변경 | gTTS(기본) + Naver Clova(키 있을 때) 구조로 교체 |
+
+### Android 앱 버그
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| TTS 목소리 겹침 | 분석 응답마다 MediaPlayer 새로 생성, stale 재생 | 단일 인스턴스 관리 + `ttsRequestId`로 stale 차단 |
+| STT "네" 말해도 무반응 | TTS 말하는 중에 마이크 열려서 TTS 목소리를 STT가 인식 | `UtteranceProgressListener` — TTS 끝난 후 600ms 대기 → STT 시작 |
+| 계단 오탐 (키보드·에스컬레이터) | 계단형 패턴을 낮은 신뢰도로 통과 | `stairs` 최소 신뢰도 0.50 → 0.72 |
+
+---
+
+## 8. 현재 알려진 한계
+
+| 항목 | 내용 |
+|------|------|
+| 거리 정밀도 | 단안 카메라 + Depth V2는 상대 추정 — "가까이/멀리" 표현 사용, 수치 제거 |
+| 투명 장애물 | 유리문·유리벽 탐지 불가 (AI 공통 한계) |
+| 연속 스트리밍 | 1초 간격 캡처 방식 (실시간 영상 처리 아님) |
+| 비정형 계단 | 나선형·야외 계단은 실환경 추가 테스트 필요 |
+
+---
+
 *2026-04-28 미팅 준비*
