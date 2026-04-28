@@ -1302,7 +1302,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 return@runOnUiThread
             }
             lastDetectionTime = System.currentTimeMillis()
-            tvStatus.text = sentence
+            // tvStatus는 실제 발화/비프 시점에만 업데이트 — 텍스트·목소리 동기화
             when (effectiveMode) {
                 "critical" -> {
                     val now = System.currentTimeMillis()
@@ -1310,25 +1310,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                         val isVehicleDanger = ALWAYS_PASS.any { sentence.contains(it) }
                         lastSentence     = sentence
                         lastCriticalTime = now
+                        tvStatus.text    = sentence
                         tts.setSpeechRate(1.25f)
                         if (isVehicleDanger) {
-                            speakBuiltIn(sentence, immediate = true)  // 차량만 즉시 끊고 재생
+                            speakBuiltIn(sentence, immediate = true)
                         } else {
-                            speak(sentence)  // 나머지는 AtomicBoolean 잠금 존중
+                            speak(sentence)
                         }
                     }
                 }
                 "beep" -> {
-                    // 1m 이내 가까운 장애물 — 비프음만 (TTS 쿨다운 무관하게 동작)
+                    tvStatus.text = sentence
                     if (!tts.isSpeaking && !isElevenLabsSpeaking)
                         toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
                 }
-                "silent" -> {
-                    // 무음 — UI만 업데이트
-                }
+                "silent" -> { /* 무음 — 텍스트도 유지 */ }
                 else -> {
                     if (sentence != lastSentence && !isSpeaking()) {
-                        lastSentence = sentence
+                        lastSentence  = sentence
+                        tvStatus.text = sentence
                         tts.setSpeechRate(1.1f)
                         speak(sentence)
                     }
