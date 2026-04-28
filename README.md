@@ -7,21 +7,36 @@
 
 ## 🗺️ 실시간 대시보드
 
-서버 실행 후 브라우저에서 바로 열 수 있는 관리자용 지도 대시보드입니다.
+탐지 물체·GPS 이동 경로를 지도로 보여주는 관리자 대시보드입니다.  
+**WiFi 없이 LTE 환경에서도 동작** — 무료 외부 서버에 배포하면 어디서나 접속 가능합니다.
 
-```
-http://서버IP:8000/dashboard
-예) http://192.168.0.10:8000/dashboard
-```
+### 접속 방법
+
+| 환경 | 대시보드 URL |
+|------|------------|
+| **로컬 WiFi** | `http://192.168.x.x:8000/dashboard` |
+| **Railway 배포** | `https://voiceguide-xxx.up.railway.app/dashboard` |
+| **GCP Cloud Run** | `https://voiceguide-xxx.run.app/dashboard` |
+| **AWS EC2** | `http://EC2공인IP:8000/dashboard` |
+| **Render** | `https://voiceguide-xxx.onrender.com/dashboard` |
+
+> 👉 무료 외부 서버 배포 방법: [docs/DEPLOY_GUIDE.md](docs/DEPLOY_GUIDE.md)  
+> Railway, GCP, AWS, Oracle Cloud, Render 전부 **무료**로 배포 가능합니다.
+
+### 기능
 
 | 기능 | 설명 |
 |------|------|
-| **실시간 물체 목록** | 현재 탐지된 물체를 위험도(위험·주의·안전)별로 카드 표시 |
-| **GPS 지도** | 사용자 현재 위치 + 이동 경로(polyline) 실시간 표시 |
-| **2초 자동 갱신** | 앱이 서버에 분석 요청할 때마다 자동 업데이트 |
-| **세션 전환** | WiFi SSID 입력으로 복수 기기 모니터링 가능 |
+| **실시간 물체 목록** | 탐지된 물체를 위험도(🔴위험·🟡주의·🟢안전)별 카드로 표시 |
+| **GPS 지도** | 현재 위치 + 이동 경로(polyline) 실시간 표시 |
+| **2초 자동 갱신** | 앱이 서버에 요청할 때마다 자동 업데이트 |
+| **세션 전환** | WiFi SSID 입력으로 복수 기기 모니터링 |
 
-> 앱에서 GPS 권한을 허용하면 지도에 이동 동선이 자동으로 표시됩니다.
+### 외부 서버 배포 후 앱 연결
+
+1. Railway/GCP 등에 배포 → URL 확인 (예: `https://voiceguide-xxx.up.railway.app`)
+2. Android 앱 서버 URL 입력창에 해당 URL 입력
+3. 앱 실행 → 대시보드에서 실시간 확인
 
 ---
 
