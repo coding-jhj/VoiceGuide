@@ -20,6 +20,39 @@ object SentenceBuilder {
     private val VEHICLE_CLASSES = setOf("자동차", "오토바이", "버스", "트럭", "기차", "자전거")
     private val ANIMAL_CLASSES  = setOf("개", "말")
 
+    // ── 방향 안정화 (hysteresis) ───────────────────────────────────────────
+    // 문제: cx 값이 프레임마다 조금씩 달라져 "오른쪽" ↔ "오른쪽 앞" 등이 반복 전환되면
+    //       sentence != lastSentence 조건으로 TTS가 매 프레임 발화됨.
+    // 해결: 클래스별 마지막 안정 방향을 캐싱하고, 새 방향이 2칸 이상 벗어날 때만 갱신.
+    private val stableClock = mutableMapOf<String, String>()
+
+    // ZONE_BOUNDARIES 순서와 동일하게 유지해야 clockDistance()가 정확함
+    private val CLOCK_ORDER = listOf("8시", "9시", "10시", "11시", "12시", "1시", "2시", "3시", "4시")
+
+    /** 방향 캐시 거리 계산 (두 클락 간 존 개수 차이) */
+    private fun clockDistance(a: String, b: String): Int {
+        val ai = CLOCK_ORDER.indexOf(a)
+        val bi = CLOCK_ORDER.indexOf(b)
+        return if (ai < 0 || bi < 0) 0 else kotlin.math.abs(ai - bi)
+    }
+
+    /**
+     * 흔들림 방지 방향 조회.
+     * 이전 방향에서 2존(약 22% 화면 폭) 이상 벗어나야 방향 갱신.
+     * 경계 근처에서 cx 값이 조금씩 달라져도 방향이 고정됨.
+     */
+    private fun getStableClock(classKo: String, cx: Float): String {
+        val newClock = getClock(cx)
+        val prev = stableClock[classKo]
+        if (prev == null || clockDistance(prev, newClock) >= 2) {
+            stableClock[classKo] = newClock
+        }
+        return stableClock[classKo]!!
+    }
+
+    /** 모드 전환·분석 재시작 시 방향 캐시 초기화 */
+    fun clearStableClocks() { stableClock.clear() }
+
     // ── 장애물 안내 문장 (기본 장애물 모드) ───────────────────────────────────
 
     /**
@@ -37,17 +70,17 @@ object SentenceBuilder {
             it.classKo in VEHICLE_CLASSES && it.w * it.h > 0.04f
         }
         if (nearVehicle != null) {
-            val clock   = getClock(nearVehicle.cx)
+            val clock   = getStableClock(nearVehicle.classKo, nearVehicle.cx)
             val dir     = CLOCK_TO_DIRECTION[clock] ?: clock
             val action  = DIRECTION_ACTION[clock] ?: "즉시 멈추세요"
             val distStr = formatDist(nearVehicle.w, nearVehicle.h)
             val ig      = josaIGa(nearVehicle.classKo)
-            return "위험! ${dir}에 ${nearVehicle.classKo}${ig} 있어요! $distStr. 즉시 $action!"
+            return "위험! ${dir} ${distStr}에 ${nearVehicle.classKo}${ig} 있어요! 즉시 $action!"
         }
 
         // 2순위: 일반 장애물 — 상위 3개까지 문장 생성
         val parts = detections.take(3).mapIndexed { idx, det ->
-            val clock     = getClock(det.cx)
+            val clock     = getStableClock(det.classKo, det.cx)
             val dir       = CLOCK_TO_DIRECTION[clock] ?: clock
             val distStr   = formatDist(det.w, det.h)
             val ig        = josaIGa(det.classKo)
@@ -58,19 +91,19 @@ object SentenceBuilder {
             val base = when {
                 // 차량: 멀어도 "접근 중" 경고
                 det.classKo in VEHICLE_CLASSES ->
-                    "조심! ${dir}에 ${det.classKo}${ig} 접근 중이에요. $distStr. $action."
+                    "조심! ${dir} ${distStr}에 ${det.classKo}${ig} 접근 중이에요. $action."
                 // 동물: "천천히" 어조
                 isAnimal ->
-                    "조심! ${dir}에 ${det.classKo}${ig} 있어요. $distStr. 천천히 $action."
+                    "조심! ${dir} ${distStr}에 ${det.classKo}${ig} 있어요. 천천히 $action."
                 // 면적 25% 이상 = 바로 코앞 → "위험!" 긴박
                 areaRatio > 0.25f ->
-                    "위험! ${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
+                    "위험! ${dir} ${distStr}에 ${det.classKo}${ig} 있어요. $action."
                 // 면적 12% 이상 = 가까이 → 방향 + 거리 + 행동
                 areaRatio > 0.12f ->
-                    "${dir}에 ${det.classKo}${ig} 있어요. $distStr. $action."
+                    "${dir} ${distStr}에 ${det.classKo}${ig} 있어요. $action."
                 // 그 외 = 멀리 → 방향 + 거리만
                 else ->
-                    "${dir}에 ${det.classKo}${ig} 있어요. $distStr."
+                    "${dir} ${distStr}에 ${det.classKo}${ig} 있어요."
             }
 
             // 두 번째 물체는 "~도 있어요" 형태 (첫 번째와 구분)
@@ -95,11 +128,29 @@ object SentenceBuilder {
         // target 이름을 포함하는 물체 검색 (부분 일치: "의자" ⊂ "휠체어" 도 매칭)
         val found = detections.firstOrNull { it.classKo.contains(target) }
         if (found != null) {
-            val clock   = getClock(found.cx)
+            val clock   = getStableClock(found.classKo, found.cx)
             val dir     = CLOCK_TO_DIRECTION[clock] ?: clock
             val distStr = formatDist(found.w, found.h)
             val un      = josaUnNeun(target)
-            return "${target}${un} ${dir}에 있어요. $distStr."
+            val base    = "${target}${un} ${dir}에 있어요. $distStr."
+
+            // target을 찾았어도 더 가까운 위험 물체가 있으면 경고 추가.
+            // 조건: target이 아닌 물체이면서, target보다 면적(=거리) 50% 이상 크고, 12% 이상인 것
+            val targetArea   = found.w * found.h
+            val closerHazard = detections.firstOrNull { d ->
+                !d.classKo.contains(target) &&
+                d.w * d.h > targetArea * 1.5f &&
+                d.w * d.h > 0.12f
+            }
+            return if (closerHazard != null) {
+                val hClock   = getStableClock(closerHazard.classKo, closerHazard.cx)
+                val hDir     = CLOCK_TO_DIRECTION[hClock] ?: hClock
+                val hDistStr = formatDist(closerHazard.w, closerHazard.h)
+                val hIg      = josaIGa(closerHazard.classKo)
+                "$base 단, ${hDir} ${hDistStr}에 ${closerHazard.classKo}${hIg} 있으니 주의하세요."
+            } else {
+                base
+            }
         }
 
         // 못 찾음 → 없다고 하고 주변 상황 안내
