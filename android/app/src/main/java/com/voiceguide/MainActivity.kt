@@ -80,9 +80,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // Handler: 메인 스레드에서 지연 작업 예약 (1초 간격 루프, Watchdog)
     private val handler = Handler(Looper.getMainLooper())
     // AtomicBoolean: 여러 스레드가 동시에 접근해도 안전한 boolean
-    private val isAnalyzing = AtomicBoolean(false) // 분석 중인지 여부
-    private val isSending   = AtomicBoolean(false) // 현재 요청 전송 중인지 (중복 방지)
-    private var lastSentence = ""                  // 직전 안내 문장 (반복 방지)
+    private val isAnalyzing = AtomicBoolean(false)
+    private val isSending   = AtomicBoolean(false)
+    private var lastSentence = ""
+    // TTS 완전 잠금 — compareAndSet으로만 시작 가능, onDone 후 해제
+    private val ttsBusy     = AtomicBoolean(false)
 
     // ── 온디바이스 투표(Voting) 버퍼 ─────────────────────────────────────
     // 최근 5프레임 탐지 결과를 기록해 3회 이상 등장한 사물만 안내
@@ -973,9 +975,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         boundingBoxOverlay.clearDetections()
     }
 
+    // ── 재방문 알림 ───────────────────────────────────────────────────────
+    private var lastLocationCheckTime = 0L
+    private var lastAnnouncedSsid     = ""  // 같은 장소 중복 알림 방지
+
+    private fun checkRevisit() {
+        val now = System.currentTimeMillis()
+        if (now - lastLocationCheckTime < 30_000L) return  // 30초마다 체크
+        lastLocationCheckTime = now
+        val ssid = getWifiSsid()
+        if (ssid.isEmpty() || ssid == lastAnnouncedSsid) return
+        val match = getLocations().firstOrNull { it.second == ssid } ?: return
+        lastAnnouncedSsid = ssid
+        handler.post { speak("${match.first}에 도착했어요.") }
+    }
+
     private fun scheduleNext() {
         handler.postDelayed({
-            if (isAnalyzing.get()) { captureAndProcess(); scheduleNext() }
+            if (isAnalyzing.get()) {
+                checkRevisit()
+                captureAndProcess()
+                scheduleNext()
+            }
         }, INTERVAL_MS)
     }
 
@@ -1269,13 +1290,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 "critical" -> {
                     val now = System.currentTimeMillis()
                     if (sentence != lastSentence || now - lastCriticalTime > 5000L) {
-                        // 차량·칼 등 즉각 위험만 말 끊고 경고 — 나머지는 끝날 때까지 대기
-                        val isImmediateDanger = ALWAYS_PASS.any { sentence.contains(it) }
-                        if (isImmediateDanger || !isSpeaking()) {
-                            lastSentence     = sentence
-                            lastCriticalTime = now
-                            tts.setSpeechRate(1.25f)
-                            speak(sentence)
+                        val isVehicleDanger = ALWAYS_PASS.any { sentence.contains(it) }
+                        lastSentence     = sentence
+                        lastCriticalTime = now
+                        tts.setSpeechRate(1.25f)
+                        if (isVehicleDanger) {
+                            speakBuiltIn(sentence, immediate = true)  // 차량만 즉시 끊고 재생
+                        } else {
+                            speak(sentence)  // 나머지는 AtomicBoolean 잠금 존중
                         }
                     }
                 }
@@ -1356,7 +1378,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
-    private fun speakBuiltIn(text: String) {
+    private fun speakBuiltIn(text: String, immediate: Boolean = false) {
+        if (!immediate && !ttsBusy.compareAndSet(false, true)) return  // 이미 재생 중 → 버림
+        if (immediate) ttsBusy.set(true)  // 차량 긴급 — 강제 획득
         val params = Bundle()
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "vg")
@@ -1392,11 +1416,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
-    private fun isSpeaking(): Boolean {
-        val actualSpeaking = if (etServerUrl.text.toString().trim().isNotEmpty())
-            isElevenLabsSpeaking else tts.isSpeaking
-        return actualSpeaking || System.currentTimeMillis() < speakCooldownUntil
-    }
+    private fun isSpeaking(): Boolean =
+        if (etServerUrl.text.toString().trim().isNotEmpty()) isElevenLabsSpeaking
+        else ttsBusy.get()
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -1407,6 +1429,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 override fun onStart(uid: String?) {}
                 override fun onDone(uid: String?) {
                     speakCooldownUntil = System.currentTimeMillis() + 700L
+                    handler.postDelayed({ ttsBusy.set(false) }, 700)
                 }
                 @Deprecated("Deprecated in Java")
                 override fun onError(uid: String?) {}
