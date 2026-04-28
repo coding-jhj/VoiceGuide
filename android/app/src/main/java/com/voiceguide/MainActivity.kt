@@ -1162,21 +1162,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
                 val (voiceDetections, shouldBeep) = classify(voted)
 
+                // 문장은 항상 전체 voted 기준 (가까운 것부터 정렬, 최대 3개)
+                val sorted   = voted.sortedByDescending { it.w * it.h }
+                val sentence = when (currentMode) {
+                    "찾기" -> SentenceBuilder.buildFind(findTarget, sorted)
+                    else  -> SentenceBuilder.build(sorted)
+                }
                 when {
                     voiceDetections.isNotEmpty() -> {
-                        val sentence = when (currentMode) {
-                            "찾기" -> SentenceBuilder.buildFind(findTarget, voiceDetections)
-                            else  -> SentenceBuilder.build(voiceDetections)
-                        }
                         markClassesSpoken(voiceDetections)
                         val mode = if (voiceDetections.any { it.classKo in ALWAYS_PASS }) "critical" else "normal"
                         handleSuccess(sentence, mode)
                     }
-                    shouldBeep -> {
-                        // 화면엔 뭔지 표시, 소리는 비프만
-                        handleSuccess(SentenceBuilder.build(voted), "beep")
-                    }
-                    else -> handleSuccess("주변에 장애물이 없어요.")
+                    shouldBeep -> handleSuccess(sentence, "beep")
+                    else       -> handleSuccess("주변에 장애물이 없어요.")
                 }
             } catch (_: Exception) {
                 bmp?.recycle()
