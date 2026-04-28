@@ -322,13 +322,87 @@ pip install "torch>=2.6.0" torchvision torchaudio --index-url https://download.p
 
 ---
 
+### 27. 같은 말 3번 반복
+
+**원인**: `critical` 브랜치가 `!isSpeaking()` 조건으로 TTS 끝날 때마다 같은 문장 재발화
+
+**해결**: critical 5초 쿨다운 + `ttsBusy` AtomicBoolean 완전 잠금 적용 (4차 수정)
+
+---
+
+### 28. 말 끝나기 전에 다음 말 시작
+
+**원인**: `isSpeaking()` 비동기 타이밍 race condition — 찰나에 false 반환 시 두 TTS 동시 시작
+
+**해결**: `ttsBusy` AtomicBoolean 도입
+- `speakBuiltIn()`: `compareAndSet(false, true)` 실패 시 즉시 버림
+- `onDone` 후 700ms 뒤 잠금 해제
+- 차량만 `immediate=true`로 강제 획득 (나머지는 대기)
+
+---
+
+### 29. 비프음이 안 들림
+
+**원인 1**: `ToneGenerator` 볼륨 60%, 120ms — 너무 작고 짧음
+**원인 2**: 온디바이스 모드에서 alertMode가 항상 "critical"로 고정돼 beep 브랜치 진입 불가
+**원인 3**: `isSpeaking()` 쿨다운에 비프까지 막힘
+
+**해결**:
+- 볼륨 60 → 100, 길이 120ms → 400ms, `TONE_PROP_BEEP` → `TONE_PROP_BEEP2`
+- 온디바이스 alertMode 계산 추가 (거리 기반)
+- 비프는 `tts.isSpeaking` 직접 체크 (쿨다운 무관)
+
+---
+
+### 30. 가까이 있는데 비프음만 나고 음성 안내 없음
+
+**원인**: 거리 기반 분류 로직을 거꾸로 구현 (가까이→beep, 멀리→voice)
+
+**해결**: 올바른 방향으로 수정
+- 가까이(bbox 8%+) → 음성 안내 (이미 말해줬어도 계속)
+- 멀리(bbox 8% 미만) → 비프
+- 차량·칼 등 위험 → 항상 음성
+
+---
+
+### 31. 여러 사물이 있는데 하나만 말함
+
+**원인**: `classify()` 함수가 가까운 사물만 `voiceDetections`에 담고, 문장도 `voiceDetections`만으로 생성 → 멀리 있는 사물은 문장에서 제외됨
+
+**해결**: 문장 생성 기준을 `voted` 전체로 변경 (가까운 순 정렬, 최대 3개)
+
+---
+
+### 32. 벽·스피커를 냉장고·노트북으로 인식
+
+**원인**: COCO 63(laptop), 72(refrigerator)는 직사각형 평면 구조물이면 쉽게 오탐
+
+**해결**: 탐지 대상에서 제거
+```kotlin
+// VoiceGuideConstants.kt에서 제거됨
+// 63 to "노트북"   // 스피커·모니터 오인식
+// 72 to "냉장고"   // 벽 오인식
+```
+
+---
+
+### 33. 찾기 모드 음성 명령 인식 안 됨
+
+**원인 1**: STT가 "찾아 줘"처럼 공백 포함 → `replace("찾아줘", "")` 미작동
+**원인 2**: 클래스 쿨다운이 찾는 대상 물체도 5초간 필터링
+
+**해결**:
+- `extractFindTarget()` 공백 정규화 + 키워드 확대 ("어딨어", "어딨나", "어디 있나")
+- `voteFilter`: 찾기 모드 진입 시 쿨다운 우회
+
+---
+
 ## 현재 알려진 제한사항
 
 | 항목 | 상태 | 내용 |
 |------|------|------|
 | 거리 실측 보정 | ⚠️ 필요 | DEPTH_SCALE=1.0 미보정. CALIBRATION_TEST.md 참조 |
 | 투명 장애물 | ⚠️ 한계 | 유리문·유리벽 탐지 불가 (모든 AI 공통 한계) |
-| 비정형 계단 | ⚠️ 미검증 | 나선형·야외 계단은 실환경 테스트 필요 |
 | 연속 스트리밍 | ⚠️ 한계 | 1초 간격 캡처 (연속 영상 처리 아님) |
 
 ---
