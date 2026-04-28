@@ -95,27 +95,47 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private val ALWAYS_PASS    = setOf("자동차","오토바이","버스","트럭","기차","자전거",
                                        "칼","가위","개","말","곰","코끼리")
 
-    // 클래스별 마지막 발화 시간 — 문장이 미세하게 달라도 같은 사물이면 쿨다운
     private val classLastSpoken = mutableMapOf<String, Long>()
-    private val CLASS_COOLDOWN_MS = 5000L  // 같은 사물 5초 쿨다운
+    private val CLASS_COOLDOWN_MS = 5000L  // 음성 안내 후 같은 사물 재발화 간격
+    private val BEEP_AREA_THRESH  = 0.08f  // bbox 면적 8% 이상 = 가까이 있음
 
-    private fun voteFilter(detections: List<Detection>): List<Detection> {
+    private fun voteOnly(detections: List<Detection>): List<Detection> {
         val currentClasses = detections.map { it.classKo }.toSet()
         detectionHistory.addLast(currentClasses)
         if (detectionHistory.size > VOTE_WINDOW) detectionHistory.removeFirst()
-
         val counts = mutableMapOf<String, Int>()
         for (frame in detectionHistory) frame.forEach { counts[it] = (counts[it] ?: 0) + 1 }
-
-        val now = System.currentTimeMillis()
         return detections.filter { d ->
-            val confirmed = d.classKo in ALWAYS_PASS || (counts[d.classKo] ?: 0) >= VOTE_MIN_COUNT
-            // 찾기 모드는 쿨다운 무시 — 대상 물체를 놓치면 안 됨
-            val cooledDown = currentMode == "찾기" ||
-                             d.classKo in ALWAYS_PASS ||
-                             (now - (classLastSpoken[d.classKo] ?: 0L)) > CLASS_COOLDOWN_MS
-            confirmed && cooledDown
+            d.classKo in ALWAYS_PASS || (counts[d.classKo] ?: 0) >= VOTE_MIN_COUNT
         }
+    }
+
+    /**
+     * 거리 + 쿨다운 기반 분류.
+     *
+     * 가까이(bbox 4%+) + 새 사물   → voice (음성 안내)
+     * 가까이(bbox 4%+) + 이미 안내 → beep  (비프 — 경고 피로 방지)
+     * 멀리 있음                    → beep  (멀리서 인지용 비프)
+     * 위험 사물(차량·칼 등)         → 항상 voice
+     */
+    private fun classify(voted: List<Detection>): Pair<List<Detection>, Boolean> {
+        val now = System.currentTimeMillis()
+        val voice = mutableListOf<Detection>()
+        var shouldBeep = false
+        for (d in voted) {
+            val isAlways    = d.classKo in ALWAYS_PASS
+            val skipCooldown = isAlways || currentMode == "찾기"
+            val isNew       = skipCooldown || (now - (classLastSpoken[d.classKo] ?: 0L)) > CLASS_COOLDOWN_MS
+            val isClose     = d.w * d.h > BEEP_AREA_THRESH  // bbox 8%+ ≈ 2m 이내
+            when {
+                isAlways           -> voice.add(d)  // 위험 → 항상 음성
+                isNew && isClose   -> voice.add(d)  // 새 사물 + 가까이 → 음성
+                isNew && !isClose  -> shouldBeep = true  // 새 사물 + 멀리 → 비프
+                !isNew && isClose  -> shouldBeep = true  // 알던 사물 + 가까이 → 비프(경고 피로 방지)
+                // 알던 사물 + 멀리 → 무시
+            }
+        }
+        return voice to shouldBeep
     }
 
     private fun markClassesSpoken(detections: List<Detection>) {
@@ -1137,28 +1157,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val imgH = bmp.height
 
                 val rawDetections = yoloDetector!!.detect(bmp)
-                val detections    = voteFilter(rawDetections)
+                val voted         = voteOnly(rawDetections)
 
                 bmp.recycle(); bmp = null
                 imageFile.delete()
 
-                runOnUiThread { boundingBoxOverlay.setDetections(detections, imgW, imgH) }
+                runOnUiThread { boundingBoxOverlay.setDetections(voted, imgW, imgH) }
 
-                if (detections.isEmpty()) {
+                if (voted.isEmpty()) {
                     handleSuccess("주변에 장애물이 없어요.")
                     return@Thread
                 }
 
-                val sentence = when (currentMode) {
-                    "찾기"  -> SentenceBuilder.buildFind(findTarget, detections)
-                    else   -> SentenceBuilder.build(detections)
-                }
-                markClassesSpoken(detections)
+                val (voiceDetections, shouldBeep) = classify(voted)
 
-                // 온디바이스 alertMode: 차량·위험 → critical, 그 외 → normal
-                // beep는 서버 모드 전용 (서버가 거리를 정확히 알 때만 의미 있음)
-                val onDeviceMode = if (detections.any { it.classKo in ALWAYS_PASS }) "critical" else "normal"
-                handleSuccess(sentence, onDeviceMode)
+                when {
+                    voiceDetections.isNotEmpty() -> {
+                        val sentence = when (currentMode) {
+                            "찾기" -> SentenceBuilder.buildFind(findTarget, voiceDetections)
+                            else  -> SentenceBuilder.build(voiceDetections)
+                        }
+                        markClassesSpoken(voiceDetections)
+                        val mode = if (voiceDetections.any { it.classKo in ALWAYS_PASS }) "critical" else "normal"
+                        handleSuccess(sentence, mode)
+                    }
+                    shouldBeep -> {
+                        // 화면엔 뭔지 표시, 소리는 비프만
+                        handleSuccess(SentenceBuilder.build(voted), "beep")
+                    }
+                    else -> handleSuccess("주변에 장애물이 없어요.")
+                }
             } catch (_: Exception) {
                 bmp?.recycle()
                 // 온디바이스 실패 → 파일은 삭제하지 않고 서버로 fallback
