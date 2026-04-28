@@ -1,5 +1,29 @@
 # VoiceGuide 외부 서버 배포 가이드 (LTE 테스트용)
 
+---
+
+## 먼저 — 어떤 서버를 배포하나?
+
+프로젝트에 서버가 두 개 있어서 헷갈릴 수 있습니다.
+
+| | `서버_DB/main.py` | `src/api/main.py` |
+|--|---|---|
+| **역할** | Supabase DB 연결 **테스트용** | VoiceGuide **메인 서버** |
+| **Android 앱 연결** | ❌ | ✅ 여기에 연결 |
+| **외부 배포 대상** | ❌ | ✅ Railway/GCP 여기를 배포 |
+| **YOLO / Depth V2** | ❌ 없음 | ✅ 있음 |
+
+> **결론: 외부에 배포하는 건 `src/api/main.py` 입니다.**  
+> `railway.toml`도 이미 `src/api/main.py`를 실행하도록 설정돼 있습니다.
+
+**Supabase DB 연결 순서:**
+1. `서버_DB/main.py`로 Supabase 연결 테스트 → 성공 확인
+2. 프로젝트 루트 `.env`에 `DATABASE_URL` 추가
+3. `src/api/main.py` 서버가 자동으로 Supabase 사용
+4. `GET /health` → `"db_mode": "postgresql"` 확인
+
+---
+
 WiFi 없이 LTE 환경에서 앱을 테스트하려면 서버를 인터넷에 공개해야 합니다.  
 아래 방법 중 하나를 선택하세요. **모두 무료**입니다.
 
