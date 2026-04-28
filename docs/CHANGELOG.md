@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-04-28 (2차 — 오인식 수정 + PyTorch GPU 셋업)
+
+### 버그 수정
+
+- **휴대폰 → 노트북 오인식 수정** (YOLO 파인튜닝)
+  - 원인: YOLO11m이 phone 화면을 laptop(class 63)으로 오분류
+  - 해결: 휴대폰/노트북 이미지 348장 수집 → laptop 탐지 결과를 cell_phone(67)으로 교정 라벨링 → 파인튜닝
+  - 결과: mAP50 0.624 → **0.748** 향상
+  - 기존 계단 모델(`yolo11m_indoor.pt`)에서 이어받아 계단 정확도 보존
+
+- **목소리 겹침 미수정 원인 파악**
+  - `c:/VoiceGuide/android/`(구버전, `suppressPeriodicUntil` 없음) vs `c:/VoiceGuide/VoiceGuide/android/`(신버전) 폴더 혼동
+  - → 신버전 폴더(`VoiceGuide/android/`)로 빌드해야 3초 TTS 억제 적용됨
+
+### 파인튜닝 파이프라인 추가
+
+- `train/prepare_cellphone.py` — DuckDuckGo 이미지 수집 + laptop→cell_phone 라벨 교정
+- `train/finetune_cellphone.py` — `yolo11m_indoor.pt` 기반, lr=5e-5 / 25 에포크
+- `tools/export_onnx.py` — ONNX 변환 후 두 android 폴더(`VoiceGuide/android/`, `../android/`) 동시 갱신
+
+### 환경 설정
+
+- PyTorch CPU→GPU 전환: `torch 2.4.1+cpu` → `torch 2.11.0+cu128` (RTX 5060 Blackwell 지원)
+
+---
+
 ## 2026-04-28
 
 ### 신규 기능
