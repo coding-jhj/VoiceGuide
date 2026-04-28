@@ -343,20 +343,40 @@ Android: gTTS 음성 출력
 
 ### 2단계: 서버 구축 + Android 연동 (4/28~5/9)
 
-| 날짜 | 주요 목표 |
-|---|---|
-| 4/28 (월) | Depth Anything V2 서버 탑재 + YOLO와 동시 실행 테스트 |
-| 4/29 (화) | 공간 스냅샷 API 완성 + 변화 감지 로직 구현 |
-| 4/30 (수) | ngrok 외부 접근 + Android → 서버 이미지 전송 구현 |
-| 5/1 (목) | Android 시나리오 1 (장애물 안내) end-to-end 작동 |
-| 5/2 (금) | WiFi SSID 전송 + 공간 기억 Android 연동 |
-| 5/6 (화) | Android 시나리오 2·3 (물건 찾기·확인) 작동 |
-| 5/7 (수) | 전체 흐름 통합 테스트 + 오류 수정 |
-| 5/8 (목) | 인식률 데이터 정리 + 서버 안정화 |
-| 5/9 (금) | 데모 시나리오 확정 + 데모 영상 1차 녹화 |
+| 날짜 | 계획 | 실제 완료 |
+|---|---|---|
+| **4/28 (월)** | Depth Anything V2 서버 탑재 + YOLO 동시 실행 테스트 | ✅ **계획 초과 달성** — 아래 상세 참고 |
+| 4/29 (화) | 공간 스냅샷 API 완성 + 변화 감지 로직 구현 | → 이미 4/28에 완료됨 |
+| 4/30 (수) | ngrok 외부 접근 + Android → 서버 이미지 전송 구현 | → Supabase + Railway 배포로 대체 |
+| 5/1 (목) | Android 시나리오 1 (장애물 안내) end-to-end 작동 | |
+| 5/2 (금) | WiFi SSID 전송 + 공간 기억 Android 연동 | |
+| 5/6 (화) | Android 시나리오 2·3 (물건 찾기·확인) 작동 | |
+| 5/7 (수) | 전체 흐름 통합 테스트 + 오류 수정 | |
+| 5/8 (목) | 인식률 데이터 정리 + 서버 안정화 | |
+| 5/9 (금) | 데모 시나리오 확정 + 데모 영상 1차 녹화 | |
+
+#### 4/28 실제 완료 내역 (강사님 미팅 피드백 전체 반영)
+
+**강사님 미팅 → 즉일 구현:**
+
+| 항목 | 구현 내용 | 파일 |
+|---|---|---|
+| 사용자 질문 응답 기능 | `"질문"` STT 모드 — 즉시 캡처 + tracker 누적 상태 응답 | routes.py, MainActivity.kt |
+| deque 싱크 버그 수정 | `get_current_state()` — 최근 3초 물체 목록 반환 | tracker.py |
+| 경고 피로 보팅 방식 | `VotingBuffer` — 10프레임 중 60%+ 탐지 시만 확정 | tracker.py |
+| TTS 겹침 완전 차단 | 서버 5초 dedup + Android 3초 periodic 억제 | routes.py, MainActivity.kt |
+| 사물 인식률 개선 | 차량·칼·가위 탐지 임계값 하향 (더 일찍 탐지) | detect.py |
+| feature/nlg PR merge | myungkwang 브랜치 conflict 해결 → main 통합 | git |
+| GPS + 대시보드 | lat/lng 전송 → DB 저장 → 지도 실시간 표시 | db.py, routes.py, dashboard.html |
+| 서버 테스트 | 9개 엔드포인트 자동 테스트 스크립트 | tests/test_server.py |
+| Supabase + Railway | SQLite↔PostgreSQL 자동 전환, 무료 외부 배포 | db.py, railway.toml |
+| Depth V2 헬스체크 | `/health` — depth_v2 로드 상태 + DB 모드 확인 | main.py |
+
+> Depth Anything V2는 4/28 이전에 이미 통합 완료. 서버 실행 시 `depth_anything_v2_vits.pth` 자동 로드.  
+> **폰에서 꺼져 있는 이유**: Depth V2는 서버 전용 기능. 온디바이스(서버 없을 때)에서는 YoloDetector.kt (ONNX) + SentenceBuilder.kt (bbox 거리)로 동작. `/health` 응답의 `depth_v2` 필드로 서버 상태 확인 가능.
 
 **⚠️ 리스크 포인트**
-- 4/30: Android ↔ 서버 HTTP 통신 — 여기서 막히면 팀 전체 모여서 해결 (혼자 붙잡지 말 것)
+- 4/30: Android ↔ 서버 HTTP 통신 — 이미 4/28에 완료됨 (위험 해소)
 - 5/2: WiFi SSID Android 권한 이슈 — 안 풀리면 사용자 직접 입력 fallback으로 대체
 
 **✅ 완료 기준**: Android에서 시나리오 3개 end-to-end + 공간 기억 기능 작동

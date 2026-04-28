@@ -16,10 +16,11 @@
 | 수치 연산 | NumPy | 1.26.4 | **반드시 1.x** |
 | API 서버 | FastAPI + Uvicorn | 0.115.5 / 0.32.1 | |
 | 데모 UI | Gradio | 4.44.1 | **반드시 4.x** |
-| DB | SQLite (내장) | — | 공간 스냅샷 저장 |
+| DB | SQLite (로컬) / PostgreSQL Supabase (외부, DATABASE_URL 설정 시) | — | 공간 스냅샷 저장 |
 | Android 카메라 | CameraX | 1.3.1 | 라이브 프리뷰 + 자동 캡처 |
 | Android HTTP | OkHttp | 4.12.0 | 서버 통신 |
-| 외부 터널 | ngrok | 3.38.0 | 다른 네트워크 연결 시 |
+| 외부 터널 | ngrok / Railway / Render / GCP Cloud Run | 3.38.0+ | 다른 네트워크 연결 시 |
+| 보팅 경고 피로 방지 | VotingBuffer | — | 최근 10프레임 60%+ 탐지 시 확정 |
 
 ---
 
@@ -191,6 +192,84 @@ pip install ultralytics
 ### 15. 거리가 실제와 많이 다를 때
 **원인**: `DEPTH_SCALE = 1.0` 미보정  
 **해결**: `docs/CALIBRATION_TEST.md` 참조하여 실측 보정
+
+---
+
+### 19. Depth Anything V2가 폰에서는 동작하지 않는 이유
+
+**원인**: Depth V2는 **서버 전용** 기능이라 설계 의도대로 동작하는 것입니다.
+
+| 환경 | 거리 추정 방식 | 속도 |
+|------|------------|------|
+| 서버 연결 시 | Depth Anything V2 (정확, 상대 깊이 맵) | ~0.3초/장 (GPU) |
+| 온디바이스 (서버 없음) | bbox 면적 비율 (YoloDetector.kt + SentenceBuilder.kt) | 즉시 |
+
+**확인 방법**: 서버 실행 후 `GET /health` 호출
+```json
+{"depth_v2": "loaded", "device": "cuda"}   ← 정상 로드
+{"depth_v2": "fallback (bbox)"}             ← 모델 파일 없음
+```
+
+**모델 파일 없을 때**: 서버도 bbox 기반으로 자동 전환 — 에러 없이 동작함
+
+---
+
+### 20. TTS가 같은 말을 반복하거나 겹칠 때 (경고 피로)
+
+**원인**: 1초마다 분석 → 같은 장면이면 매초 같은 TTS 발화
+
+**현재 적용된 해결책:**
+- **서버 5초 dedup** (`routes.py` `_should_suppress`): 같은 세션에서 동일 문장이 5초 내 반복되면 `alert_mode="silent"`로 낮춤
+- **Android 3초 억제** (`suppressPeriodicUntil`): 질문 응답 직후 3초간 periodic TTS를 silent 처리
+- **VotingBuffer 10프레임**: 일시적 오탐은 아예 경고 안 함
+- `critical` (차량·계단)은 항상 통과 — 안전 우선
+
+**조정 방법**: 너무 조용하면 `routes.py`에서 `_DEDUP_SECS = 5.0` → `2.0`으로 낮추기
+
+---
+
+### 21. Supabase 연결이 안 될 때
+
+**원인 1**: `DATABASE_URL` 환경변수 미설정 → SQLite로 동작 (정상)  
+**원인 2**: Direct connection 주소 사용 시 일부 네트워크에서 DNS 실패
+
+**해결**: Session pooler 주소 사용
+```
+# 잘못된 주소 (Direct connection)
+postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres
+
+# 올바른 주소 (Session pooler)
+postgresql://postgres.xxx:pass@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
+```
+`서버_DB/SUPABASE_DB_CONNECT_GUIDE.md` 참조
+
+**확인**: `GET /health` → `"db_mode": "postgresql"` 이면 연결 성공
+
+---
+
+### 22. Railway/Render 배포 후 첫 요청이 느릴 때 (Cold Start)
+
+**원인**: 무료 플랜은 일정 시간 비활성 시 sleep → 첫 요청에서 30~60초 지연
+
+**해결**:
+1. 앱 사용 전 `/health`로 warm-up 요청 먼저 보내기
+2. [Uptime Robot](https://uptimerobot.com) 무료 계정 → 5분마다 `/health` ping 설정 (sleep 방지)
+3. Railway Hobby 플랜($5/월)은 sleep 없음
+
+---
+
+### 23. 보팅(Voting) 후 경고가 너무 늦게 나올 때
+
+**원인**: `VotingBuffer(window=10, threshold=0.6)` → 10프레임 중 6회 탐지돼야 경고  
+1초 간격이면 최대 6초 후 첫 경고 가능
+
+**해결**: `src/api/tracker.py`에서 파라미터 낮추기
+```python
+_VOTE_WINDOW    = 10   # → 5로 낮추면 더 빠름
+_VOTE_THRESHOLD = 0.6  # → 0.4로 낮추면 더 민감
+```
+
+**주의**: 차량·계단은 `ALWAYS_CRITICAL`이라 보팅 없이 즉시 통과 — 안전에 영향 없음
 
 ---
 
