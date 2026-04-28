@@ -1,43 +1,43 @@
+from dotenv import load_dotenv
 import os
 import hashlib
-import requests
 import pygame
 
-_client_id     = os.environ.get("NAVER_CLIENT_ID", "")
-_client_secret = os.environ.get("NAVER_CLIENT_SECRET", "")
-_SPEAKER = "nara"   # 나라(여성·차분) | mijin(여성·밝음) | jinho(남성)
+load_dotenv()
+
+_api_key  = os.getenv("ELEVENLABS_API_KEY", "")
+_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"   # George (다국어 지원)
+_MODEL_ID = "eleven_multilingual_v2"
 
 _CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__tts_cache__")
 os.makedirs(_CACHE_DIR, exist_ok=True)
 
 
 def _cache_path(text: str) -> str:
-    key = hashlib.md5(f"clova_{_SPEAKER}_{text}".encode("utf-8")).hexdigest()
+    prefix = "eleven" if _api_key else "gtts"
+    key = hashlib.md5(f"{prefix}_{text}".encode("utf-8")).hexdigest()
     return os.path.join(_CACHE_DIR, f"{key}.mp3")
 
 
 def _generate(text: str, path: str) -> bool:
-    """Clova Voice 생성, 키 없으면 gTTS 폴백."""
-    if _client_id and _client_secret:
+    """ElevenLabs 생성, API 키 없거나 실패하면 gTTS 폴백."""
+    if _api_key:
         try:
-            resp = requests.post(
-                "https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts",
-                headers={
-                    "X-NCP-APIGW-API-KEY-ID": _client_id,
-                    "X-NCP-APIGW-API-KEY":    _client_secret,
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={"speaker": _SPEAKER, "volume": 0, "speed": 0,
-                      "pitch": 0, "format": "mp3", "text": text},
-                timeout=10,
+            from elevenlabs.client import ElevenLabs
+            client = ElevenLabs(api_key=_api_key)
+            audio_generator = client.text_to_speech.convert(
+                text=text,
+                voice_id=_VOICE_ID,
+                model_id=_MODEL_ID,
+                output_format="mp3_44100_128",
             )
-            if resp.ok:
-                with open(path, "wb") as f:
-                    f.write(resp.content)
-                return True
-            print(f"[TTS] Clova 오류 {resp.status_code}: {resp.text[:80]}")
+            with open(path, "wb") as f:
+                for chunk in audio_generator:
+                    if chunk:
+                        f.write(chunk)
+            return True
         except Exception as e:
-            print(f"[TTS] Clova 요청 실패: {e}")
+            print(f"[TTS] ElevenLabs 오류, gTTS 폴백: {e}")
 
     # gTTS 폴백
     try:
@@ -66,4 +66,5 @@ def speak(text: str):
 
 
 def warmup_cache():
+    """서버 시작 시 자주 쓰는 문장 미리 캐싱 — 첫 요청 지연 방지."""
     pass
