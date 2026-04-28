@@ -44,14 +44,13 @@ app = FastAPI(title="VoiceGuide API", lifespan=lifespan)
 @app.get("/health")
 async def health():
     """서버 상태 + Depth V2 모델 로드 여부 확인."""
-    from src.depth.depth import _check_model, _DEVICE, _IS_POSTGRES as _
-    import src.api.db as _db
+    from src.depth.depth import _check_model, _DEVICE
     depth_ok = _check_model()
     return {
-        "status":       "ok",
-        "depth_v2":     "loaded" if depth_ok else "fallback (bbox)",
-        "device":       _DEVICE,
-        "db_mode":      "postgresql" if _db._IS_POSTGRES else "sqlite",
+        "status":   "ok",
+        "depth_v2": "loaded" if depth_ok else "fallback (bbox)",
+        "device":   _DEVICE,
+        "db_mode":  "postgresql" if db._IS_POSTGRES else "sqlite",
     }
 
 
