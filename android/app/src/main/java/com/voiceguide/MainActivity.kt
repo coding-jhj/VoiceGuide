@@ -398,7 +398,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     SpeechRecognizer.ERROR_RECOGNIZER_BUSY
                 )
                 if (autoListenEnabled && retryable) {
-                    runOnUiThread { tvMode.text = "듣는 중..." }
+                    runOnUiThread { tvMode.text = "모드: $currentMode  |  듣는 중..." }
                     handler.postDelayed({ scheduleAutoListen() }, 800)
                 } else {
                     runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
@@ -441,7 +441,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
-        tvMode.text = "듣는 중..."
+        tvMode.text = "모드: $currentMode  |  듣는 중..."
         speechRecognizer.startListening(intent)
     }
 
@@ -498,19 +498,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             "찾기" -> {
                 findTarget  = SentenceBuilder.extractFindTarget(text)
                 currentMode = "찾기"
-                SentenceBuilder.clearStableClocks()  // 찾는 대상 바뀌면 방향 캐시 초기화
-                speak("${findTarget.ifEmpty { "물건" }} 찾기 모드.")
+                SentenceBuilder.clearStableClocks()
+                speakBuiltIn("${findTarget.ifEmpty { "물건" }} 찾기 모드.")
             }
             "텍스트" -> {
-                speak("텍스트를 인식할게요.")
+                speakBuiltIn("텍스트를 인식할게요.")
                 captureForOcr()
             }
             "바코드" -> {
-                speak("바코드를 인식할게요.")
+                speakBuiltIn("바코드를 인식할게요.")
                 captureForBarcode()
             }
             "색상" -> {
-                speak("색상을 확인할게요.")
+                speakBuiltIn("색상을 확인할게요.")
                 currentMode = "색상"
                 captureAndProcess()
             }
@@ -524,12 +524,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 speak("현재 밝기는 $desc")
             }
             "신호등" -> {
-                speak("신호등을 확인할게요.")
+                speakBuiltIn("신호등을 확인할게요.")
                 currentMode = "신호등"
                 captureAndProcess()
             }
             "버스번호" -> {
-                speak("버스 번호를 확인할게요.")
+                speakBuiltIn("버스 번호를 확인할게요.")
                 captureForBusNumber()
             }
             "버스대기" -> {
@@ -598,8 +598,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }
             else -> {
                 currentMode = mode
-                SentenceBuilder.clearStableClocks()  // 모드 전환 시 방향 캐시 초기화
-                speak("$mode 모드.")
+                SentenceBuilder.clearStableClocks()
+                speakBuiltIn("$mode 모드.")
             }
         }
     }
