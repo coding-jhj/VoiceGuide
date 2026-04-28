@@ -1132,8 +1132,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     "찾기"  -> SentenceBuilder.buildFind(findTarget, detections)
                     else   -> SentenceBuilder.build(detections)
                 }
-                markClassesSpoken(detections)  // 발화한 사물 쿨다운 등록
-                handleSuccess(sentence)
+                markClassesSpoken(detections)
+
+                // 온디바이스 alertMode 계산
+                // (서버 없이 bbox 면적으로 거리 추정 — 8% 이상이면 1m 이내 추정)
+                val topDet = detections.firstOrNull()
+                val onDeviceMode = when {
+                    detections.any { it.classKo in ALWAYS_PASS } -> "critical"
+                    topDet != null && topDet.w * topDet.h > 0.08f -> "beep"
+                    else -> "normal"
+                }
+                handleSuccess(sentence, onDeviceMode)
             } catch (_: Exception) {
                 bmp?.recycle()
                 // 온디바이스 실패 → 파일은 삭제하지 않고 서버로 fallback
@@ -1258,19 +1267,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             tvStatus.text = sentence
             when (effectiveMode) {
                 "critical" -> {
-                    // 새 경고이거나 같은 경고라도 5초 지났으면 재발화
-                    // (|| !isSpeaking() 제거 — TTS 끝날 때마다 재시작하면 3번 반복됨)
                     val now = System.currentTimeMillis()
                     if (sentence != lastSentence || now - lastCriticalTime > 5000L) {
-                        lastSentence    = sentence
-                        lastCriticalTime = now
-                        tts.setSpeechRate(1.25f)
-                        speak(sentence)
+                        // 차량·칼 등 즉각 위험만 말 끊고 경고 — 나머지는 끝날 때까지 대기
+                        val isImmediateDanger = ALWAYS_PASS.any { sentence.contains(it) }
+                        if (isImmediateDanger || !isSpeaking()) {
+                            lastSentence     = sentence
+                            lastCriticalTime = now
+                            tts.setSpeechRate(1.25f)
+                            speak(sentence)
+                        }
                     }
                 }
                 "beep" -> {
-                    // 1m 이내 일반 장애물 — 비프음만 (경고 피로 방지)
-                    if (!isSpeaking()) toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                    // 1m 이내 가까운 장애물 — 비프음만 (TTS 쿨다운 무관하게 동작)
+                    if (!tts.isSpeaking && !isElevenLabsSpeaking)
+                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
                 }
                 "silent" -> {
                     // 무음 — UI만 업데이트
