@@ -24,16 +24,15 @@ object SentenceBuilder {
 
     /**
      * 탐지된 물체 목록에서 안내 문장을 생성.
-     * 우선순위: 가까운 차량 > 계단 > 일반 장애물
+     * 우선순위: 가까운 차량 > 일반 장애물 (최대 3개)
      *
-     * @param detections YoloDetector.detect()의 반환값
+     * @param detections 투표 필터를 통과한 Detection 목록
      * @return TTS로 읽을 한국어 문장
      */
     fun build(detections: List<Detection>): String {
         if (detections.isEmpty()) return "주변에 장애물이 없어요."
 
         // 1순위: bbox 면적 4% 이상인 가까운 차량 (야외 최고 위험)
-        // 면적 4% = 이미지의 1/25 크기 이상 → 꽤 가까이 있는 차량
         val nearVehicle = detections.firstOrNull {
             it.classKo in VEHICLE_CLASSES && it.w * it.h > 0.04f
         }
@@ -46,16 +45,8 @@ object SentenceBuilder {
             return "위험! ${dir}에 ${nearVehicle.classKo}${ig} 있어요! $distStr. 즉시 $action!"
         }
 
-        // 2순위: 계단 (파인튜닝으로 추가된 클래스)
-        val stairs = detections.firstOrNull { it.classKo == "계단" }
-        if (stairs != null) {
-            val clock  = getClock(stairs.cx)
-            val action = DIRECTION_ACTION[clock] ?: "조심하세요"
-            return "조심! 앞에 계단이 있어요. $action."
-        }
-
-        // 3순위: 일반 장애물 — 상위 2개까지 문장 생성
-        val parts = detections.take(2).mapIndexed { idx, det ->
+        // 2순위: 일반 장애물 — 상위 3개까지 문장 생성
+        val parts = detections.take(3).mapIndexed { idx, det ->
             val clock     = getClock(det.cx)
             val dir       = CLOCK_TO_DIRECTION[clock] ?: clock
             val distStr   = formatDist(det.w, det.h)

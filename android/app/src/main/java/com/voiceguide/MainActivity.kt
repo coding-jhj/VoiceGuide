@@ -83,6 +83,28 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private val isAnalyzing = AtomicBoolean(false) // 분석 중인지 여부
     private val isSending   = AtomicBoolean(false) // 현재 요청 전송 중인지 (중복 방지)
     private var lastSentence = ""                  // 직전 안내 문장 (반복 방지)
+
+    // ── 온디바이스 투표(Voting) 버퍼 ─────────────────────────────────────
+    // 최근 5프레임 탐지 결과를 기록해 3회 이상 등장한 사물만 안내
+    // → 순간 오탐(인형·노트북 등)이 단발로 잡혀도 TTS 안내 안 됨
+    private val detectionHistory = ArrayDeque<Set<String>>()
+    private val VOTE_WINDOW    = 5    // 최근 N프레임 기억
+    private val VOTE_MIN_COUNT = 3    // N프레임 중 최소 M번 이상이어야 확정
+    private val ALWAYS_PASS    = setOf("자동차","오토바이","버스","트럭","기차","자전거",
+                                       "칼","가위","개","말","곰","코끼리")
+
+    private fun voteFilter(detections: List<Detection>): List<Detection> {
+        val currentClasses = detections.map { it.classKo }.toSet()
+        detectionHistory.addLast(currentClasses)
+        if (detectionHistory.size > VOTE_WINDOW) detectionHistory.removeFirst()
+
+        val counts = mutableMapOf<String, Int>()
+        for (frame in detectionHistory) frame.forEach { counts[it] = (counts[it] ?: 0) + 1 }
+
+        return detections.filter { d ->
+            d.classKo in ALWAYS_PASS || (counts[d.classKo] ?: 0) >= VOTE_MIN_COUNT
+        }
+    }
     // 질문 응답 직후 periodic TTS 억제 — 겹침 방지 (3초간 periodic silent 처리)
     @Volatile private var suppressPeriodicUntil = 0L
     // FPS 측정 — 마지막 요청 시각과 서버 응답시간(ms) 기록
@@ -161,7 +183,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── ONNX 온디바이스 추론 ───────────────────────────────────────────
     private var yoloDetector: YoloDetector? = null
-    private val stairsDetector = StairsDetector()
 
     companion object {
         private const val PERM_CODE        = 100           // 권한 요청 코드 (임의 숫자)
@@ -1077,12 +1098,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val imgW = bmp.width
                 val imgH = bmp.height
 
-                var detections = yoloDetector!!.detect(bmp)
-
-                // YOLO가 계단을 잡지 못했을 때 엣지 패턴 분석으로 보완
-                if (detections.none { it.classKo == "계단" }) {
-                    stairsDetector.detect(bmp)?.let { detections = detections + it }
-                }
+                val rawDetections = yoloDetector!!.detect(bmp)
+                val detections    = voteFilter(rawDetections)
 
                 bmp.recycle(); bmp = null
                 imageFile.delete()
@@ -1217,10 +1234,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             tvStatus.text = sentence
             when (effectiveMode) {
                 "critical" -> {
-                    // 위험 경고 — 말 중이어도 끊고 빠르게 읽음
-                    lastSentence = sentence
-                    tts.setSpeechRate(1.25f)
-                    speak(sentence)
+                    // 위험 경고 — 새 문장이거나 다 말한 경우에만 발화 (같은 경고 반복 겹침 방지)
+                    if (sentence != lastSentence || !isSpeaking()) {
+                        lastSentence = sentence
+                        tts.setSpeechRate(1.25f)
+                        speak(sentence)
+                    }
                 }
                 "beep" -> {
                     // 1m 이내 일반 장애물 — 비프음만 (경고 피로 방지)

@@ -33,7 +33,7 @@ if _USE_YOLO_WORLD:
         "refrigerator", "potted plant", "bench",
         "backpack", "handbag", "suitcase", "umbrella",
         "knife", "scissors", "wine glass",
-        "stairs", "curb", "step",
+        "curb", "step",
     ]
     _model.set_classes(_WORLD_CLASSES)
     print(f"[YOLO-World] 모델 로드: yolov8x-worldv2.pt ({len(_WORLD_CLASSES)}클래스)")
@@ -76,8 +76,6 @@ CLASS_MIN_CONF = {
     # 실내 소형 (오탐 많아서 높게)
     "cell phone": 0.65, "remote": 0.65, "mouse": 0.65,
     "toothbrush": 0.70, "spoon": 0.70, "fork": 0.65,
-    # 계단: 키보드·에스컬레이터 등 계단형 패턴 오탐 방지
-    "stairs": 0.72,
     # 실내 소형/오탐 잦은 클래스
     "tie": 0.75, "umbrella": 0.68, "handbag": 0.65,
     "wine glass": 0.70, "cup": 0.65, "bowl": 0.65,
@@ -87,7 +85,6 @@ CLASS_MIN_CONF = {
 ALWAYS_CRITICAL = {
     "car", "motorcycle", "bus", "truck", "train",  # 이동 차량
     "bicycle",                                      # 자전거 (전동킥보드 대체)
-    "stairs",                                       # 계단 (낙상)
     "knife", "scissors",                            # 날카로운 위험
     "bear", "elephant",                             # 위험 동물 대형
 }
@@ -96,7 +93,7 @@ ALWAYS_CRITICAL = {
 # 멀리 있어도 즉시 인지가 필요한 클래스 (ALWAYS_CRITICAL의 서버 버전)
 _ALWAYS_WARN = {
     "car", "motorcycle", "bus", "truck", "train", "bicycle",
-    "stairs", "knife", "scissors",
+    "knife", "scissors",
     "bear", "elephant", "horse", "dog",  # 위험 동물
     "fire hydrant",  # 도로에 돌출, 충돌 위험
 }
@@ -122,9 +119,6 @@ _SLIPPERY_CLASSES = {
     "banana", "apple", "orange", "pizza", "donut", "cake",
     "sandwich", "hot dog", "broccoli",
 }
-
-# ── 계단 면적 임계값 (이미지 대비 bbox 면적이 이보다 크면 전방 계단 전체 경고) ──
-_STAIRS_LARGE_AREA = 0.20  # 20% 이상이면 계단이 바로 앞 전체에 있음 → 강한 경고
 
 # ── 방향별 위험도 가중치 ─────────────────────────────────────────────────────
 RISK_DIR = {
@@ -268,8 +262,6 @@ TARGET_CLASSES = {
     "hair drier":      "드라이기",
     "toothbrush":      "칫솔",
 
-    # 파인튜닝 추가 클래스
-    "stairs":          "계단",
 }
 
 # ── 물체 실제 크기 기반 거리 캘리브레이션 ────────────────────────────────────
@@ -469,17 +461,6 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
             RISK_DIR.get(direction, 0.5) * RISK_DIST[distance] * ground_mult * class_mult, 2
         )
         risk_score = min(risk_score, 1.0)  # 1.0 초과 방지
-
-        # ── 계단 크기 기반 필터 ──────────────────────────────────────────────
-        # 강사님 피드백: "계단은 객체라고 하기에는 사이즈가 큼"
-        # → bbox가 이미지 면적의 50% 초과이면 배경/전체 계단으로 판단 → 필터링
-        # → 단, 20~50% 사이이면 "전방 계단 주의" 강화 경고로 처리
-        if cls_name == "stairs":
-            if area_ratio > 0.50:
-                continue   # 화면 대부분이 계단 → 이미 올라가고 있는 중, 경고 불필요
-            # 20% 이상이면 대형 계단 → 위험도 배수를 최대로
-            if area_ratio >= _STAIRS_LARGE_AREA:
-                risk_score = 1.0  # 최고 위험
 
         # ── 거리 기반 사물 필터 (경고 피로 방지) ──────────────────────────────
         # 가까울 때만 경고할 사물이 멀면 탐지 목록에서 제외

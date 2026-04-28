@@ -64,14 +64,13 @@ class VotingBuffer:
         return (count / len(self._frames)) >= self.threshold
 
     def filter(self, objects: list[dict]) -> list[dict]:
-        """확정된 물체만 반환. critical 물체(차량·계단)는 보팅 없이 즉시 통과."""
+        """확정된 물체만 반환. 차량은 보팅 없이 즉시 통과."""
         result = []
         for obj in objects:
             cls        = obj.get("class", "")
             is_vehicle = obj.get("is_vehicle", False)
-            is_hazard  = obj.get("class_ko") in {"계단"}
-            # 차량·계단은 오탐이어도 즉시 경고 (안전 우선)
-            if is_vehicle or is_hazard or self.is_confirmed(cls):
+            # 차량은 오탐이어도 즉시 경고 (안전 우선)
+            if is_vehicle or self.is_confirmed(cls):
                 result.append(obj)
         return result
 
@@ -172,7 +171,7 @@ class SessionTracker:
             obj["distance_m"] = smooth_d
             smoothed.append(obj)
 
-        # 보팅 필터: 오탐 제거 (차량·계단은 즉시 통과)
+        # 보팅 필터: 오탐 제거 (차량은 즉시 통과)
         confirmed = self._voting.filter(smoothed)
         return confirmed, changes
 
