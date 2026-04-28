@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+psycopg[binary]
+psycopg-pool
+python-multipart
+opencv-python
+numpy
+pillow
+scikit-image
+ultralytics
