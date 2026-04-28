@@ -1,170 +1,272 @@
-# VoiceGuide 코드 흐름 이해 가이드
+# VoiceGuide 코드 흐름 완전 정리
 
-## 전체 데이터 흐름 (한 번의 분석 사이클)
+> 팀원 발표 준비용 — 이 파일 하나로 전체 코드 흐름을 이해할 수 있습니다.
+
+---
+
+## 1. 한 번의 분석이 어떻게 일어나는가 (전체 흐름)
 
 ```
-Android 카메라 (1초마다)
-    │
-    │  JPEG 이미지 바이트
-    ▼
-POST /detect  ← src/api/routes.py
-    │
-    ├─ 1. detect_and_depth(image_bytes)  ← src/depth/depth.py
-    │       │
-    │       ├─ detect_objects(image_bytes)  ← src/vision/detect.py
-    │       │       └─ YOLO11m 추론 → bbox, 방향, 거리, 위험도
-    │       │
-    │       ├─ Depth Anything V2 추론 → depth_map (H×W)
-    │       │       └─ bbox별 깊이값 → distance_m 갱신
-    │       │
-    │       └─ detect_floor_hazards(depth_map)  ← src/depth/hazard.py
-    │               └─ 바닥 영역 12밴드 분석 → 계단/낙차/턱 감지
-    │
-    ├─ 2. tracker.update(objects)  ← src/api/tracker.py
-    │       └─ EMA 거리 평균화 + 접근/소멸 감지
-    │
-    ├─ 3. db.get_snapshot() / save_snapshot()  ← src/api/db.py
-    │       └─ WiFi SSID 기반 공간 이전 상태 비교
-    │
-    └─ 4. build_sentence() or build_hazard_sentence()  ← src/nlg/sentence.py
-            └─ 한국어 안내 문장 생성
-
-    ▼
-JSON 응답: {sentence, objects, hazards, changes}
-    │
-    ▼
-Android TTS → 음성 재생
+[사용자가 폰을 들고 걷는다]
+        │
+        │ 1초마다 자동으로
+        ▼
+[CameraX가 사진을 찍는다]          MainActivity.kt → captureAndProcess()
+        │
+        │ JPEG 파일
+        ├─────────────────────────────────────────────────────┐
+        │ 서버 있을 때                                         │ 서버 없을 때
+        ▼                                                     ▼
+[HTTP POST /detect 전송]           [ONNX 온디바이스 추론]
+ sendToServer()                    YoloDetector.kt → detect()
+        │                                  │
+        ▼                                  ▼
+[FastAPI 서버 수신]               [SentenceBuilder.kt → build()]
+ routes.py → detect()                      │
+        │                                  │
+        ├─ detect_and_depth()              │
+        │   ├─ detect_objects()            │
+        │   │   (YOLO 탐지)               │
+        │   ├─ Depth V2 거리 추정         │
+        │   └─ 계단/낙차 감지             │
+        │                                  │
+        ├─ tracker.update()                │
+        │   (EMA 거리 평활화)              │
+        │                                  │
+        ├─ db.get_snapshot()               │
+        │   (공간 기억 비교)               │
+        │                                  │
+        └─ build_sentence()                │
+            (한국어 문장 생성)             │
+                    │                      │
+                    └──────────┬───────────┘
+                               │ sentence: "왼쪽 앞에 의자가 있어요. 가까이. 오른쪽으로 피하세요."
+                               │ alert_mode: "critical" | "beep" | "silent"
+                               ▼
+                    [Android TTS 음성 출력]  ← critical: 1.25× 속도로 즉각
+                     또는 비프음             ← beep: 짧은 비프음만
+                     또는 무음              ← silent: UI만 업데이트
 ```
 
 ---
 
-## 파일별 역할 한 줄 설명
+## 2. 각 파일이 하는 일 (팀원별 담당)
+
+### 정환주 담당 — Android 앱
 
 | 파일 | 역할 |
 |------|------|
-| `src/vision/detect.py` | YOLO 실행, 방향/거리/위험도 계산 |
-| `src/depth/depth.py` | Depth V2 로드·추론, 거리 정제 |
-| `src/depth/hazard.py` | 깊이 맵으로 계단·낙차·턱 감지 |
-| `src/nlg/sentence.py` | 탐지 결과 → 한국어 문장 |
-| `src/nlg/templates.py` | 방향·행동 표현 사전 |
-| `src/api/routes.py` | HTTP 엔드포인트, 파이프라인 연결 |
-| `src/api/tracker.py` | 프레임 간 객체 추적 (jitter 제거) |
-| `src/api/db.py` | SQLite 공간 스냅샷 저장/조회 |
-| `src/voice/tts.py` | gTTS + 파일 캐시 |
-| `app.py` | Gradio 데모 UI |
+| `MainActivity.kt` | 앱 전체 총괄. 카메라, TTS, STT, 센서, 서버 통신 |
+| `YoloDetector.kt` | ONNX 모델로 폰에서 직접 물체 탐지 |
+| `SentenceBuilder.kt` | 온디바이스 모드에서 한국어 문장 생성 |
+| `VoiceGuideConstants.kt` | 방향 구역, STT 키워드, 클래스명 등 상수 |
+
+### 신유득 담당 — FastAPI 서버
+
+| 파일 | 역할 |
+|------|------|
+| `src/api/routes.py` | API 엔드포인트 정의. 5가지 모드 분기 처리 |
+| `src/api/db.py` | SQLite DB. 공간 기억 + 장소 저장 |
+| `src/api/tracker.py` | EMA 거리 평활화 + 접근/소멸 감지 |
+
+### 김재현 담당 — YOLO 탐지
+
+| 파일 | 역할 |
+|------|------|
+| `src/vision/detect.py` | YOLO 추론 + 방향/거리/위험도/색상/신호등 계산 |
+
+### 문수찬 담당 — Depth + 음성
+
+| 파일 | 역할 |
+|------|------|
+| `src/depth/depth.py` | Depth V2 로드·추론. bbox 기반 거리 계산 |
+| `src/depth/hazard.py` | 깊이 맵으로 계단·낙차·좁은 통로 감지 |
+| `src/voice/stt.py` | PC 마이크 STT (Gradio 데모용) |
+
+### 임명광 담당 — 문장 생성
+
+| 파일 | 역할 |
+|------|------|
+| `src/nlg/sentence.py` | 긴박도별 한국어 안내 문장 생성 |
+| `src/nlg/templates.py` | 방향/행동 템플릿. 카메라 방향 보정 |
 
 ---
 
-## 핵심 함수 3개 상세 설명
+## 3. STT 음성 명령이 처리되는 흐름
 
-### 1. `detect_objects()` — src/vision/detect.py
+```
+사용자가 말한다 "의자 찾아줘"
+        │
+        ▼
+SpeechRecognizer (Android 내장)
+        │ text = "의자 찾아줘"
+        ▼
+classifyKeyword(text)               VoiceGuideConstants.kt의 STT_KEYWORDS
+        │ 키워드 "찾아줘" 매칭
+        │ mode = "찾기"
+        ▼
+handleSttResult()
+        │ findTarget = "의자"  (extractFindTarget으로 명령어 제거)
+        │ currentMode = "찾기"
+        ▼
+captureAndProcess()                 1초 후 다음 캡처 시 적용
+        │ mode="찾기", query_text="의자"
+        ▼
+서버: build_find_sentence("의자", objects)   sentence.py
+        │ "의자"가 탐지 목록에 있으면
+        │ → "의자는 왼쪽 앞에 있어요. 가까이."
+        │ 없으면
+        │ → "의자는 보이지 않아요. 카메라를 천천히 돌려보세요."
+        ▼
+TTS 음성 출력
+```
 
+### STT 11가지 모드 요약
+
+| 모드 | 예시 발화 | 처리 방식 |
+|------|---------|---------|
+| 장애물 | "주변 알려줘" | 기본 장애물 탐지 |
+| 찾기 | "의자 찾아줘" | findTarget 추출 후 탐색 |
+| 확인 | "이거 뭐야" | 정면 물체 설명 |
+| 저장 | "여기 저장해줘 편의점" | 이미지 없이 즉시 DB 저장 |
+| 위치목록 | "저장된 곳 알려줘" | 이미지 없이 즉시 목록 반환 |
+| 텍스트 | "글자 읽어줘" | ML Kit OCR |
+| 바코드 | "바코드" | ML Kit 바코드 스캔 |
+| 색상 | "색깔 알려줘" | HSV 색상 분석 |
+| 밝기 | "어두워" | 조도 센서 값 읽기 |
+| 신호등 | "신호등" | 신호등 bbox 색상 분석 |
+| (미매칭) | 어떤 말이든 | 장애물 모드로 fallback |
+
+---
+
+## 4. 방향 판단이 어떻게 되는가
+
+```
+이미지 가로를 9구역으로 나눔:
+
+  [  8시  |  9시  | 10시  | 11시  | 12시  |  1시  |  2시  |  3시  |  4시  ]
+  [0~11%  |11~22% |22~33% |33~44% |44~56% |56~67% |67~78% |78~89% |89~100%]
+  [왼쪽   |왼쪽   |왼쪽앞 |왼쪽앞 |바로앞 |오른앞 |오른앞 |오른쪽 |오른쪽 ]
+
+bbox 중심 x좌표 / 이미지 너비 = cx_norm (0.0~1.0)
+cx_norm이 속하는 구역 → 방향 결정
+
+예) 의자가 이미지 왼쪽 40% 위치에 있으면:
+  cx_norm = 0.40 → 11시 → "왼쪽 앞"
+  CLOCK_ACTION["11시"] = "오른쪽으로 피하세요"
+  → "왼쪽 앞에 의자가 있어요. 오른쪽으로 피하세요."
+```
+
+**카메라 방향 보정:**
+폰을 옆으로 들면 이미지 기준 방향과 실제 방향이 달라집니다.
 ```python
-# 입력: JPEG 이미지 바이트
-# 출력: 탐지된 물체 리스트 (위험도 내림차순 상위 3개)
-
-def detect_objects(image_bytes: bytes) -> list[dict]:
-    img = cv2.imdecode(...)       # 바이트 → 이미지
-    results = model(img, conf=0.60)  # YOLO 추론
-
-    for box in results.boxes:
-        # 1. 방향 계산 (bbox 중심 x좌표 → 8시~4시)
-        cx_norm = bbox중심x / 이미지폭
-        direction = "12시"  # if cx_norm 0.44~0.56
-
-        # 2. 거리 계산 (bbox 면적 비율 → 미터)
-        area_ratio = bbox면적 / 이미지면적
-        distance_m = sqrt(calib_ratio / area_ratio)
-
-        # 3. 위험도 (방향가중치 × 거리가중치 × 바닥여부)
-        risk = RISK_DIR[direction] * RISK_DIST[distance]
-
-    return sorted(by risk)[:3]
-```
-
-**방향 구역:**
-```
-[8시][9시][10시][11시][12시][1시][2시][3시][4시]
- 0%  11%  22%  33%  44% 56%  67% 78%  89% 100%
+# 예) 폰을 오른쪽으로 기울인 상태에서 정면(12시)에 의자가 탐지됨
+get_absolute_clock("12시", "right")
+→ (0 + 3) % 12 = 3 → "3시" → "오른쪽"
+# 실제로 오른쪽에 있는 것이 맞음
 ```
 
 ---
 
-### 2. `detect_floor_hazards()` — src/depth/hazard.py
+## 5. 위험도 점수 계산
 
-```python
-# 입력: depth_map (H×W, 값이 작을수록 가깝다)
-# 출력: 위험 목록 [{type, distance_m, message, risk}]
+```
+risk_score = 방향가중치 × 거리가중치 × 바닥가중치 × 클래스배수
 
-def detect_floor_hazards(depth_map):
-    # 이미지 하단 60% = 바닥 영역
-    floor = depth_map[h*0.4:, :]
+방향가중치 (RISK_DIR):
+  12시(바로앞) = 1.0  ← 가장 위험
+  11시/1시     = 0.9
+  10시/2시     = 0.7
+  9시/3시      = 0.5
+  8시/4시      = 0.3  ← 가장 덜 위험
 
-    # 12개 수평 구역으로 분할 (하단=가까운 쪽)
-    for i in range(12):
-        band_depths[i] = 해당구역_중앙값
+거리가중치 (RISK_DIST):
+  매우 가까이 = 1.0
+  가까이      = 0.8
+  보통        = 0.5
+  멀리        = 0.2
+  매우 멀리   = 0.1
 
-    # 낙차 감지: 깊이가 갑자기 1.2m 이상 증가
-    if band_depths[i+1] - band_depths[i] > 1.2:
-        → "조심! {거리}m 앞에 계단이나 낙차가 있어요"
+클래스배수 (CLASS_RISK_MULTIPLIER):
+  기차  = 4.0  ← 피할 수 없음
+  버스  = 3.5
+  자동차 = 3.0
+  칼    = 2.5
+  개    = 1.8
+  의자  = 1.0 (기본값)
 
-    # 턱 감지: 깊이가 갑자기 1.0m 이상 감소
-    if band_depths[i+1] - band_depths[i] < -1.0:
-        → "발 앞에 턱이나 계단이 있어요"
+계산 예시:
+  바로 앞(1.0) × 매우 가까이(1.0) × 바닥(1.4) × 자동차(3.0) = 4.2
+  → min(4.2, 1.0) = 1.0  (최고 위험)
+
+  왼쪽(0.3) × 멀리(0.2) × 없음(1.0) × 의자(1.0) = 0.06
+  → 0.06  (낮은 위험 → beep으로만 알림)
 ```
 
 ---
 
-### 3. `build_sentence()` — src/nlg/sentence.py
+## 6. EMA 거리 평활화 (tracker.py)
 
-```python
-# 거리에 따른 긴급도 4단계
-if dist_m < 0.5:   → "위험! 바로 앞 의자!"           (초근접, 짧게)
-if dist_m < 1.0:   → "멈추세요! 바로 앞에 의자가 있어요."  (긴급)
-if dist_m < 2.5:   → "바로 앞에 의자가 있어요. 멈추세요." (경고)
-else:              → "바로 앞에 의자가 있어요. 약 3.0m."  (정보)
+```
+문제: YOLO가 매 프레임 조금씩 다른 거리를 반환함
+  1프레임: 1.0m → 2프레임: 1.3m → 3프레임: 0.9m → ...
+  → TTS가 매번 다른 말을 함 → 혼란스러움
 
-# 한국어 조사 자동 선택
-"의자이 있어요" → "의자가 있어요"  (받침 없으면 '가')
-"사람이 있어요" → "사람이 있어요"  (받침 있으면 '이')
+해결: EMA(지수이동평균)
+  smooth = 0.55 × 현재값 + 0.45 × 이전값
+  
+  1프레임: smooth = 1.0
+  2프레임: smooth = 0.55×1.3 + 0.45×1.0 = 1.17
+  3프레임: smooth = 0.55×0.9 + 0.45×1.17 = 1.02
+  → 1.0 → 1.17 → 1.02  훨씬 안정적
 ```
 
 ---
 
-## Android 앱 흐름
+## 7. 공간 기억 (db.py + routes.py)
 
 ```
-onCreate()
-    ├─ TTS 초기화 (한국어)
-    ├─ SpeechRecognizer 초기화 (STT)
-    ├─ SensorManager 등록 (가속도 센서 → 카메라 방향)
-    └─ YoloDetector 초기화 (yolo11m.onnx 로드, 백그라운드)
+첫 방문 (같은 WiFi에 처음 접속):
+  db.get_snapshot(wifi_ssid) → None (기록 없음)
+  → 공간 기억 비교 스킵, 전체 안내
 
-"분석 시작" 버튼 클릭
-    └─ 1초마다 captureAndProcess() 반복
+재방문 (같은 WiFi에 다시 접속):
+  이전 스냅샷: {"의자", "테이블", "사람"}
+  현재 탐지:  {"의자", "테이블", "가방"}
 
-captureAndProcess()
-    ├─ 온디바이스 모드: YoloDetector.detect() → SentenceBuilder.build() → speak()
-    └─ 서버 모드: POST /detect → response.sentence → speak()
+  새로 생긴 것: {"가방"} → "가방이 생겼어요"
+  사라진 것:   {"사람"} → "사람이 없어졌어요"
 
-실패 시 (handleFail)
-    ├─ 3회 연속 실패 → "서버 연결 끊겼어요. 주의해서 이동하세요."
-    └─ 6초간 무응답 → "분석이 중단됐어요. 주의해서 이동하세요."
+  → 달라진 것만 안내 (매번 처음처럼 반복 안 함)
 ```
 
 ---
 
-## 객체 추적기 (tracker.py) 작동 방식
+## 8. 발표할 때 각자 설명해야 할 부분
 
-**왜 필요한가?**  
-같은 의자가 1프레임에 1.2m, 다음 프레임에 1.8m로 튀면 음성이 계속 달라짐.  
-EMA(지수이동평균)로 평균을 내면 1.3m → 1.4m → 1.45m 처럼 안정적.
+### 정환주 (Android)
+- CameraX 1초 루프가 어떻게 동작하는지 (`scheduleNext` 재귀)
+- 온디바이스 vs 서버 모드 전환 조건
+- STT 11가지 모드 분기 처리
+- Watchdog: 왜 6초 무응답 경고가 필요한지
 
-```python
-# EMA: 새 값을 55%, 이전 값을 45% 반영
-smooth_d = 0.55 * new_d + 0.45 * old_d
+### 신유득 (서버)
+- /detect 엔드포인트가 어떻게 5가지 모드를 처리하는지
+- WiFi SSID를 공간 ID로 쓰는 이유 (GPS 대신)
+- beep 플래그가 어떻게 결정되는지
 
-# 접근 감지: 이전보다 0.4m 이상 가까워지고 2.5m 이내
-if (old_d - smooth_d) >= 0.4 and smooth_d < 2.5:
-    → "사람이 가까워지고 있어요"
-```
+### 김재현 (YOLO)
+- 방향 9구역이 어떻게 결정되는지 (cx_norm)
+- 위험도 점수 계산 공식
+- 계단 파인튜닝을 왜 했는지, mAP50=0.992가 어떤 의미인지
+- conf threshold를 왜 0.50으로 설정했는지
+
+### 문수찬 (Depth + 음성)
+- Depth V2가 "정확한 미터"가 아닌 이유 (상대 깊이)
+- 왜 bbox 면적 하위 30% 값을 쓰는지 (안전 우선)
+- 계단 감지를 YOLO + Depth 두 가지로 하는 이유
+
+### 임명광 (NLG)
+- 긴박도 4단계 (위험/긴급/경고/정보)로 나눈 이유
+- 차량과 일반 장애물의 거리 기준이 다른 이유
+- 한국어 조사 자동화 (`_i_ga`)가 필요한 이유

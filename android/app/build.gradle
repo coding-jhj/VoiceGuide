@@ -58,4 +58,10 @@ dependencies {
 
     // ONNX Runtime — 온디바이스 YOLO 추론
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.3'
+
+    // ML Kit — OCR (한국어 포함)
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.1'
+
+    // ML Kit — 바코드 스캔
+    implementation 'com.google.mlkit:barcode-scanning:17.2.0'
 }

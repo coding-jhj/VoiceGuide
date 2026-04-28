@@ -63,7 +63,7 @@ FastAPI 서버
     → 위험도 스코어 계산 (방향 + 거리 조합)
     → 상위 1~2개 선택
     ↓ JSON 응답
-Android → gTTS 음성 출력
+Android → TTS 음성 출력 (기기 내장 TTS / Gradio 데모는 ElevenLabs)
 ```
 
 ---

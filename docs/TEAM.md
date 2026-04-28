@@ -78,7 +78,7 @@
 | bbox 중심 깊이값 추출 | `depth_map[cy][cx]` → 가까이/보통/멀리 분류 |
 | depth 임계값 튜닝 | 실내 환경 기준으로 실험 조정 |
 | `detect_and_depth()` 완성 | 김재현의 detect + depth 통합 함수 |
-| gTTS 설치 + 음성 출력 확인 | 한국어 TTS 기본 작동 |
+| ElevenLabs TTS 설치 + 음성 출력 확인 | Anna Kim 보이스, eleven_multilingual_v2 |
 | STT 연결 (Google Speech API) | 한국어 음성 → 텍스트 |
 | 키워드 매칭 | "앞에 뭐 있어" / "핸드폰 찾아줘" / "이거 뭐야" |
 | 소음 환경 테스트 | 카페/지하철 수준 소음 인식률 기록 |
@@ -170,12 +170,13 @@ def build_sentence(objects: list, changes: list) -> str:
 | 4/24 ✅ | Android 개발환경 + 카메라 캡처 / FastAPI + Gradio MVP / YOLO11m 9구역 방향 판단 / gTTS TTS / 문장 템플릿 설계 |
 | 4/25 ✅ | CameraX 1초 + ONNX 온디바이스 / EMA 추적기 + SQLite 공간 DB + /detect API / **계단 파인튜닝 mAP50=0.992** / **Depth V2 서버 통합** + 계단·낙차 감지 / NLG 긴박도 4단계 + 조사 자동화 |
 | **4/26 ✅🔥** | **Android 독립 앱 완성** (서버 없이 동작) / **개인 네비게이팅** (API + SharedPreferences) / **COCO80→81 전체** + YOLO-World / **STT 5모드** + 키워드 15개+ + fallback / 안전경로·군중 경고 / docs 전체 |
+| **4/27 ✅** | 팀원 브랜치 merge + 선택 반영 / **API 키 보안** (.env + git 히스토리 제거) / requirements 보완 / **alert_mode** Android 완전 반영 (critical·beep·silent 3단계) / TTS 속도 분기 / 캐시 워밍업 / 문서 업데이트 |
 
 ### 팀원별 담당 예정 일정
 
 | 날짜 | 신유득 (서버 검증) | 김재현 (YOLO 검증) | 문수찬 (음성 검증) | 임명광 (발표) |
 |---|---|---|---|---|
-| 4/27 (월) | 서버 동작 직접 확인 | 테스트 이미지 수집 시작 | STT 소음 환경 테스트 | PPT 초안 작성 |
+| **4/27 ✅** | **Supabase/PostgreSQL FastAPI 서버** (`서버_DB/`) 구현 — items CRUD + DB 저장 엔드포인트 | 테스트 이미지 수집 시작 | **gTTS → ElevenLabs TTS 교체** (Anna Kim 보이스, eleven_multilingual_v2) | **NLG 개선** — `get_alert_mode()` / 바운딩박스 오버레이(`BoundingBoxOverlay.kt`) / 문구 개선 |
 | 4/28 | 서버 안정화 검증 | 인식률 측정 | Depth 임계값 튜닝 | 경쟁 서비스 비교표 |
 | 4/29 | 공간 기억 연동 테스트 | 위험도 파라미터 검증 | TTS 발음 개선 | 기술 슬라이드 |
 | 4/30 | ngrok 외부 접근 확인 | 이미지 추가 수집 | STT 소음 재테스트 | 데모 스크립트 |

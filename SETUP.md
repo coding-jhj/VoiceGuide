@@ -10,9 +10,16 @@
 
 ## 1단계: 코드 받기
 
+**처음 받는 경우:**
 ```bash
 git clone https://github.com/coding-jhj/VoiceGuide.git
 cd VoiceGuide/VoiceGuide
+```
+
+**이미 받은 경우 (최신으로 업데이트):**
+```bash
+git pull origin main
+pip install -r requirements.txt   # 새 패키지 있을 수 있음
 ```
 
 ---
@@ -24,6 +31,24 @@ conda activate ai_env
 pip install -r requirements.txt
 python tools/patch_gradio_client.py   # gradio_client 버그 패치 (1회)
 ```
+
+---
+
+## 2.5단계: 환경변수 설정 (.env)
+
+```bash
+# .env.example을 복사해서 .env 생성
+copy .env.example .env   # Windows
+```
+
+`.env` 파일을 열고 아래 값을 채워주세요:
+
+```
+ELEVENLABS_API_KEY=받은_키_입력   # Gradio 데모 TTS용 (앱은 없어도 됨)
+OPENAI_API_KEY=                   # 옷 매칭 기능 사용 시만 필요
+```
+
+> Android 앱 기본 동작(YOLO+TTS)에는 API 키 불필요. Gradio 데모 음성 기능만 키 필요.
 
 ---
 

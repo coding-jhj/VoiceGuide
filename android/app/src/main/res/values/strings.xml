@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VoiceGuide</string>
+    <string name="shortcut_start">분석 시작</string>
+    <string name="shortcut_start_long">VoiceGuide 음성 안내 시작</string>
+    <string name="shortcut_sos">긴급 도움</string>
+    <string name="shortcut_sos_long">VoiceGuide 보호자에게 도움 요청</string>
 </resources>

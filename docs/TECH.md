@@ -353,18 +353,21 @@ def listen_and_classify() -> tuple[str, str]:
 #### 역할 4: TTS
 
 ```python
-# src/voice/tts.py
+# src/voice/tts.py (Gradio 데모용 — Android는 기기 내장 TTS 사용)
 
-from gtts import gTTS
-import os, tempfile
+from elevenlabs.client import ElevenLabs
+import os, hashlib, pygame
+
+client = ElevenLabs(api_key=os.environ.get("ELEVENLABS_API_KEY", ""))
 
 def speak(text: str):
-    """한국어 텍스트 → 음성 재생"""
-    tts = gTTS(text, lang="ko")
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        tts.save(f.name)
-        os.system(f"afplay {f.name}")    # macOS
-        # os.system(f"mpg321 {f.name}") # Linux
+    """ElevenLabs TTS로 한국어 음성 재생. 동일 문장은 캐시에서 즉시 재생."""
+    audio = client.text_to_speech.convert(
+        voice_id="uyVNoMrnUku1dZyVEXwD",  # Anna Kim
+        text=text,
+        model_id="eleven_multilingual_v2",
+    )
+    # 캐시 저장 후 pygame으로 재생
 ```
 
 #### AI 도구에 질문할 때 참고 컨텍스트
@@ -373,7 +376,7 @@ def speak(text: str):
 나는 Depth 추정과 STT/TTS를 담당합니다.
 Depth: estimate_distance(image_np, x1, y1, x2, y2) -> "가까이"/"보통"/"멀리"
 STT: Google Speech API, 한국어, 키워드 매칭으로 모드 분류
-TTS: gTTS 한국어
+TTS: ElevenLabs (Gradio 데모용) / Android 기기 내장 TextToSpeech (앱)
 Depth Anything V2는 상대적 depth를 출력합니다. (절대 거리 아님)
 임계값은 4/28 실내 실험으로 결정합니다.
 ```
@@ -527,7 +530,7 @@ ngrok http 8000
 ```
 ultralytics          # YOLO11m (파인튜닝: yolo11m_indoor.pt)
 SpeechRecognition    # STT
-gtts                 # TTS
+elevenlabs           # TTS (Gradio 데모용, Anna Kim 보이스)
 gradio               # MVP UI
 fastapi              # 서버
 uvicorn              # ASGI 서버
