@@ -1,5 +1,6 @@
 # API 키 / 환경 변수
 .env
+.env.example
 
 # AI 모델 가중치 (용량 큼 — 별도 공유)
 *.pth
