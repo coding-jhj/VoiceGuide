@@ -41,6 +41,20 @@ def _warmup_tts():
 app = FastAPI(title="VoiceGuide API", lifespan=lifespan)
 
 
+@app.get("/health")
+async def health():
+    """서버 상태 + Depth V2 모델 로드 여부 확인."""
+    from src.depth.depth import _check_model, _DEVICE, _IS_POSTGRES as _
+    import src.api.db as _db
+    depth_ok = _check_model()
+    return {
+        "status":       "ok",
+        "depth_v2":     "loaded" if depth_ok else "fallback (bbox)",
+        "device":       _DEVICE,
+        "db_mode":      "postgresql" if _db._IS_POSTGRES else "sqlite",
+    }
+
+
 # 예외가 나도 Android가 음성 안내를 받을 수 있도록 안전 응답 반환
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

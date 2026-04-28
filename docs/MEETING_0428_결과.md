@@ -13,11 +13,11 @@
 | 🔴 P1 | deque 싱크 버그 수정 | ✅ 완료 (2026-04-28) |
 | 🔴 P1 | 바운딩 박스 비트 불일치 확인 | ✅ float32 확인 완료 |
 | 🟡 P2 | 서버 데이터 송수신 테스트 | ✅ 완료 (test_server.py) |
-| 🟡 P2 | 외부 DB 조사 (LTE 테스트용) | 🔲 미완료 — API 키 필요 |
+| 🟡 P2 | 외부 DB 조사 (LTE 테스트용) | ✅ 완료 — Supabase + Railway (docs/DEPLOY_GUIDE.md) |
 | 🟡 P3 | 대시보드 지도 UI + 네비게이션 API 조사 | ✅ 완료 (dashboard.html) |
 | 🟡 추가 | 사물 인식률 개선 — 위험 클래스 임계값 조정 | ✅ 완료 (2026-04-28) |
 | 🟡 추가 | TTS 겹침 완전 차단 — 서버 dedup + Android 억제 | ✅ 완료 (2026-04-28) |
-| 🟢 하드웨어 | 뎁스 카메라 거리 측정 | Depth Anything V2 대체 사용 중 |
+| 🟢 하드웨어 | 뎁스 카메라 거리 측정 | ✅ Depth Anything V2 정상 동작 (/health로 확인) |
 
 ---
 
