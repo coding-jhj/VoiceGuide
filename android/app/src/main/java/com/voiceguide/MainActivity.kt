@@ -88,8 +88,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // 최근 5프레임 탐지 결과를 기록해 3회 이상 등장한 사물만 안내
     // → 순간 오탐(인형·노트북 등)이 단발로 잡혀도 TTS 안내 안 됨
     private val detectionHistory = ArrayDeque<Set<String>>()
-    private val VOTE_WINDOW    = 5    // 최근 N프레임 기억
-    private val VOTE_MIN_COUNT = 3    // N프레임 중 최소 M번 이상이어야 확정
+    private val VOTE_WINDOW    = 3    // 최근 N프레임 기억
+    private val VOTE_MIN_COUNT = 2    // N프레임 중 최소 M번 이상이어야 확정 (3초 안에 2번)
     private val ALWAYS_PASS    = setOf("자동차","오토바이","버스","트럭","기차","자전거",
                                        "칼","가위","개","말","곰","코끼리")
 
@@ -121,7 +121,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // AtomicInteger: 연속 실패 횟수 (3회 이상이면 경고 음성)
     private val consecutiveFails = AtomicInteger(0)
     private var lastSuccessTime  = System.currentTimeMillis()
-    private var lastDetectionTime = 0L   // 마지막으로 실제 장애물이 탐지된 시간
+    private var lastDetectionTime  = 0L   // 마지막으로 실제 장애물이 탐지된 시간
+    private var lastCriticalTime   = 0L   // 마지막 critical TTS 발화 시간 (5초 쿨다운)
 
     // ── 가속도 센서: 카메라 방향 자동 감지 ────────────────────────────
     private lateinit var sensorManager: SensorManager
@@ -1224,8 +1225,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
         runOnUiThread {
             if (sentence == "주변에 장애물이 없어요.") {
-                // 마지막 탐지 후 3초 지난 경우에만 "장애물 없음"으로 교체
-                if (System.currentTimeMillis() - lastDetectionTime > 3000) {
+                // 마지막 탐지 후 6초 지난 경우에만 "장애물 없음"으로 교체
+                // (투표 버퍼 재확정 시간 + 여유 고려)
+                if (System.currentTimeMillis() - lastDetectionTime > 6000) {
                     tvStatus.text = "장애물 없음"
                 }
                 return@runOnUiThread
@@ -1234,9 +1236,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             tvStatus.text = sentence
             when (effectiveMode) {
                 "critical" -> {
-                    // 위험 경고 — 새 문장이거나 다 말한 경우에만 발화 (같은 경고 반복 겹침 방지)
-                    if (sentence != lastSentence || !isSpeaking()) {
-                        lastSentence = sentence
+                    // 새 경고이거나 같은 경고라도 5초 지났으면 재발화
+                    // (|| !isSpeaking() 제거 — TTS 끝날 때마다 재시작하면 3번 반복됨)
+                    val now = System.currentTimeMillis()
+                    if (sentence != lastSentence || now - lastCriticalTime > 5000L) {
+                        lastSentence    = sentence
+                        lastCriticalTime = now
                         tts.setSpeechRate(1.25f)
                         speak(sentence)
                     }
