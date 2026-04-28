@@ -32,6 +32,25 @@ from src.voice.stt import extract_label
 
 router = APIRouter()
 
+# ── 세션별 마지막 문장 캐시 (TTS 중복 방지) ────────────────────────────────────
+# 같은 세션에서 동일 문장이 5초 이내에 반복되면 alert_mode를 "silent"로 내려보냄
+# → Android에서 TTS를 새로 재생하지 않음 (UI 업데이트만)
+# "critical" 수준 (차량·계단)은 항상 통과
+import time as _time
+_last_sentence: dict[str, tuple[str, float]] = {}  # session_id → (sentence, timestamp)
+_DEDUP_SECS = 5.0   # 같은 문장 억제 시간
+
+def _should_suppress(session_id: str, sentence: str, alert_mode: str) -> bool:
+    """같은 문장이 최근 N초 내에 이미 전달됐으면 억제 여부 반환."""
+    if alert_mode == "critical":  # 위험 경고는 항상 발화
+        _last_sentence[session_id] = (sentence, _time.monotonic())
+        return False
+    prev_sentence, prev_ts = _last_sentence.get(session_id, ("", 0.0))
+    if sentence == prev_sentence and (_time.monotonic() - prev_ts) < _DEDUP_SECS:
+        return True  # 억제
+    _last_sentence[session_id] = (sentence, _time.monotonic())
+    return False
+
 
 def _space_changes(current: list[dict], previous: list[dict]) -> list[str]:
     """
@@ -190,9 +209,14 @@ async def detect(
     if extras:
         sentence = sentence + " " + " ".join(extras)
 
+    # 같은 문장이 5초 이내에 이미 전달됐으면 alert_mode를 "silent"로 낮춤 (TTS 겹침 방지)
+    sid = wifi_ssid or "__default__"
+    if _should_suppress(sid, sentence, alert_mode):
+        alert_mode = "silent"
+
     return {
         "sentence":      sentence,
-        "alert_mode":    alert_mode,  # "critical" | "beep" | "silent" — 프론트엔드 TTS/비프 분기용
+        "alert_mode":    alert_mode,
         "objects":       objects,
         "hazards":       hazards,
         "changes":       all_changes,

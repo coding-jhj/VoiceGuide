@@ -61,16 +61,18 @@ DIST_FAR       = 0.01
 CONF_THRESHOLD = 0.50   # 야외 원거리 탐지 위해 낮게 유지
 
 CLASS_MIN_CONF = {
-    # 야외 차량: 멀리서도 일찍 잡아야 (안전 우선)
-    "car": 0.38, "motorcycle": 0.38, "bus": 0.38, "truck": 0.38,
-    "bicycle": 0.42, "train": 0.35,
+    # 야외 차량: 멀리서도 일찍 잡아야 (안전 우선) → 임계값 낮게
+    "car": 0.35, "motorcycle": 0.35, "bus": 0.35, "truck": 0.35,
+    "bicycle": 0.40, "train": 0.32,
     # 사람
-    "person": 0.42,
+    "person": 0.40,
     # 위험 동물
-    "dog": 0.45, "horse": 0.45, "cow": 0.45,
-    "bear": 0.40, "elephant": 0.40,
+    "dog": 0.42, "horse": 0.42, "cow": 0.42,
+    "bear": 0.38, "elephant": 0.38,
     # 교통 시설
-    "traffic light": 0.42,
+    "traffic light": 0.40,
+    # 날카로운 위험 물체 → 낮게 (부상 위험)
+    "knife": 0.42, "scissors": 0.45,
     # 실내 소형 (오탐 많아서 높게)
     "cell phone": 0.65, "remote": 0.65, "mouse": 0.65,
     "toothbrush": 0.70, "spoon": 0.70, "fork": 0.65,
@@ -79,6 +81,15 @@ CLASS_MIN_CONF = {
     # 실내 소형/오탐 잦은 클래스
     "tie": 0.75, "umbrella": 0.68, "handbag": 0.65,
     "wine glass": 0.70, "cup": 0.65, "bowl": 0.65,
+}
+
+# ── 항상 최우선 안내 클래스 (botvoting 없이 즉시 통과) ────────────────────────
+ALWAYS_CRITICAL = {
+    "car", "motorcycle", "bus", "truck", "train",  # 이동 차량
+    "bicycle",                                      # 자전거 (전동킥보드 대체)
+    "stairs",                                       # 계단 (낙상)
+    "knife", "scissors",                            # 날카로운 위험
+    "bear", "elephant",                             # 위험 동물 대형
 }
 
 # ── 방향별 위험도 가중치 ─────────────────────────────────────────────────────

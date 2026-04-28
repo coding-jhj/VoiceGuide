@@ -83,6 +83,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private val isAnalyzing = AtomicBoolean(false) // 분석 중인지 여부
     private val isSending   = AtomicBoolean(false) // 현재 요청 전송 중인지 (중복 방지)
     private var lastSentence = ""                  // 직전 안내 문장 (반복 방지)
+    // 질문 응답 직후 periodic TTS 억제 — 겹침 방지 (3초간 periodic silent 처리)
+    @Volatile private var suppressPeriodicUntil = 0L
 
     // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
     // connectTimeout: 서버 연결 최대 대기 5초
@@ -1016,6 +1018,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 ).execute()
                 val json     = JSONObject(response.body?.string() ?: "{}")
                 val sentence = json.optString("sentence", "확인하지 못했어요.")
+                // 질문 응답 후 3초간 periodic capture의 TTS 억제
+                suppressPeriodicUntil = System.currentTimeMillis() + 3000L
                 runOnUiThread { tvStatus.text = sentence; speak(sentence) }
             } catch (_: Exception) {
                 runOnUiThread { speak("서버 연결에 실패했어요.") }
@@ -1140,6 +1144,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         lastSuccessTime = System.currentTimeMillis()
         isSending.set(false)
 
+        // 질문 응답 직후 periodic TTS 억제 — critical은 항상 통과
+        val effectiveMode = if (alertMode != "critical" &&
+            System.currentTimeMillis() < suppressPeriodicUntil) "silent" else alertMode
+
         runOnUiThread {
             if (sentence == "주변에 장애물이 없어요.") {
                 // 마지막 탐지 후 3초 지난 경우에만 "장애물 없음"으로 교체
@@ -1150,7 +1158,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }
             lastDetectionTime = System.currentTimeMillis()
             tvStatus.text = sentence
-            when (alertMode) {
+            when (effectiveMode) {
                 "critical" -> {
                     // 위험 경고 — 말 중이어도 끊고 빠르게 읽음
                     lastSentence = sentence
@@ -1159,7 +1167,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 }
                 "beep" -> {
                     // 1m 이내 일반 장애물 — 비프음만 (경고 피로 방지)
-                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                    if (!isSpeaking()) toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
                 }
                 "silent" -> {
                     // 무음 — UI만 업데이트
