@@ -136,10 +136,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // ── 약 복용 알림 ─────────────────────────────────────────────────────
     private var medicationTimer: java.util.Timer? = null
 
-    // ── GPS 하차 알림 ────────────────────────────────────────────────────
+    // ── GPS 하차 알림 + 현재 위치 (대시보드 지도용) ──────────────────────
     private var locationManager: android.location.LocationManager? = null
     private var targetBusStop: android.location.Location? = null
+    @Volatile private var currentLat = 0.0  // 현재 GPS 위도 (서버 /detect 전송용)
+    @Volatile private var currentLng = 0.0  // 현재 GPS 경도
     private val locationListener = android.location.LocationListener { loc ->
+        // 현재 위치 항상 업데이트 (대시보드 지도 표시용)
+        currentLat = loc.latitude
+        currentLng = loc.longitude
+        // 하차 알림 처리
         targetBusStop?.let { target ->
             if (loc.distanceTo(target) < 200f) {
                 speak("내릴 정류장에 거의 다 왔어요. 준비하세요.")
@@ -349,6 +355,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
 
         when (mode) {
+            // ── 핵심 버그 수정: 질문 모드 즉시 캡처 ──────────────────────────
+            // 기존 문제: "지금 뭐 있어?" → else 분기 → "장애물 모드." 말하고 끝
+            // 수정: 즉시 이미지 캡처 → 서버에 mode="질문" 전송 → tracker 상태 포함 응답
+            "질문" -> {
+                speak("확인할게요.")
+                captureAndProcessAsQuestion()
+            }
+            // ── 장애물/확인 모드도 즉시 캡처 ─────────────────────────────────
+            // 사용자가 명시적으로 물어봤을 때 즉각 응답
+            "장애물", "확인" -> {
+                currentMode = mode
+                captureAndProcess()
+            }
             "저장" -> {
                 // 이미지 불필요 — 즉시 위치 저장
                 val label = SentenceBuilder.extractLabel(text)
@@ -950,6 +969,62 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             })
     }
 
+    /**
+     * 질문 모드 전용 즉시 캡처.
+     * 서버에 mode="질문" 전송 → tracker 누적 상태 포함 포괄 응답을 받음.
+     * isSending 체크를 우회해서 항상 즉시 실행 (사용자 직접 질문이므로).
+     */
+    private fun captureAndProcessAsQuestion() {
+        val file = File.createTempFile("vg_q_", ".jpg", cacheDir)
+        imageCapture?.takePicture(
+            ImageCapture.OutputFileOptions.Builder(file).build(),
+            cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    sendToServerWithMode(file, "질문")
+                }
+                override fun onError(e: ImageCaptureException) {
+                    speak("사진을 찍지 못했어요.")
+                }
+            })
+    }
+
+    /**
+     * 특정 모드로 서버에 전송. 질문 모드 등 currentMode를 바꾸지 않고 1회성 전송 시 사용.
+     */
+    private fun sendToServerWithMode(imageFile: File, mode: String) {
+        val serverUrl = etServerUrl.text.toString().trim().trimEnd('/')
+        if (serverUrl.isEmpty()) {
+            imageFile.delete()
+            speak("서버가 연결되어 있지 않아요. 서버 URL을 입력해 주세요.")
+            return
+        }
+        Thread {
+            try {
+                val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+                    .addFormDataPart("image", "frame.jpg",
+                        imageFile.asRequestBody("image/jpeg".toMediaType()))
+                    .addFormDataPart("camera_orientation", cameraOrientation)
+                    .addFormDataPart("wifi_ssid", getWifiSsid())
+                    .addFormDataPart("mode", mode)
+                    .addFormDataPart("query_text", "")
+                    .addFormDataPart("lat", currentLat.toString())
+                    .addFormDataPart("lng", currentLng.toString())
+                    .build()
+                val response = httpClient.newCall(
+                    Request.Builder().url("$serverUrl/detect").post(body).build()
+                ).execute()
+                val json     = JSONObject(response.body?.string() ?: "{}")
+                val sentence = json.optString("sentence", "확인하지 못했어요.")
+                runOnUiThread { tvStatus.text = sentence; speak(sentence) }
+            } catch (_: Exception) {
+                runOnUiThread { speak("서버 연결에 실패했어요.") }
+            } finally {
+                imageFile.delete()
+            }
+        }.start()
+    }
+
     // ── 온디바이스 추론 ─────────────────────────────────────────────────
 
     private fun processOnDevice(imageFile: File) {
@@ -1025,6 +1100,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     .addFormDataPart("wifi_ssid", getWifiSsid())
                     .addFormDataPart("mode", currentMode)
                     .addFormDataPart("query_text", findTarget)
+                    .addFormDataPart("lat", currentLat.toString())
+                    .addFormDataPart("lng", currentLng.toString())
                     .build()
 
                 val response = httpClient.newCall(

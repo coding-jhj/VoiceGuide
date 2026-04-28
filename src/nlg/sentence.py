@@ -305,6 +305,69 @@ def build_find_sentence(
     return f"{target}{un} 보이지 않아요. 카메라를 천천히 돌려보세요."
 
 
+def build_question_sentence(
+    objects: list[dict],
+    hazards: list[dict],
+    scene: dict,
+    tracked_state: list[dict],
+    camera_orientation: str = "front",
+) -> str:
+    """
+    사용자가 직접 질문했을 때 포괄적 현재 상황 안내.
+
+    "지금 뭐가 있어?", "앞에 뭐 있어?" 같은 질문에 응답.
+    현재 프레임 탐지 결과 + tracker에 누적된 최근 상태를 모두 활용.
+
+    Args:
+        objects:       현재 프레임 YOLO 탐지 결과
+        hazards:       현재 프레임 바닥 위험 감지 결과
+        scene:         신호등·군중·위험물 등 장면 정보
+        tracked_state: tracker.get_current_state() — 최근 3초 누적 정보
+        camera_orientation: 폰 방향
+    """
+    parts = []
+
+    # 1. 계단·낙차 최우선 (낙상 위험)
+    if hazards:
+        top = max(hazards, key=lambda h: h.get("risk", 0))
+        parts.append(top.get("message", "앞에 위험이 있어요."))
+
+    # 2. 위험물 긴급 경고
+    if scene.get("danger_warning"):
+        parts.append(scene["danger_warning"])
+
+    # 3. 현재 프레임 탐지 물체 (가장 신선한 정보)
+    if objects:
+        for i, obj in enumerate(objects[:2]):
+            abs_clock = get_absolute_clock(obj["direction"], camera_orientation)
+            parts.append(_primary(obj, abs_clock) if i == 0 else _secondary(obj, abs_clock))
+    elif tracked_state:
+        # 현재 프레임에 탐지 없으면 최근 tracker 상태로 대답
+        for i, obj in enumerate(tracked_state[:2]):
+            abs_clock = get_absolute_clock(obj.get("direction", "12시"), camera_orientation)
+            name = obj["class_ko"]
+            dist_str = _format_dist(obj["distance_m"])
+            direction = CLOCK_TO_DIRECTION.get(abs_clock, abs_clock)
+            ig = _i_ga(name)
+            if i == 0:
+                parts.append(f"최근에 {direction}에서 {name}{ig} 보였어요. {dist_str} 거리였어요.")
+            else:
+                parts.append(f"{direction}으로 {dist_str}에 {name}도 있었어요.")
+
+    # 4. 신호등 정보
+    if scene.get("traffic_light_msg"):
+        parts.append(scene["traffic_light_msg"])
+
+    # 5. 안전 경로
+    if scene.get("safe_direction"):
+        parts.append(scene["safe_direction"])
+
+    if not parts:
+        return "현재 주변에 장애물이 없어요. 안전해 보여요."
+
+    return " ".join(parts)
+
+
 def build_navigation_sentence(
     label: str,
     action: str,

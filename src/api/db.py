@@ -47,6 +47,17 @@ def init_db():
             timestamp TEXT NOT NULL       -- 저장 시각
         )
     """)
+    # gps_history: 대시보드 지도 표시용 GPS 위치 이력
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS gps_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,   -- WiFi SSID 또는 "__default__"
+            lat        REAL NOT NULL,   -- 위도
+            lng        REAL NOT NULL,   -- 경도
+            timestamp  TEXT NOT NULL    -- 기록 시각
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -135,6 +146,51 @@ def get_locations(wifi_ssid: str = "") -> list[dict]:
         ).fetchall()
     conn.close()
     return [{"label": r[0], "wifi_ssid": r[1], "timestamp": r[2]} for r in rows]
+
+
+# ── GPS 위치 이력 (대시보드 지도용) ──────────────────────────────────────────
+
+def save_gps(session_id: str, lat: float, lng: float):
+    """GPS 좌표 저장. /detect 호출마다 쌓임."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT INTO gps_history (session_id, lat, lng, timestamp) VALUES (?, ?, ?, ?)",
+        (session_id, lat, lng, datetime.now().isoformat())
+    )
+    # 오래된 기록 자동 정리 — 세션당 최근 200개만 유지
+    conn.execute(
+        "DELETE FROM gps_history WHERE session_id = ? AND id NOT IN "
+        "(SELECT id FROM gps_history WHERE session_id = ? ORDER BY id DESC LIMIT 200)",
+        (session_id, session_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_last_gps(session_id: str) -> dict | None:
+    """가장 최근 GPS 좌표 반환. 없으면 None."""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute(
+        "SELECT lat, lng, timestamp FROM gps_history "
+        "WHERE session_id = ? ORDER BY id DESC LIMIT 1",
+        (session_id,)
+    ).fetchone()
+    conn.close()
+    return {"lat": row[0], "lng": row[1], "timestamp": row[2]} if row else None
+
+
+def get_gps_track(session_id: str, limit: int = 100) -> list[dict]:
+    """최근 GPS 경로 목록 반환 — 대시보드 동선 표시용."""
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute(
+        "SELECT lat, lng, timestamp FROM gps_history "
+        "WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+        (session_id, limit)
+    ).fetchall()
+    conn.close()
+    # 시간순 오름차순으로 반환 (경로 그리기용)
+    result = [{"lat": r[0], "lng": r[1], "timestamp": r[2]} for r in rows]
+    return list(reversed(result))
 
 
 def find_location(label: str) -> dict | None:

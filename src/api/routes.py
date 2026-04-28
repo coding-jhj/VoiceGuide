@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import (
     build_sentence, build_hazard_sentence, build_find_sentence,
-    build_navigation_sentence, get_alert_mode, _i_ga, _un_neun,
+    build_navigation_sentence, build_question_sentence, get_alert_mode, _i_ga, _un_neun,
 )
 from src.api import db
 from src.api.tracker import get_tracker
@@ -57,10 +57,12 @@ def _space_changes(current: list[dict], previous: list[dict]) -> list[str]:
 @router.post("/detect")
 async def detect(
     image:              UploadFile,
-    wifi_ssid:          str = Form(""),        # 공간 기억 + 장소 저장에 사용
-    camera_orientation: str = Form("front"),   # 방향 보정: front/back/left/right
-    mode:               str = Form("장애물"),  # STT가 결정한 모드
-    query_text:         str = Form(""),        # STT 원문 (찾기/저장 모드에서 추출에 사용)
+    wifi_ssid:          str   = Form(""),        # 공간 기억 + 장소 저장에 사용
+    camera_orientation: str   = Form("front"),   # 방향 보정: front/back/left/right
+    mode:               str   = Form("장애물"),  # STT가 결정한 모드
+    query_text:         str   = Form(""),        # STT 원문 (찾기/저장 모드에서 추출에 사용)
+    lat:                float = Form(0.0),       # GPS 위도 (대시보드 지도용)
+    lng:                float = Form(0.0),       # GPS 경도 (대시보드 지도용)
 ):
     """
     VoiceGuide 메인 분석 API.
@@ -96,8 +98,12 @@ async def detect(
             "objects": [], "hazards": [], "changes": [], "depth_source": "none",
         }
 
-    # ── 이미지 분석 공통 흐름 (장애물/찾기/확인 모드) ────────────────────────
+    # ── 이미지 분석 공통 흐름 (장애물/찾기/확인/질문 모드) ───────────────────
     image_bytes = await image.read()  # multipart form에서 이미지 바이트 추출
+
+    # GPS 위치 기록 (대시보드 지도 표시용) — 좌표가 있을 때만 저장
+    if lat != 0.0 or lng != 0.0:
+        db.save_gps(wifi_ssid or "__default__", lat, lng)
 
     # YOLO 탐지 + Depth V2 거리 추정 + 바닥 위험 감지
     # 내부적으로 이미지당 깊이 맵 1회만 추론해서 효율적으로 처리
@@ -114,6 +120,26 @@ async def detect(
     db.save_snapshot(wifi_ssid, objects)  # 현재 상태를 다음 방문을 위해 저장
 
     all_changes = motion_changes + space_changes
+
+    # ── 질문 모드: 사용자가 직접 "지금 뭐가 있어?" 물었을 때 즉시 응답 ──────
+    # 핵심 버그 수정: 기존엔 질문해도 periodic capture를 기다렸음.
+    # 이제 tracker에 누적된 최근 상태 + 현재 프레임을 합쳐 즉시 응답.
+    if mode == "질문":
+        tracked = tracker.get_current_state(max_age_s=3.0)
+        sentence = build_question_sentence(objects, hazards, scene, tracked, camera_orientation)
+        alert_mode = get_alert_mode(objects[0], is_hazard=bool(hazards)) if objects else (
+            "critical" if hazards else "silent"
+        )
+        return {
+            "sentence":    sentence,
+            "alert_mode":  alert_mode,
+            "objects":     objects,
+            "hazards":     hazards,
+            "changes":     motion_changes,
+            "scene":       scene,
+            "tracked":     tracked,
+            "depth_source": objects[0].get("depth_source", "bbox") if objects else "bbox",
+        }
 
     # ── 식사 도우미 모드: 식기·음식 위치 집중 안내 ──────────────────────────
     if mode == "식사":
@@ -350,7 +376,35 @@ async def delete_location_endpoint(label: str):
     return {"success": True, "sentence": build_navigation_sentence(loc["label"], "deleted")}
 
 
-# ── 공간 스냅샷 수동 저장 ─────────────────────────────────────────────────────
+@router.get("/status/{session_id}")
+async def get_session_status(session_id: str):
+    """
+    세션(WiFi SSID)의 현재 추적 상태 반환 — 대시보드 폴링용.
+    최근 3초 이내에 탐지된 물체 목록과 마지막 GPS 좌표를 반환.
+    """
+    tracker = get_tracker(session_id)
+    current = tracker.get_current_state(max_age_s=3.0)
+    gps     = db.get_last_gps(session_id)
+    track   = db.get_gps_track(session_id, limit=100)
+    return {
+        "session_id": session_id,
+        "objects":    current,
+        "gps":        gps,
+        "track":      track,
+    }
+
+
+@router.get("/dashboard")
+async def dashboard():
+    """대시보드 HTML 페이지 반환."""
+    from fastapi.responses import HTMLResponse
+    import os
+    tpl_path = os.path.join(os.path.dirname(__file__), "../../templates/dashboard.html")
+    if os.path.exists(tpl_path):
+        with open(tpl_path, encoding="utf-8") as f:
+            return HTMLResponse(f.read())
+    return HTMLResponse("<h1>dashboard.html not found</h1>", status_code=404)
+
 
 @router.post("/spaces/snapshot")
 async def save_space_snapshot(body: dict):
