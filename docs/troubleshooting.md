@@ -11,12 +11,13 @@
 | 음성 합성 (서버) | gTTS + pygame | 2.5.3 / 2.6.1 | 무료, 한국어. Naver Clova 키 있으면 자동 전환 |
 | 음성 합성 (앱) | Android TTS (내장) + 서버 /tts | 내장 | 서버 URL 있으면 서버 TTS, 없으면 내장 TTS |
 | 음성 인식 | SpeechRecognition | 3.10.4 | Google Speech API |
-| 딥러닝 | PyTorch | 2.4.1 | CPU 실행 |
+| 딥러닝 | PyTorch | 2.11.0+cu128 | GPU 실행 (RTX 5060 Blackwell 지원) |
 | 이미지 처리 | OpenCV (headless) | 4.10.0.84 | 서버 환경용 |
 | 수치 연산 | NumPy | 1.26.4 | **반드시 1.x** |
 | API 서버 | FastAPI + Uvicorn | 0.115.5 / 0.32.1 | |
 | 데모 UI | Gradio | 4.44.1 | **반드시 4.x** |
 | DB | SQLite (로컬) / PostgreSQL Supabase (외부, DATABASE_URL 설정 시) | — | 공간 스냅샷 저장 |
+| Android ONNX | ONNX Runtime Android | 1.19.0 | opset 18 지원 (PyTorch 2.11 내보내기 호환) |
 | Android 카메라 | CameraX | 1.3.1 | 라이브 프리뷰 + 자동 캡처 |
 | Android HTTP | OkHttp | 4.12.0 | 서버 통신 |
 | 외부 터널 | ngrok / Railway / Render / GCP Cloud Run | 3.38.0+ | 다른 네트워크 연결 시 |
@@ -270,6 +271,54 @@ _VOTE_THRESHOLD = 0.6  # → 0.4로 낮추면 더 민감
 ```
 
 **주의**: 차량·계단은 `ALWAYS_CRITICAL`이라 보팅 없이 즉시 통과 — 안전에 영향 없음
+
+---
+
+### 24. Android 앱 "분석 실패 — 주의하세요" 반복
+
+**원인**: ONNX Runtime Android 버전과 모델 opset 불일치
+
+| 상황 | 원인 |
+|------|------|
+| `onnxruntime-android:1.17.3` + PyTorch 2.11 내보낸 모델 | opset 18 연산자 일부 미지원 → 추론 실패 → `handleFail()` 반복 |
+
+**흐름**: `processOnDevice()` 내부 예외 → `sendToServer()` 호출 → 서버 URL 비어있으면 `handleFail()` 즉시 → 3회 반복 → 경고 표시
+
+**해결**: `android/app/build.gradle`에서 ONNX Runtime 버전 업그레이드
+```groovy
+// 변경 전
+implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.17.3'
+// 변경 후
+implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.0'
+```
+→ Android Studio에서 **Sync Now** → **▶ Run**
+
+---
+
+### 25. RTX 5060(Blackwell)에서 PyTorch CUDA 인식 안 됨
+
+**증상**: `torch.cuda.is_available()` → `False` / `torch-2.4.1+cpu`로 설치됨
+
+**원인**: RTX 5060은 Blackwell 아키텍처 (SM_120). PyTorch 2.4.x는 Blackwell 미지원
+
+**해결**: CUDA 12.8용 PyTorch 2.11+ 재설치
+```bash
+pip install "torch>=2.6.0" torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+```
+확인: `python -c "import torch; print(torch.cuda.get_device_name(0))"`
+
+---
+
+### 26. 목소리 겹침 수정이 적용 안 됨 (구버전 APK)
+
+**원인**: `c:\VoiceGuide\` 아래에 android 폴더가 두 개 존재
+
+| 경로 | 상태 |
+|------|------|
+| `c:\VoiceGuide\android\` | **구버전** — `suppressPeriodicUntil` 없음, TTS 겹침 수정 미적용 |
+| `c:\VoiceGuide\VoiceGuide\android\` | **신버전** — 3초 TTS 억제 적용 ✅ |
+
+**해결**: Android Studio에서 반드시 `c:\VoiceGuide\VoiceGuide\android` 폴더를 열고 빌드
 
 ---
 

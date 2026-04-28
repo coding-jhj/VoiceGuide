@@ -25,6 +25,7 @@
 ### 환경 설정
 
 - PyTorch CPU→GPU 전환: `torch 2.4.1+cpu` → `torch 2.11.0+cu128` (RTX 5060 Blackwell 지원)
+- ONNX Runtime Android 업그레이드: `1.17.3` → `1.19.0` (PyTorch 2.11 내보낸 opset 18 모델 호환)
 
 ---
 
