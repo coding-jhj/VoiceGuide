@@ -204,6 +204,7 @@ async def detect(
     # 메인 문장 뒤에 붙임 (있을 때만)
     extras = [v for v in [
         scene.get("danger_warning"),        # 칼·가위 3m 이내 즉시 경고
+        scene.get("slippery_warning"),      # 바닥 음식류 미끄럼 위험
         scene.get("tactile_block_warning"), # 점자 블록 위 장애물
         scene.get("crowd_warning"),         # 군중 밀집 경고
         scene.get("safe_direction"),        # 안전 경로 제안

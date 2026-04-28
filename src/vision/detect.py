@@ -92,6 +92,40 @@ ALWAYS_CRITICAL = {
     "bear", "elephant",                             # 위험 동물 대형
 }
 
+# ── 거리 무관하게 항상 경고할 위험 클래스 ────────────────────────────────────
+# 멀리 있어도 즉시 인지가 필요한 클래스 (ALWAYS_CRITICAL의 서버 버전)
+_ALWAYS_WARN = {
+    "car", "motorcycle", "bus", "truck", "train", "bicycle",
+    "stairs", "knife", "scissors",
+    "bear", "elephant", "horse", "dog",  # 위험 동물
+    "fire hydrant",  # 도로에 돌출, 충돌 위험
+}
+
+# ── 가까울 때만 경고할 클래스 (2m 이상이면 무음) ─────────────────────────────
+# 멀리 있는 의자·소파 등은 사실상 위험 없음 → 경고 피로 방지
+_WARN_ONLY_CLOSE_M = 2.5   # 이 거리 이내에서만 경고
+_WARN_ONLY_CLOSE = {
+    "chair", "couch", "bed", "dining table", "potted plant",
+    "laptop", "mouse", "remote", "keyboard", "cell phone",
+    "microwave", "oven", "toaster", "refrigerator", "sink",
+    "book", "clock", "vase", "teddy bear", "hair drier", "toothbrush",
+    "bowl", "cup", "fork", "spoon", "bottle",
+    "tv", "umbrella", "tie", "handbag",
+    "apple", "orange", "broccoli", "carrot", "hot dog",
+    "pizza", "donut", "cake", "sandwich",
+    "frisbee", "skis", "snowboard", "kite",
+    "baseball glove", "surfboard", "tennis racket",
+}
+
+# ── 미끄럼 위험 유발 클래스 (바닥에 있을 때) ──────────────────────────────────
+_SLIPPERY_CLASSES = {
+    "banana", "apple", "orange", "pizza", "donut", "cake",
+    "sandwich", "hot dog", "broccoli",
+}
+
+# ── 계단 면적 임계값 (이미지 대비 bbox 면적이 이보다 크면 전방 계단 전체 경고) ──
+_STAIRS_LARGE_AREA = 0.20  # 20% 이상이면 계단이 바로 앞 전체에 있음 → 강한 경고
+
 # ── 방향별 위험도 가중치 ─────────────────────────────────────────────────────
 RISK_DIR = {
     "8시": 0.3, "9시": 0.5, "10시": 0.7, "11시": 0.9,
@@ -436,6 +470,33 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
         )
         risk_score = min(risk_score, 1.0)  # 1.0 초과 방지
 
+        # ── 계단 크기 기반 필터 ──────────────────────────────────────────────
+        # 강사님 피드백: "계단은 객체라고 하기에는 사이즈가 큼"
+        # → bbox가 이미지 면적의 50% 초과이면 배경/전체 계단으로 판단 → 필터링
+        # → 단, 20~50% 사이이면 "전방 계단 주의" 강화 경고로 처리
+        if cls_name == "stairs":
+            if area_ratio > 0.50:
+                continue   # 화면 대부분이 계단 → 이미 올라가고 있는 중, 경고 불필요
+            # 20% 이상이면 대형 계단 → 위험도 배수를 최대로
+            if area_ratio >= _STAIRS_LARGE_AREA:
+                risk_score = 1.0  # 최고 위험
+
+        # ── 거리 기반 사물 필터 (경고 피로 방지) ──────────────────────────────
+        # 가까울 때만 경고할 사물이 멀면 탐지 목록에서 제외
+        if cls_name in _WARN_ONLY_CLOSE and distance_m > _WARN_ONLY_CLOSE_M:
+            continue  # 멀리 있는 의자·소파 등은 안내 생략 → 중요 경고에 집중
+
+        # ── 미끄럼 위험 감지 (바닥에 음식류) ────────────────────────────────────
+        # 바닥에 음식이 있으면 미끄럼 위험 → 별도 경고로 처리
+        is_slippery_risk = cls_name in _SLIPPERY_CLASSES and is_ground
+
+        # ── 전동킥보드 의심 감지 (자전거 + 보행자 조합) ───────────────────────
+        # COCO에 전동킥보드 클래스 없음 → 자전거 클래스로 탐지됨
+        # 자전거가 실내/보도에서 탐지되면 전동킥보드 가능성 높음 → 경고 강화
+        if cls_name == "bicycle" and area_ratio < 0.08:
+            # 소형 자전거 = 전동킥보드 가능성 → 위험도 상향
+            risk_score = min(risk_score * 1.5, 1.0)
+
         # 색상 감지
         color = _detect_color(img, x1, y1, x2, y2)
 
@@ -460,6 +521,7 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
             "is_vehicle":           is_vehicle,
             "is_animal":            is_animal,
             "is_dangerous":         is_dangerous,
+            "is_slippery_risk":     is_slippery_risk,
             "color":                color,
             "traffic_light_state":  traffic_light_state,
             "bus_crop":             bus_crop,
@@ -467,10 +529,18 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
 
     scene = _compute_scene_analysis(all_detections)
 
-    # 점자 블록 위 장애물 경고: 바닥에 있는 물체가 이미지 하단 중앙 경로에 있을 때
+    # 점자 블록 위 장애물 경고
     _check_tactile_block_obstruction(all_detections, scene, w, h)
 
-    top3  = sorted(all_detections, key=lambda x: x["risk_score"], reverse=True)[:3]
+    # 미끄럼 위험 경고: 바닥 음식류 탐지 시
+    for det in all_detections:
+        if det.get("is_slippery_risk"):
+            name = det["class_ko"]
+            scene.setdefault("slippery_warning",
+                             f"바닥에 {name}{_i_ga(name)} 있어요. 미끄러울 수 있어요. 조심하세요.")
+            break
+
+    top3 = sorted(all_detections, key=lambda x: x["risk_score"], reverse=True)[:3]
     return top3, scene
 
 
