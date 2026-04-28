@@ -156,7 +156,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     @Volatile private var lastLux = 100f  // 이전 프레임 밝기 (lux 단위)
     // by lazy: 처음 사용 시에만 생성 (앱 시작 시 오디오 초기화 지연)
     // ToneGenerator: 짧은 비프음 재생기 (위험도 낮은 알림용)
-    private val toneGen by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 60) }
+    private val toneGen by lazy { ToneGenerator(AudioManager.STREAM_MUSIC, 100) }
 
     // ── 음성 자동 시작 ─────────────────────────────────────────────────
     private var awaitingStartConfirm = false
@@ -1304,7 +1304,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 "beep" -> {
                     // 1m 이내 가까운 장애물 — 비프음만 (TTS 쿨다운 무관하게 동작)
                     if (!tts.isSpeaking && !isElevenLabsSpeaking)
-                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
                 }
                 "silent" -> {
                     // 무음 — UI만 업데이트
