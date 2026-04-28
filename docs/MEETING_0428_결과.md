@@ -1,176 +1,200 @@
 # 4/28 강사님 미팅 결과 정리
 
-*2026-04-28 미팅 후 정리*
+*2026-04-28 미팅 후 정리 | 최종 업데이트: 2026-04-28*
 
 ---
 
-## 우선순위 요약
+## 우선순위 요약 (전체 현황)
 
 | 순위 | 항목 | 상태 |
 |------|------|------|
-| 🔴 P0 | 사용자 질문 응답 기능 구현 | ✅ 완료 (2026-04-28) |
-| 🔴 P0 | 경고 피로 후처리 — 보팅 방식 적용 | ✅ 완료 (2026-04-28) |
-| 🔴 P1 | deque 싱크 버그 수정 | ✅ 완료 (2026-04-28) |
+| 🔴 P0 | 사용자 질문 응답 기능 구현 | ✅ 완료 |
+| 🔴 P0 | 경고 피로 후처리 — 보팅 방식 적용 | ✅ 완료 |
+| 🔴 P1 | deque 싱크 버그 수정 | ✅ 완료 |
 | 🔴 P1 | 바운딩 박스 비트 불일치 확인 | ✅ float32 확인 완료 |
-| 🟡 P2 | 서버 데이터 송수신 테스트 | ✅ 완료 (test_server.py) |
-| 🟡 P2 | 외부 DB 조사 (LTE 테스트용) | ✅ 완료 — Supabase + Railway (docs/DEPLOY_GUIDE.md) |
-| 🟡 P3 | 대시보드 지도 UI + 네비게이션 API 조사 | ✅ 완료 (dashboard.html) |
-| 🟡 추가 | 사물 인식률 개선 — 위험 클래스 임계값 조정 | ✅ 완료 (2026-04-28) |
-| 🟡 추가 | TTS 겹침 완전 차단 — 서버 dedup + Android 억제 | ✅ 완료 (2026-04-28) |
-| 🟢 하드웨어 | 뎁스 카메라 거리 측정 | ✅ Depth Anything V2 정상 동작 (/health로 확인) |
+| 🟡 P2 | 서버 데이터 송수신 테스트 | ✅ 완료 (test_server.py 9개) |
+| 🟡 P2 | 외부 DB / LTE 서버 — GCP·Railway·AWS·Oracle | ✅ 완료 (DEPLOY_GUIDE.md) |
+| 🟡 P3 | 대시보드 지도 UI | ✅ 완료 (dashboard.html, Leaflet.js) |
+| 🟡 P3 | 네비게이션 API 조사 (네이버·카카오·Google) | ✅ 조사 완료 — 대시보드 GPS 경로 반영 |
+| 🟡 추가 | 사물 인식률 개선 — 위험 클래스 임계값 조정 | ✅ 완료 |
+| 🟡 추가 | TTS 겹침 완전 차단 | ✅ 완료 |
+| 🟡 추가 | feature/nlg PR conflict 해결 + merge | ✅ 완료 |
+| 🔲 미완료 | 추론속도 / FPS 최적화 | 🔲 미완료 — 다음 우선순위 |
+| 🟢 하드웨어 | 뎁스 카메라 → Depth Anything V2로 대체 | ✅ 정상 동작 (/health 확인) |
+| 🟢 보류 | 사물 클래스 신규 추가 (전동킥보드 등) | 🔲 기능 완성 후 |
 
 ---
 
-## P0 — 내일까지 반드시
+## 미팅 원문 요약 (강사님 발언 기반)
 
-### 1. 사용자 질문 응답 기능 ("내 질문에 알려주는 기능")
-
-강사님이 **가장 중요하다고 강조**한 항목.
-
-**현재 문제:**
-- 탐지가 됐을 때는 deque 메모리에서 결과를 꺼내서 응답함
-- 하지만 사용자가 직접 질문했을 때 그 질문은 deque에 담기지 않아 응답이 연결 안 됨
-- 결과적으로 질문 → 탐지 결과 연결이 끊긴 상태
-
-**해결 방향:**
-- 사용자 질문이 들어오면 현재 deque에 쌓인 탐지 결과를 꺼내서 함께 응답하도록 연결
-- 질문 이벤트를 deque 소비 트리거로 활용
-
----
-
-### 2. 경고 피로 후처리 — 보팅(voting) 방식
-
-**현재 문제:**
-- 경고가 너무 자주, 너무 많이 발생 → 경고 피로(alert fatigue)
-
-**강사님 제안 — 보팅 방식:**
-- 예: 최근 10개 프레임(책상 기준) 중 일정 수 이상에서 같은 객체가 탐지돼야 경고 발생
-- 1~2프레임 오탐은 자동으로 걸러짐
-
-**구현 방향:**
-- 각 클래스별로 최근 N프레임 탐지 횟수 카운팅
-- 임계값(예: 10프레임 중 7회 이상) 초과 시에만 음성 경고 발동
-- 기존 alert_mode(critical/beep/silent)와 조합
+```
+경고 피로가 심하면 후처리가 필요함 (예: 보팅 — 10개 프레임 다수결)
+바운딩 박스가 정확하지 않음 — 16bit/32bit 비트 불일치 확인 필요
+추론속도, FPS 개선 필요
+덱 싱크가 안 맞음 — 사용자 질문에 탐지 결과가 연결 안 됨
+계단은 객체라 하기에 사이즈가 큼 — 위험한 사물 위주로만
+서버 데이터 송수신 테스트 필요
+대시보드에 지도가 있어야 함 — 동선 표시
+개인 네비게이션 API 조사 (네이버 자전거 네비 참고)
+외부 DB (GCP, Supabase 등) — LTE 환경 테스트
+내일까지: 서버 논의 + 질문 응답 기능 구현
+```
 
 ---
 
-## P1 — 이번 주 내
+## 구현 완료 상세
 
-### 3. deque 싱크 버그
+### ✅ 사용자 질문 응답 기능
 
-**현재 상태:**
-- `deque = {}` 방식으로 탐지 결과를 메모리에 쌓고 꺼내는 구조
-- 탐지가 됐을 때 꺼내는 것은 동작하지만 **싱크가 안 맞음**
-- 사용자 질문에 대한 응답 경로가 deque에 연결되지 않음
+**문제**: "앞에 뭐 있어" 말해도 "장애물 모드."만 말하고 즉시 분석 안 함. tracker 누적 상태가 질문 응답에 연결 안 됨.
 
-**확인 포인트:**
-- deque push/pop 타이밍과 질문 이벤트 타이밍 사이의 race condition
-- 질문 처리 코드가 deque를 참조하는지 확인
-
----
-
-### 4. 바운딩 박스 정확도 — 비트 불일치
-
-**현재 문제:**
-- 핸드폰마다 바운딩 박스가 안 맞음
-- 탐지 자체가 잘못 됨 (탐지 오류가 아니라 좌표 매핑 오류)
-
-**원인 추정:**
-- 이미지 텐서가 16비트인지 32비트인지 확인 필요
-- 해상도 차이에 따른 좌표 스케일링 미적용 가능성
-
-**확인 포인트:**
-- 서버로 보내는 이미지의 dtype 확인 (`float16` vs `float32`)
-- 바운딩 박스 좌표를 원본 해상도 기준으로 스케일링하는 코드 점검
-- 핸드폰 해상도별 테스트
+**구현 내용**:
+- `VoiceGuideConstants.kt` + `stt.py`: `"질문"` STT 모드 추가 — "지금 뭐가 있어", "지금 어때" 등
+- `MainActivity.kt`: `captureAndProcessAsQuestion()` — 즉시 캡처 + `mode="질문"` 서버 전송
+- `MainActivity.kt`: `"장애물"/"확인"` STT 시도 즉시 `captureAndProcess()` 호출 (기존 버그 수정)
+- `tracker.py`: `get_current_state(max_age_s=3.0)` — 최근 3초 누적 물체 목록 반환
+- `routes.py`: `mode="질문"` 분기 → `build_question_sentence()` — 현재 프레임 + tracker 상태 합산
+- `sentence.py`: `build_question_sentence()` 추가 — 계단 > 위험물 > 현재 탐지 > tracker 상태 순 응답
 
 ---
 
-## P2 — 이번 주 내
+### ✅ 보팅 방식 경고 피로 후처리
 
-### 5. 서버 데이터 송수신 테스트
+**문제**: 경고가 너무 자주 발생. 1~2프레임 오탐도 즉시 경고.
 
-- 서버-클라이언트 간 실제 데이터 송수신 테스트 필요
-- 연결 및 DB 연결은 완료된 상태이므로 **실제 데이터 흐름 검증** 단계
-
----
-
-### 6. 외부 DB 조사 — LTE 테스트 환경 구성
-
-**문제:**
-- 외부 서버가 항상 켜져 있어야 테스트 가능
-- 와이파이 없이 (LTE 망에서) 테스트하는 방법 필요
-
-**조사 대상:**
-- Google Cloud Platform (GCP)
-- Firebase
-- Supabase (이미 `서버_DB/`에 일부 구현됨)
-- 기타 외부 DB 서비스
+**구현 내용**:
+- `tracker.py`: `VotingBuffer(window=10, threshold=0.6)` 클래스 추가
+  - 최근 10프레임 중 60% 이상 탐지됐을 때만 경고 확정
+  - 차량·계단(`ALWAYS_CRITICAL`)은 보팅 없이 즉시 통과 (안전 우선)
+- `routes.py`: `_should_suppress()` — 동일 문장 5초 내 재발화 시 `alert_mode="silent"` 강제
+- `MainActivity.kt`: `suppressPeriodicUntil` — 질문 응답 후 3초간 periodic TTS 억제
+- `handleSuccess()`: `effectiveMode` 적용, beep도 `isSpeaking()` 체크
 
 ---
 
-## P3 — 다음 주
+### ✅ deque 싱크 버그 수정
 
-### 7. 대시보드 지도 UI + 네비게이션 API
+**문제**: tracker가 방향 정보를 저장하지 않아 `get_current_state()` 응답에 방향 누락.
 
-**강사님 요구사항:**
-- 대시보드에 지도가 나와야 함
-- 사용자 동선(이동 경로)이 지도에 표시되어야 함
-- 로드뷰(거리 사진) 조회도 가능하면 좋음
-- 서버는 클라이언트에서 받아서 지도에 뿌리면 됨
-
-**네비게이션 API 조사 항목:**
-- 네이버 지도 API (자전거 네비게이션 참고)
-- 카카오맵 API
-- Google Maps Platform
-- 개인 네비게이션용 경로 안내 API
+**구현 내용**:
+- `tracker.py`: `update()` 내 방향 정보(`direction`) track에 저장
+- `tracker.py`: `get_current_state()` — 방향 포함 완전한 물체 정보 반환
 
 ---
 
-## 보류 항목
+### ✅ 바운딩 박스 비트 불일치 확인
 
-### 사물 클래스 추가
+**확인 결과**:
+- `YoloDetector.kt`: `FloatBuffer.allocate()` → `float32` 사용 확인 ✅
+- 픽셀값 `/ 255f` → 0.0~1.0 정규화 정상 ✅
+- 좌표: ONNX 출력 `/ inputSize(640)` → 0~1 정규화 → View 크기 곱 변환 정상 ✅
+- `BoundingBoxOverlay.kt`: feature/nlg의 FILL_CENTER 변환으로 핸드폰별 해상도 대응 ✅
 
-- 계단은 객체로 보기에는 사이즈가 커서 적합하지 않음
-- 사물은 위험한 것 위주로 몇 가지만 추리는 방향
-- **객체 추가는 기능 완성 후로 미룸**
+---
 
-### 뎁스 카메라 거리 측정
+### ✅ 서버 데이터 송수신 테스트
 
-- 뎁스 카메라 모델은 무거워서 모바일에서 실시간 추론이 어려움
-- 단안 카메라 + Depth Anything V2로 현재 유지
-- 추론 속도 / FPS 최적화가 선행 과제
+**구현 내용**:
+- `tests/test_server.py` — 9개 엔드포인트 자동 테스트
+  - `/health`, `/detect(장애물)`, `/detect(질문)`, `/detect(찾기)`, `/detect(저장)`
+  - `/status`, `/locations`, GPS 저장·조회, `/dashboard`
+- 실행 방법: `python tests/test_server.py` (서버 켠 상태에서)
+
+---
+
+### ✅ 외부 DB / LTE 서버 구성
+
+**구현 내용**:
+- `src/api/db.py`: `DATABASE_URL` 환경변수 유무로 SQLite ↔ PostgreSQL 자동 전환
+  - 없으면 SQLite (로컬), 있으면 Supabase PostgreSQL (외부)
+- `railway.toml`: Railway 무료 배포 설정 파일
+- `.env`: `DATABASE_URL` 플레이스홀더 추가
+- `docs/DEPLOY_GUIDE.md`: Railway·GCP·AWS·Oracle Cloud·Render 전체 배포 가이드
+
+**서버 선택 기준**:
+| 상황 | 선택 |
+|------|------|
+| 빠른 LTE 테스트 | Railway + Supabase (5분, YOLO만) |
+| Depth V2 완전 기능 | Oracle Cloud Always Free (RAM 24GB) |
+| PC 가져갈 수 있을 때 | ngrok (2분, GPU 그대로) |
+
+---
+
+### ✅ 대시보드 지도 UI
+
+**구현 내용**:
+- `templates/dashboard.html`: Leaflet.js + OpenStreetMap 다크 테마 실시간 대시보드
+  - 2초 폴링 자동 갱신
+  - 탐지 물체 위험도 카드 (🔴위험·🟡주의·🟢안전)
+  - GPS 현재 위치 마커 + 이동 경로(polyline)
+  - WiFi SSID 입력으로 세션 전환
+- `GET /dashboard` 엔드포인트
+- `GET /status/{session_id}` — tracker 상태 + GPS 경로 반환
+- Android `currentLat`/`currentLng` 상시 업데이트 → `/detect` 전송 → DB 저장
+
+**접속 방법**:
+```
+http://서버IP:8000/dashboard          ← 로컬
+https://voiceguide-xxx.railway.app/dashboard  ← 외부 서버
+```
+
+---
+
+### ✅ 네비게이션 API 조사
+
+**조사 결과**: 대시보드에 GPS 이동 경로(polyline) 이미 구현됨.
+실제 경로 안내(A→B 네비게이션)는 추가 API 키 필요:
+
+| API | 특징 | 무료 한도 |
+|-----|------|---------|
+| **네이버 지도 API** | 한국 지도 정확, 자전거 경로 제공 | 월 3만 건 |
+| **카카오맵 API** | 한국 최다 POI, 도보/자전거 경로 | 무제한 (등록 필요) |
+| **Google Maps Platform** | 글로벌, Directions API | 월 $200 크레딧 |
+
+현재 대시보드: Leaflet.js + OpenStreetMap (API 키 불필요) ← 현재 구현
+실제 길 안내 추가 시: 네이버 지도 API 권장 (한국 자전거 경로 지원)
+
+---
+
+### ✅ 사물 인식률 개선
+
+**구현 내용**:
+- `detect.py`: 차량(`0.35`), 칼·가위(`0.42~0.45`) 임계값 하향 → 더 멀리서 더 일찍 탐지
+- `ALWAYS_CRITICAL` 집합 추가: 차량·계단·칼·가위·곰·코끼리 → 보팅 없이 즉시 경고
+
+---
+
+## 🔲 미완료 — 다음 우선순위
+
+### 추론속도 / FPS 최적화
+
+강사님이 언급한 항목. 현재 1초 간격 캡처인데, 실제 추론 속도와의 차이 점검 필요.
+
+**확인 포인트**:
+- 서버 응답 시간 측정: YOLO 추론 + Depth V2 추론 + 네트워크 시간
+- Android 쪽 `isSending` 플래그로 중복 요청 막는 중 → FPS 실측값 로깅 필요
+- `INTERVAL_MS = 1000L` → 서버 응답이 1초 미만이면 실질 FPS 향상 가능
+
+**개선 방향**:
+```kotlin
+// MainActivity.kt — 응답 시간 로깅 추가
+val start = System.currentTimeMillis()
+// ... 서버 요청 ...
+val elapsed = System.currentTimeMillis() - start
+Log.d("VG_FPS", "응답: ${elapsed}ms")
+```
+
+### 사물 클래스 신규 추가
+
+전동킥보드·볼라드 등 COCO에 없는 한국 특화 클래스.
+- YOLO-World 모드(`YOLO_WORLD=1`)로 이미 일부 지원
+- 파인튜닝 추가는 데이터 수집 필요 → 기능 완성 후 진행
 
 ---
 
 ## 팀 운영 방향 (강사님 코멘트)
 
-- **서로 회의를 더 자주, 더 명확하게** — 방향 공유와 팀플레이에 집중
-- 음성 모델 성능보다 **시각장애인에게 임팩트 있는 기능**이 우선
+- **서로 회의를 더 자주, 명확하게** — 방향 공유와 팀플레이에 집중
+- 음성 모델 성능보다 **시각장애인에게 임팩트 있는 기능** 우선
 - 기능 추가보다 **현재 기능 완성도** 먼저
-- 발표를 위해 추론 속도(FPS) 최적화도 신경 쓸 것
-
----
-
-## 4/28 당일 구현 완료
-
-- [x] 사용자 질문 응답 기능 구현
-  - `"질문"` STT 모드 추가 → 즉시 캡처 + tracker 누적 상태 포함 응답
-  - `MainActivity`: "장애물"/"확인" STT 시 즉시 캡처 버그 수정
-  - `routes.py`: `mode="질문"` → `build_question_sentence()` 호출
-  - `tracker.py`: `get_current_state()` 최근 3초 누적 물체 반환
-- [x] 보팅 방식 경고 피로 후처리 적용
-  - `VotingBuffer` 클래스 — 최근 10프레임 중 60%+ 탐지 시 확정
-  - 차량·계단은 안전 우선으로 보팅 없이 즉시 통과
-- [x] deque 싱크 버그 수정 (tracker 방향 정보 누락 수정 포함)
-- [x] 서버 송수신 테스트 스크립트 (`tests/test_server.py`, 9개 테스트)
-- [x] GPS 위치 연동 — Android에서 lat/lng 전송 → DB 저장 → 대시보드 표시
-- [x] 대시보드 지도 UI (`templates/dashboard.html`)
-  - Leaflet.js + OpenStreetMap 다크 테마
-  - 2초 폴링 실시간 물체 목록 + 위험도 카드
-  - GPS 경로(polyline) 표시
-
-## 남은 작업
-
-- [ ] 외부 DB (GCP/Firebase) — LTE 테스트를 위한 외부 서버 세팅
-- [ ] feature/nlg PR → main merge (GitHub에서 팀원이 버튼 클릭)
+- 발표를 위해 **추론 속도(FPS) 최적화**도 신경 쓸 것
