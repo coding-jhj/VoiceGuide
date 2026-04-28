@@ -354,7 +354,6 @@ def detect_objects(image_bytes: bytes) -> tuple[list[dict], dict]:
     # 이미지 바이트 → numpy 배열 → OpenCV 이미지
     nparr = np.frombuffer(image_bytes, np.uint8)
     img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    img   = cv2.flip(img, 1)   # 좌우 반전: 카메라 mirror 현상 보정 (오른쪽↔왼쪽 교정)
     h, w  = img.shape[:2]      # 이미지 높이, 너비
 
     # YOLO 추론: conf=CONF_THRESHOLD 미만 박스는 자동 필터링
