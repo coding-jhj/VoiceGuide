@@ -111,9 +111,9 @@ def _format_dist(dist_m: float) -> str:
     """
     dist_m = max(0.1, min(dist_m, 15.0))  # 유효 범위 클리핑
     if dist_m < 0.5:  return "바로 코앞"    # 즉각 위험 — 0.5m 미만
-    if dist_m < 1.0:  return "매우 가까이"  # 주의 필요 — 1m 미만
-    if dist_m < 2.5:  return "가까이"       # 경계 — 2.5m 미만
-    if dist_m < 5.0:  return "조금 멀리"    # 정보성 — 5m 미만
+    if dist_m < 1.0:  return "매우 가까운 곳"  # 주의 필요 — 1m 미만
+    if dist_m < 2.5:  return "가까운 곳"       # 경계 — 2.5m 미만
+    if dist_m < 5.0:  return "조금 멀 곳"    # 정보성 — 5m 미만
     return "멀리"                            # 참고용 — 5m 이상
 
 
@@ -146,17 +146,17 @@ def _primary(obj: dict, abs_clock: str) -> str:
     # 이유: 차량은 0.5m까지 기다리면 이미 늦음
     if is_vehicle:
         if dist_m < 3.0:
-            return f"위험! {direction}에 {name}{ig} 있어요! {dist_str}. 잠깐 {action}!"
+            return f"위험! {direction} {dist_str}에 {name}{ig} 있어요! 잠깐 {action}!"
         if dist_m < 8.0:
             # "접근 중"이라고 표현해서 이동 물체임을 강조
-            return f"조심! {direction}에 {name}{ig} 접근 중이에요. {dist_str}. {action}."
-        return f"{direction}에 {name}{ig} 있어요. {dist_str}."
+            return f"조심! {direction} {dist_str}에 {name}{ig} 접근 중이에요. {action}."
+        return f"{direction} {dist_str}에 {name}{ig} 있어요."
 
     # ── 동물: "천천히" 어조 — 급격한 움직임 자제 유도 ───────────────────
     if is_animal:
         if dist_m < 3.0:
-            return f"조심! {direction}에 {name}{ig} 있어요. {dist_str}. 천천히 {action}."
-        return f"{direction}에 {name}{ig} 있어요. {dist_str}."
+            return f"조심! {direction} {dist_str}에 {name}{ig} 있어요. 천천히 {action}."
+        return f"{direction} {dist_str}에 {name}{ig} 있어요."
 
     # ── 바닥 장애물: 발에 걸릴 수 있어서 2m 이내일 때만 특별 처리 ────────
     # is_ground: bbox 하단이 이미지 65% 아래이거나 _GROUND_CLASSES에 속함
@@ -171,14 +171,14 @@ def _primary(obj: dict, abs_clock: str) -> str:
         return f"위험! {direction} {name}!"
     # 1m 미만: 짧게 + 행동
     if dist_m < 1.0:
-        return f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
+        return f"{direction} {dist_str}에 {name}{ig} 있어요. {action}."
     # 2.5m 미만: 방향 + 거리 + 행동
     if dist_m < 2.5:
-        return (f"{direction}에 {name}{ig} 있어요. {dist_str}. {action}."
+        return (f"{direction} {dist_str}에 {name}{ig} 있어요. {action}."
                 if action else
-                f"{direction}에 {name}{ig} 있어요. {dist_str}.")
+                f"{direction} {dist_str}에 {name}{ig} 있어요.")
     # 2.5m 이상: 정보성, 행동 안내 생략
-    return f"{direction}에 {name}{ig} 있어요. {dist_str}."
+    return f"{direction} {dist_str}에 {name}{ig} 있어요."
 
 
 # ── 보조 물체 문장 생성 (위험도 2순위) ────────────────────────────────────────
