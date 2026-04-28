@@ -2,6 +2,9 @@ import os
 import re
 from typing import Any, Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from psycopg.rows import dict_row
