@@ -108,7 +108,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         val now = System.currentTimeMillis()
         return detections.filter { d ->
             val confirmed = d.classKo in ALWAYS_PASS || (counts[d.classKo] ?: 0) >= VOTE_MIN_COUNT
-            val cooledDown = d.classKo in ALWAYS_PASS ||
+            // 찾기 모드는 쿨다운 무시 — 대상 물체를 놓치면 안 됨
+            val cooledDown = currentMode == "찾기" ||
+                             d.classKo in ALWAYS_PASS ||
                              (now - (classLastSpoken[d.classKo] ?: 0L)) > CLASS_COOLDOWN_MS
             confirmed && cooledDown
         }
@@ -136,6 +138,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var lastSuccessTime  = System.currentTimeMillis()
     private var lastDetectionTime  = 0L   // 마지막으로 실제 장애물이 탐지된 시간
     private var lastCriticalTime   = 0L   // 마지막 critical TTS 발화 시간 (5초 쿨다운)
+    @Volatile private var speakCooldownUntil = 0L  // TTS 종료 후 700ms 쉬어가기
 
     // ── 가속도 센서: 카메라 방향 자동 감지 ────────────────────────────
     private lateinit var sensorManager: SensorManager
@@ -1377,14 +1380,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
-    private fun isSpeaking(): Boolean =
-        if (etServerUrl.text.toString().trim().isNotEmpty()) isElevenLabsSpeaking
-        else tts.isSpeaking
+    private fun isSpeaking(): Boolean {
+        val actualSpeaking = if (etServerUrl.text.toString().trim().isNotEmpty())
+            isElevenLabsSpeaking else tts.isSpeaking
+        return actualSpeaking || System.currentTimeMillis() < speakCooldownUntil
+    }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts.setLanguage(Locale.KOREAN)
             tts.setSpeechRate(1.1f)
+            // TTS 종료 후 700ms 침묵 — 말 끝나자마자 다음 말 시작 방지
+            tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                override fun onStart(uid: String?) {}
+                override fun onDone(uid: String?) {
+                    speakCooldownUntil = System.currentTimeMillis() + 700L
+                }
+                @Deprecated("Deprecated in Java")
+                override fun onError(uid: String?) {}
+            })
             handler.postDelayed({ promptAutoStart() }, 1000)
         }
     }
