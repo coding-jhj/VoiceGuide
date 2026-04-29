@@ -168,7 +168,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // FPS 측정 — 마지막 요청 시각과 서버 응답시간(ms) 기록
     private var lastRequestTime = 0L
     @Volatile private var lastProcessMs = 0
-    private var lastFpsText = ""  // 마지막 FPS 텍스트 — STT 중에도 유지
+    private var lastFpsText = ""      // 마지막 FPS 텍스트 — STT 중에도 유지
+    private var lastFrameDoneTime = 0L  // FPS 계산용 — 직전 프레임 완료 시각
+    private var currentFps = 0.0f      // 최근 계산된 FPS
 
     // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
     // connectTimeout: 서버 연결 최대 대기 5초
@@ -1232,7 +1234,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val voted         = removeDuplicates(voteOnly(rawDetections))
                 val inferMs = System.currentTimeMillis() - t0
                 runOnUiThread {
-                    lastFpsText = "온디바이스:${inferMs}ms"
+                    val fps = calcFps()
+                    lastFpsText = "${fps}fps | 온디바이스:${inferMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
                 }
 
@@ -1358,10 +1361,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
                 checkWaitingBus(json)   // 버스 대기 모드 자동 감지
 
-                // FPS 정보 UI 업데이트 (네트워크 ms / 서버 ms)
+                // FPS + 처리시간 UI 업데이트
                 runOnUiThread {
                     val netMs = if (processMs > 0) roundTripMs - processMs else roundTripMs
-                    lastFpsText = "서버:${processMs}ms 네트워크:${netMs}ms"
+                    val fps   = calcFps()
+                    lastFpsText = "${fps}fps | 서버:${processMs}ms 네트:${netMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
                 }
 
@@ -1553,6 +1557,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private fun isSpeaking(): Boolean =
         if (etServerUrl.text.toString().trim().isNotEmpty()) isElevenLabsSpeaking
         else ttsBusy.get()
+
+    /** 직전 프레임과의 시간 간격으로 FPS 계산. 소수점 1자리 반올림. */
+    private fun calcFps(): String {
+        val now = System.currentTimeMillis()
+        val fps = if (lastFrameDoneTime > 0L && now > lastFrameDoneTime) {
+            1000.0f / (now - lastFrameDoneTime)
+        } else 0.0f
+        lastFrameDoneTime = now
+        currentFps = fps
+        return if (fps >= 10f) "%.0f".format(fps)
+               else            "%.1f".format(fps)
+    }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
