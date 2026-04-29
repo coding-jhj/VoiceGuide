@@ -17,6 +17,7 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -133,6 +134,35 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         val now = System.currentTimeMillis()
         detections.forEach { classLastSpoken[it.classKo] = now }
     }
+
+    /**
+     * 같은 클래스에서 IoU 0.3 이상 겹치는 중복 bbox 제거.
+     * confidence 높은 것을 우선 유지하고, 낮은 것을 중복으로 처리.
+     * 원인: YOLO가 같은 물체를 인접한 위치에서 2개로 탐지하는 경우 발생.
+     */
+    private fun removeDuplicates(detections: List<Detection>): List<Detection> {
+        val result = mutableListOf<Detection>()
+        for (d in detections.sortedByDescending { it.confidence }) {
+            val isDuplicate = result.any { existing ->
+                existing.classKo == d.classKo && iouOverlap(existing, d) > 0.3f
+            }
+            if (!isDuplicate) result.add(d)
+        }
+        return result
+    }
+
+    /** 두 bbox의 IoU(교집합/합집합 비율) 계산. 0~1 범위. */
+    private fun iouOverlap(a: Detection, b: Detection): Float {
+        val ax1 = a.cx - a.w / 2f;  val ax2 = a.cx + a.w / 2f
+        val ay1 = a.cy - a.h / 2f;  val ay2 = a.cy + a.h / 2f
+        val bx1 = b.cx - b.w / 2f;  val bx2 = b.cx + b.w / 2f
+        val by1 = b.cy - b.h / 2f;  val by2 = b.cy + b.h / 2f
+        val ix1 = maxOf(ax1, bx1);  val ix2 = minOf(ax2, bx2)
+        val iy1 = maxOf(ay1, by1);  val iy2 = minOf(ay2, by2)
+        if (ix2 <= ix1 || iy2 <= iy1) return 0f
+        val inter = (ix2 - ix1) * (iy2 - iy1)
+        return inter / (a.w * a.h + b.w * b.h - inter)
+    }
     // 질문 응답 직후 periodic TTS 억제 — 겹침 방지 (3초간 periodic silent 처리)
     @Volatile private var suppressPeriodicUntil = 0L
     // FPS 측정 — 마지막 요청 시각과 서버 응답시간(ms) 기록
@@ -171,7 +201,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 음성 자동 시작 ─────────────────────────────────────────────────
     private var awaitingStartConfirm = false
-    @Volatile private var isListening = false  // STT 활성 중 → TTS 차단
+    @Volatile private var isListening = false      // STT 활성 중 → TTS 차단
+    @Volatile private var autoListenEnabled = false // TTS 끝나면 자동 재청취
 
     // ── ElevenLabs MediaPlayer (겹침 방지용 단일 인스턴스) ───────────────
     private var currentMediaPlayer: android.media.MediaPlayer? = null
@@ -361,7 +392,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }
             override fun onError(error: Int) {
                 isListening = false
-                runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
+                val retryable = error in listOf(
+                    SpeechRecognizer.ERROR_NO_MATCH,
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT,
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+                )
+                if (autoListenEnabled && retryable) {
+                    runOnUiThread { tvMode.text = "모드: $currentMode  |  듣는 중..." }
+                    handler.postDelayed({ scheduleAutoListen() }, 800)
+                } else {
+                    runOnUiThread { tvMode.text = "음성 인식 실패. 다시 눌러주세요." }
+                }
             }
             // 아래는 RecognitionListener 인터페이스 필수 구현 (사용하지 않음)
             override fun onReadyForSpeech(p: Bundle?) {}
@@ -371,6 +412,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             override fun onEndOfSpeech()                {}
             override fun onPartialResults(p: Bundle?)   {}
             override fun onEvent(t: Int, p: Bundle?)    {}
+        })
+    }
+
+    private fun scheduleAutoListen() {
+        if (!autoListenEnabled || isListening || awaitingStartConfirm) return
+        handler.post(object : Runnable {
+            override fun run() {
+                if (!autoListenEnabled || isListening) return
+                if (isSpeaking()) { handler.postDelayed(this, 200); return }
+                startListening()
+            }
         })
     }
 
@@ -389,7 +441,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
-        tvMode.text = "듣는 중..."
+        tvMode.text = "모드: $currentMode  |  듣는 중..."
         speechRecognizer.startListening(intent)
     }
 
@@ -446,18 +498,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             "찾기" -> {
                 findTarget  = SentenceBuilder.extractFindTarget(text)
                 currentMode = "찾기"
-                speak("${findTarget.ifEmpty { "물건" }} 찾기 모드.")
+                SentenceBuilder.clearStableClocks()
+                speakBuiltIn("${findTarget.ifEmpty { "물건" }} 찾기 모드.")
             }
             "텍스트" -> {
-                speak("텍스트를 인식할게요.")
+                speakBuiltIn("텍스트를 인식할게요.")
                 captureForOcr()
             }
             "바코드" -> {
-                speak("바코드를 인식할게요.")
+                speakBuiltIn("바코드를 인식할게요.")
                 captureForBarcode()
             }
             "색상" -> {
-                speak("색상을 확인할게요.")
+                speakBuiltIn("색상을 확인할게요.")
                 currentMode = "색상"
                 captureAndProcess()
             }
@@ -471,12 +524,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 speak("현재 밝기는 $desc")
             }
             "신호등" -> {
-                speak("신호등을 확인할게요.")
+                speakBuiltIn("신호등을 확인할게요.")
                 currentMode = "신호등"
                 captureAndProcess()
             }
             "버스번호" -> {
-                speak("버스 번호를 확인할게요.")
+                speakBuiltIn("버스 번호를 확인할게요.")
                 captureForBusNumber()
             }
             "버스대기" -> {
@@ -545,7 +598,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }
             else -> {
                 currentMode = mode
-                speak("$mode 모드.")
+                SentenceBuilder.clearStableClocks()
+                speakBuiltIn("$mode 모드.")
             }
         }
     }
@@ -968,6 +1022,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun startAnalysis() {
         isAnalyzing.set(true)
+        autoListenEnabled = true
+        SentenceBuilder.clearStableClocks()  // 재시작 시 방향 캐시 초기화
         lastSentence = ""
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
@@ -976,10 +1032,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         captureAndProcess()
         scheduleNext()
         scheduleWatchdog()
+        scheduleAutoListen()
     }
 
     private fun stopAnalysis() {
         isAnalyzing.set(false)
+        autoListenEnabled = false
         handler.removeCallbacksAndMessages(null)
         btnToggle.text = "분석 시작"
         tvStatus.text  = "분석 중지됨"
@@ -1148,14 +1206,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val imgH = bmp.height
 
                 val rawDetections = yoloDetector!!.detect(bmp)
-                val voted         = voteOnly(rawDetections)
+                // 투표 필터 → 같은 클래스 중복 bbox 제거(IoU 기반) 순서로 처리
+                val voted         = removeDuplicates(voteOnly(rawDetections))
 
                 bmp.recycle(); bmp = null
                 imageFile.delete()
 
+                Log.d("VG_DETECT", "=== 탐지 결과 ===")
+                Log.d("VG_DETECT", "raw: ${rawDetections.size}개 → dedup: ${voted.size}개")
+                voted.forEachIndexed { i, d ->
+                    Log.d("VG_DETECT", "  [$i] ${d.classKo} | conf=${String.format("%.2f", d.confidence)} | cx=${String.format("%.2f", d.cx)} | w=${String.format("%.2f", d.w)} h=${String.format("%.2f", d.h)} | area=${String.format("%.3f", d.w * d.h)}")
+                }
+
                 runOnUiThread { boundingBoxOverlay.setDetections(voted, imgW, imgH) }
 
                 if (voted.isEmpty()) {
+                    Log.d("VG_DETECT", "→ 장애물 없음")
                     handleSuccess("주변에 장애물이 없어요.")
                     return@Thread
                 }
@@ -1168,6 +1234,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     "찾기" -> SentenceBuilder.buildFind(findTarget, sorted)
                     else  -> SentenceBuilder.build(sorted)
                 }
+
+                Log.d("VG_DETECT", "생성된 문장: \"$sentence\"")
+                Log.d("VG_DETECT", "음성=${voiceDetections.size}개 | beep=$shouldBeep | mode=$currentMode")
+
                 when {
                     voiceDetections.isNotEmpty() -> {
                         markClassesSpoken(voiceDetections)
@@ -1176,10 +1246,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                             voiceDetections.any { it.classKo in ALWAYS_PASS } -> "critical"
                             else                                               -> "normal"
                         }
+                        Log.d("VG_DETECT", "→ 음성 출력 (mode=$mode)")
                         handleSuccess(sentence, mode)
                     }
-                    shouldBeep -> handleSuccess(sentence, "beep")
-                    else       -> handleSuccess("주변에 장애물이 없어요.")
+                    shouldBeep -> {
+                        Log.d("VG_DETECT", "→ 비프음")
+                        handleSuccess(sentence, "beep")
+                    }
+                    else       -> {
+                        Log.d("VG_DETECT", "→ 무음 (거리 멀거나 최근 안내 완료)")
+                        handleSuccess("주변에 장애물이 없어요.")
+                    }
                 }
             } catch (_: Exception) {
                 bmp?.recycle()
@@ -1320,9 +1397,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     }
                 }
                 "beep" -> {
-                    tvStatus.text = sentence
-                    if (!tts.isSpeaking && !isElevenLabsSpeaking)
-                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
+                    // 사용자 인터뷰 Q11: "비프음보다 말로 설명하는 것이 편함"
+                    // → 비프음 대신 거리 정보 포함 음성으로 전달 (lastSentence dedup 적용)
+                    if (sentence != lastSentence && !isSpeaking()) {
+                        lastSentence  = sentence
+                        tvStatus.text = sentence
+                        tts.setSpeechRate(1.0f)
+                        speak(sentence)
+                    }
                 }
                 "silent" -> { /* 무음 — 텍스트도 유지 */ }
                 else -> {
@@ -1423,7 +1505,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 mp.setAudioAttributes(android.media.AudioAttributes.Builder()
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA).build())
                 mp.prepare()
-                mp.setOnCompletionListener { isElevenLabsSpeaking = false; tmpFile.delete(); it.release() }
+                mp.setOnCompletionListener {
+                    isElevenLabsSpeaking = false
+                    tmpFile.delete()
+                    it.release()
+                    handler.post { scheduleAutoListen() }
+                }
                 currentMediaPlayer = mp
                 mp.start()
             } catch (_: Exception) {
@@ -1446,7 +1533,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 override fun onStart(uid: String?) {}
                 override fun onDone(uid: String?) {
                     speakCooldownUntil = System.currentTimeMillis() + 700L
-                    handler.postDelayed({ ttsBusy.set(false) }, 700)
+                    handler.postDelayed({
+                        ttsBusy.set(false)
+                        scheduleAutoListen()
+                    }, 700)
                 }
                 @Deprecated("Deprecated in Java")
                 override fun onError(uid: String?) {}

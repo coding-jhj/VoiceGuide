@@ -18,7 +18,7 @@
                                         ↓
                               위험도 계산 → 문장 생성
                                         ↓
-                              TTS로 말해준다 (또는 비프음)
+                              TTS로 말해준다
 ```
 
 ---
@@ -28,7 +28,7 @@
 ### 물체를 찾는 AI — YOLO11m
 
 카메라 이미지를 받아서 "의자가 어디 있고, 자동차가 어디 있는지" 찾아줘요.
-COCO 80가지 클래스 + 계단(파인튜닝 추가) = 총 81클래스.
+COCO 80가지 클래스. (계단은 YOLO 오탐률이 높아 제외 → Depth 맵 12구역 분석으로 대체)
 
 ```python
 CONF_THRESHOLD = 0.50   # 확신도 50% 이상인 것만 탐지
@@ -72,16 +72,15 @@ risk = 1.0 × 0.8 × 1.0 × 3.0 = 2.4 → min(2.4, 1.0) = 1.0  # 최고 위험
 
 ### 경고 모드 분류 (alert_mode)
 
-탐지된 물체를 3단계로 분류해서, Android에서 음성·비프음·무음으로 처리해요.
+탐지된 물체를 2단계로 분류해서, Android에서 음성·무음으로 처리해요.
 `get_alert_mode()` 함수 (`src/nlg/sentence.py`)가 담당.
 
 ```python
-# critical — 계단/차량/코앞 장애물 → 말 중이어도 끊고 1.25× 빠르게
-# beep     — 1m 이내 일반 장애물 → 비프음만 (경고 피로 방지)
-# silent   — 1m 이상 → 무음 (사용자가 물어볼 때만 안내)
+# critical — 계단/차량/2.5m 이내 장애물 → 말 중이어도 끊고 1.25× 빠르게
+# silent   — 2.5m 이상 → 무음 (사용자가 물어볼 때만 안내)
+# (beep 제거: 비프음 대신 음성으로 교체 — 인터뷰 피드백 반영)
 if is_hazard or (is_vehicle and dist < 8.0): return "critical"
-if dist < 0.5:  return "critical"
-if dist < 1.0:  return "beep"
+if dist < 2.5:  return "critical"
 return "silent"
 ```
 
@@ -242,8 +241,8 @@ if delta >= 0.8 and smooth_d < 3.0:
 ```
 
 `alert_mode: "critical"` 이면 말 중이어도 끊고 1.25× 속도로 즉각 음성 출력.
-`alert_mode: "beep"` 이면 TTS 대신 짧은 비프음만.
 `alert_mode: "silent"` 이면 무음 (UI만 업데이트).
+(beep 모드 제거 — 비프음 대신 일반 속도 음성 안내로 교체됨)
 
 ### 공간 기억 — 재방문 시 달라진 것만 안내
 
@@ -281,12 +280,12 @@ if (lastLux >= 10f && lux < 10f) {
 
 ### 경고 계층 — alert_mode 3단계 (신규)
 
-서버 응답의 `alert_mode` 값에 따라 Android가 음성·비프음·무음을 선택해요.
+서버 응답의 `alert_mode` 값에 따라 Android가 음성·무음을 선택해요.
 
 ```kotlin
 when (alertMode) {
     "critical" -> { tts.setSpeechRate(1.25f); speak(sentence) }  // 즉각 경고
-    "beep"     -> toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+    "beep"     -> { /* 비프음 제거 — 일반 속도 음성으로 대체 */ speak(sentence) }
     "silent"   -> { /* 무음 — UI만 업데이트 */ }
 }
 ```

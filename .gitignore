@@ -1,6 +1,8 @@
-# API 키 / 환경 변수
+# API 키 / 환경 변수 — 실제 키가 담길 수 있는 파일은 모두 제외
 .env
+.env.*
 .env.example
+*.env
 
 # AI 모델 가중치 (용량 큼 — 별도 공유)
 *.pth
@@ -45,3 +47,8 @@ voiceguide.db
 android/app/build/
 android/.gradle/
 android/local.properties
+서버_DB_수정/__pycache__/
+서버_DB_수정/%s
+서버_DB_수정/ConnectionPool
+서버_DB_수정/dict[str
+서버_DB_수정/RoadGlass

@@ -51,10 +51,8 @@ def get_alert_mode(obj: dict, is_hazard: bool = False) -> str:
         return "critical"
     if is_animal and dist_m < 3.0:         # 동물 — 돌발 행동 위험
         return "critical"
-    if dist_m < 0.5:                       # 코앞 장애물 — 충돌 직전
+    if dist_m < 2.5:                       # 2.5m 이내 — 음성 안내 (인터뷰 Q11: 비프보다 말 선호)
         return "critical"
-    if dist_m < 1.0:                       # 1m 이내 — 위험하지만 비프음으로 피로 줄임
-        return "beep"
     return "silent"
 
 
@@ -101,20 +99,22 @@ def _un_neun(word: str) -> str:
 
 def _format_dist(dist_m: float) -> str:
     """
-    거리(미터)를 상대 표현으로 변환.
+    거리(미터)를 "약 Xm 앞" 형식으로 변환 (사용자 인터뷰 Q10 반영).
 
-    왜 수치("약 1.2미터")가 아닌 상대 표현("가까이")인가?
-      카메라 단안으로 정확한 거리 측정은 불가능합니다.
-      Depth V2도 상대적 깊이 추정이라 오차가 큽니다.
-      "약 1.2미터"라고 말하면 신뢰도가 없는 수치를 마치 정확한 것처럼 전달하게 됩니다.
-      → 사용자가 판단하기 쉬운 상대 표현이 더 안전하고 정직합니다.
+    인터뷰 피드백: "약 5m 앞에 장애물이 있음 같은 대략적인 설명이 필요함"
+    → Depth V2 추정값(오차 있지만 대략적 정보)을 그대로 활용.
+    0.5m 미만은 즉각 위험이므로 "바로 코앞"으로 유지.
+    3m 미만: 0.5m 단위 반올림 / 3m 이상: 1m 단위 반올림
     """
-    dist_m = max(0.1, min(dist_m, 15.0))  # 유효 범위 클리핑
-    if dist_m < 0.5:  return "바로 코앞"    # 즉각 위험 — 0.5m 미만
-    if dist_m < 1.0:  return "매우 가까운 곳"  # 주의 필요 — 1m 미만
-    if dist_m < 2.5:  return "가까운 곳"       # 경계 — 2.5m 미만
-    if dist_m < 5.0:  return "조금 멀 곳"    # 정보성 — 5m 미만
-    return "멀리"                            # 참고용 — 5m 이상
+    dist_m = max(0.1, min(dist_m, 15.0))
+    if dist_m < 0.5:
+        return "바로 코앞"
+    if dist_m < 3.0:
+        r = round(dist_m * 2) / 2          # 0.5m 단위
+        r_str = f"{r:.1f}".rstrip("0").rstrip(".")
+        return f"약 {r_str}미터 앞"
+    r = round(dist_m)                      # 1m 단위
+    return f"약 {r}미터 앞"
 
 
 # ── 주요 물체 문장 생성 (위험도 1순위) ────────────────────────────────────────

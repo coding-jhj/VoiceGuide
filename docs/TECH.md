@@ -17,7 +17,7 @@
 [FastAPI /detect 서버]
     ↓
 [yolo11m_indoor.pt 탐지] ─────────────────── (김재현)
-    ↓ bbox + class (COCO 80 + 계단 = 81클래스, conf=0.60)
+    ↓ bbox + class (COCO 80클래스, conf=0.50 / 계단 제외 → Depth 맵으로 대체)
 [방향 판단] bbox 중심 x → 8시~4시 9구역 ──── (김재현)
     ↓
 [Depth Anything V2 GPU] ─────────────────── (문수찬)
@@ -189,9 +189,9 @@ Python 3.10, FastAPI 0.104
 **파일**: `src/vision/detect.py`
 
 #### 역할 (최종 구현)
-- yolo11m_indoor.pt로 81클래스 탐지 (COCO 80 + 계단)
+- yolo11m.pt로 80클래스 탐지 (계단 YOLO 오탐률 높아 제외 → Depth 맵 12구역으로 대체)
 - 방향 판단: 8시~4시 9구역 시계 방향
-- 위험도 스코어: 방향 × 거리 × 바닥여부(계단 포함)
+- 위험도 스코어: 방향 × 거리 × 바닥여부
 - 상위 3개 반환, 거리는 Depth V2로 정제됨
 
 #### 완성해야 할 함수
@@ -212,7 +212,7 @@ TARGET_CLASSES = {
 
 def detect_objects(image_bytes: bytes) -> list[dict]:
     """
-    yolo11m_indoor.pt로 81클래스(계단 포함) 탐지
+    yolo11m.pt로 80클래스 탐지 (계단 제외)
     Returns: [{class, class_ko, bbox, direction, distance, distance_m,
                risk_score, is_ground_level, depth_source}, ...]
     """
@@ -233,7 +233,7 @@ def detect_objects(image_bytes: bytes) -> list[dict]:
 위험도 가중치:
   방향: 12시=1.0, 11시/1시=0.9, 10시/2시=0.7, 9시/3시=0.5, 8시/4시=0.3
   거리: 매우가까이=1.0, 가까이=0.8, 보통=0.5, 멀리=0.2, 매우멀리=0.1
-  바닥장애물(계단 포함): × 1.4 보정
+  바닥장애물: × 1.4 보정
 ```
 
 ---
