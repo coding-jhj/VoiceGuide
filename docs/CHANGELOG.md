@@ -2,6 +2,45 @@
 
 ---
 
+## 2026-04-29 (강사 미팅 피드백 즉일 반영)
+
+### FPS 최적화
+- `YoloDetector.kt`: NNAPI 하드웨어 가속 추가 (DSP/NPU) → 추론 속도 향상
+- CPU 스레드 4개 병렬 처리 (`setIntraOpNumThreads(4)`)
+- 캡처 간격: 1000ms → 800ms
+
+### FPS 시각화 + 구조화 로그
+- FPS 스파크라인 그래프 추가: `2.1fps ▄▃▅▄▃▅ | 180ms` 형태로 tvMode에 표시
+- 최근 10프레임 FPS 히스토리 관리
+- 구조화 성능 로그 추가 (`tag:VG_PERF`):
+  ```
+  decode|12|infer|180|dedup|3|total|195|objs|2
+  mode|server|server_ms|243|net_ms|89|total|332
+  ```
+
+### STT 딜레이 수정 (3초 → 1초 이내)
+- 침묵 감지 시간: 1200ms → **700ms**
+- 가능한 침묵: 1000ms → **500ms**
+- WEB_SEARCH 모델 사용 (짧은 명령어 최적화)
+- 후보 3개로 키워드 매칭률 향상
+
+### TTS 소리 안나는 버그 수정
+- **원인**: 서버 URL 입력 시 ElevenLabs TTS 자동 호출 → API 키 없으면 무음
+- **수정**: `speak()` 함수가 항상 Android 내장 TTS 사용 (ElevenLabs 자동 호출 제거)
+
+### UI 전면 개선
+- 카메라 풀스크린 레이아웃 (기존: 화면 일부)
+- 하단 둥근 패널 오버레이 (bg_bottom_panel)
+- 분석 중지 시 버튼 빨간색, STT 중 마이크 빨간색 (상태 시각화)
+- 앱 아이콘: 마이크 + 음파 디자인으로 변경
+- 바운딩박스: 새 캡처 시작 시 즉시 클리어 (지연 제거)
+
+### GCP 서버 가이드
+- `docs/GCP_SERVER_SETUP.md` 추가: 강사 지정 스펙 (GPU 없음, 30GB 이하, 서울 리전, Ubuntu 22)
+- `docs/MEETING_0429_강사피드백.md` 추가: 미팅 전체 내용 기록
+
+---
+
 ## 2026-04-28 (4차 — TTS 완전 잠금 + 거리 기반 음성/비프 + 오인식 추가 수정)
 
 ### TTS 완전 겹침 차단

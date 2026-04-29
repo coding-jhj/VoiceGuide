@@ -339,7 +339,90 @@ private fun classifyKeyword(text: String): String {
 
 ---
 
-## 7. 자주 묻는 질문
+## 7. 성능 측정 및 로그 분석
+
+### FPS 모니터링 — 앱 화면에서 바로 확인
+
+앱 상단 tvMode에 실시간으로 표시됨:
+```
+[장애물] 2.1fps ▄▃▅▄▃▅ | 180ms
+          ↑FPS  ↑스파크라인  ↑추론시간
+```
+
+스파크라인(▁▂▃▄▅▆▇█): 최근 10프레임 FPS 추이를 블록 문자로 표시.
+막대가 높을수록 FPS 높음 (빠름).
+
+**FPS 기준:**
+- 10fps 이상: 정상
+- 5~10fps: 경계 — 모델 경량화 검토
+- 5fps 미만: 느림 — Depth 비활성화 또는 YOLO nano 전환 필요
+
+### 구조화 로그 — Android Studio Logcat
+
+**필터 방법:** Logcat 검색창에 `tag:VG_PERF` 또는 `tag:VG_DETECT` 입력
+
+```
+# 온디바이스 성능 로그 (tag:VG_PERF)
+VG_PERF: decode|12|infer|180|dedup|3|total|195|objs|2
+          ↑디코딩  ↑YOLO추론  ↑중복제거  ↑총합   ↑탐지수
+
+# 서버 성능 로그 (tag:VG_PERF)
+VG_PERF: mode|server|server_ms|243|net_ms|89|total|332
+
+# 탐지 결과 로그 (tag:VG_DETECT)
+VG_DETECT: [0] 의자 | conf=0.87 | cx=0.52 | area=0.143
+VG_DETECT: 생성된 문장: "바로 앞에 의자가 있어요."
+```
+
+**병목 찾는 법:**
+- `infer` 값이 크면 → YOLO 추론이 느림 (NNAPI 가속 확인)
+- `net_ms` 값이 크면 → 네트워크 문제 (WiFi/LTE 상태 확인)
+- `server_ms` 값이 크면 → 서버 처리 느림 (Depth V2 부하)
+
+### NNAPI 하드웨어 가속 (2026-04-29 추가)
+
+Android 기기에는 DSP/NPU 같은 AI 전용 하드웨어가 내장돼있어요.
+NNAPI(Android Neural Networks API)로 이 하드웨어를 활용하면 추론이 빨라져요.
+
+```kotlin
+// YoloDetector.kt
+val opts = OrtSession.SessionOptions().apply {
+    setIntraOpNumThreads(4)  // CPU 4스레드 병렬
+    addNnapi()               // 하드웨어 가속 (기기 지원 시)
+}
+```
+
+Logcat에서 `NNAPI 가속 활성화` 로그 확인 가능.
+지원 안 하는 기기면 `NNAPI 미지원 — CPU 추론`으로 fallback.
+
+### TTS — 항상 Android 내장 사용
+
+```kotlin
+// speak() 함수 — 서버 URL 있어도 항상 내장 TTS
+private fun speak(text: String) {
+    if (isListening) return   // STT 중엔 TTS 차단
+    speakBuiltIn(text)        // 항상 내장 TTS (ElevenLabs 자동호출 제거)
+}
+```
+
+**왜 바꿨냐**: 서버 URL이 있으면 ElevenLabs /tts를 자동 호출했는데,
+API 키가 없으면 서버가 JSON 에러를 반환 → MediaPlayer가 MP3로 재생 시도 → 실패 → 무음.
+내장 TTS는 항상 동작하므로 안정적.
+
+### STT 빠르게 반응하게 (2026-04-29)
+
+```kotlin
+// 말 끝나고 0.7초 후 인식 완료 (기존 1.2초)
+putExtra(EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 700L)
+putExtra(EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
+
+// 후보 3개 중 키워드 매칭되는 것 선택 → 인식률 향상
+putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+```
+
+---
+
+## 8. 자주 묻는 질문
 
 **Q. 거리가 정확해요?**
 카메라 하나로 정확한 거리 측정은 어려워요 (강사님도 지적).

@@ -9,7 +9,7 @@
 | 객체 탐지 | Ultralytics YOLO11m | 8.4.x | yolo11m.pt 사전 학습 모델 |
 | 깊이 추정 | Depth Anything V2 | vits | ✅ GPU 활성화 (depth_anything_v2_vits.pth 필요) |
 | 음성 합성 (서버) | gTTS + pygame | 2.5.3 / 2.6.1 | 무료, 한국어. Naver Clova 키 있으면 자동 전환 |
-| 음성 합성 (앱) | Android TTS (내장) + 서버 /tts | 내장 | 서버 URL 있으면 서버 TTS, 없으면 내장 TTS |
+| 음성 합성 (앱) | Android TTS (내장) | 내장 | 항상 내장 TTS 사용 (ElevenLabs 자동호출 제거 — 2026-04-29) |
 | 음성 인식 | SpeechRecognition | 3.10.4 | Google Speech API |
 | 딥러닝 | PyTorch | 2.11.0+cu128 | GPU 실행 (RTX 5060 Blackwell 지원) |
 | 이미지 처리 | OpenCV (headless) | 4.10.0.84 | 서버 환경용 |
@@ -22,10 +22,21 @@
 | Android HTTP | OkHttp | 4.12.0 | 서버 통신 |
 | 외부 터널 | ngrok / Railway / Render / GCP Cloud Run | 3.38.0+ | 다른 네트워크 연결 시 |
 | 보팅 경고 피로 방지 | VotingBuffer | — | 최근 10프레임 60%+ 탐지 시 확정 |
+| NNAPI 하드웨어 가속 | ONNX Runtime NNAPI | — | Android DSP/NPU 활용 — 기기 지원 시 자동 활성화 (2026-04-29) |
 
 ---
 
 ## 알려진 오류 및 해결법
+
+### 0. 소리가 안 나와요 (2026-04-29 수정)
+
+**증상**: 텍스트는 표시되는데 TTS 소리가 안 남
+
+**원인**: 서버 URL 입력 시 ElevenLabs /tts 자동 호출 → API 키 없으면 JSON 에러 반환 → MediaPlayer가 MP3로 재생 시도 → 실패 → 무음
+
+**수정**: `speak()` 함수가 항상 Android 내장 TTS 사용하도록 변경 (이미 적용됨)
+
+---
 
 ### 1. numpy 버전 오류
 ```

@@ -317,3 +317,47 @@ Android 앱 화면 상단에 FPS로 표시됨.
 **Q. /docs 주소가 뭔가?**
 FastAPI가 자동으로 만들어주는 API 테스트 페이지.
 브라우저에서 열면 모든 API를 직접 눌러서 테스트해볼 수 있음.
+
+---
+
+## 로그 분석 가이드 (2026-04-29 추가)
+
+강사님 피드백: **"로그가 중요, 안 되는 부분 원인을 로그로 파악해야 함"**
+
+### Android Logcat 필터
+
+Android Studio 하단 Logcat 탭에서:
+
+| 필터 | 내용 |
+|------|------|
+| `tag:VG_PERF` | 단계별 처리 시간 (ms) |
+| `tag:VG_DETECT` | 탐지 결과, 생성 문장 |
+
+### 성능 로그 형식 (tag:VG_PERF)
+
+```
+# 온디바이스 추론
+VG_PERF: decode|12|infer|180|dedup|3|total|195|objs|2
+                 ↑YOLO 추론 (핵심 병목)
+
+# 서버 응답
+VG_PERF: mode|server|server_ms|243|net_ms|89|total|332
+                             ↑서버 처리    ↑네트워크
+```
+
+### 병목 판단
+
+| 값 | 원인 | 해결 |
+|----|------|------|
+| `infer` > 500ms | NNAPI 미지원 기기 | Logcat에서 "NNAPI 가속 활성화" 확인 |
+| `server_ms` > 1000ms | Depth V2 부하 | 서버에서 Depth 비활성화 |
+| `net_ms` > 500ms | 네트워크 불안정 | WiFi 상태 확인 |
+| FPS < 5 | 전체 파이프라인 느림 | 각 단계 ms 값 비교 |
+
+### 서버 로그 (uvicorn 터미널)
+
+```bash
+# 서버 실행 시 자동 출력
+INFO:     127.0.0.1 - "POST /detect HTTP/1.1" 200 OK
+# process_ms 값을 응답 JSON에서 확인
+```
