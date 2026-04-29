@@ -404,20 +404,91 @@ handler = Mangum(app)  # Lambda 핸들러
 
 ## 방법 7 — ngrok (빠른 임시 테스트)
 
-PC에서 서버를 켜고 임시 공개 URL을 만듭니다.
+PC에서 서버를 켜고 임시 공개 URL을 만듭니다. RTX 5060 GPU 그대로 사용 가능, 설정 2분.
 
-```bash
-# 서버 실행
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+### 준비
 
-# 다른 터미널에서 (ngrok 설치 필요: https://ngrok.com)
-ngrok http 8000
+- ngrok 설치: [ngrok.com/download](https://ngrok.com/download) 다운로드 후 압축 해제
+- authtoken 등록 (1회):
+  ```
+  ngrok config add-authtoken 본인토큰
+  ```
+  ngrok.com 로그인 → Dashboard → Your Authtoken
 
-# 생성된 URL 예시: https://xxxx.ngrok-free.app
+---
+
+### 1단계: CMD 창 1 — 서버 실행
+
+```bat
+cd /d "C:\VoiceGuide\VoiceGuide"
+
+C:\Users\ghksw\anaconda3\envs\ai_env\python.exe -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-- 장점: 즉시 사용, Depth V2 GPU 가속 가능
-- 단점: PC가 켜져 있어야 함, URL이 재시작마다 바뀜
+정상 시작되면 CMD 창을 그대로 둡니다 (닫으면 서버 종료).
+
+**로컬 접속 확인:**
+```
+http://127.0.0.1:8000/health
+http://127.0.0.1:8000/docs
+```
+
+> `0.0.0.0`으로는 브라우저 접속 안 됨 — 반드시 `127.0.0.1` 사용
+
+---
+
+### 2단계: CMD 창 2 — ngrok 실행
+
+서버가 켜진 상태에서 **별도 CMD 창**을 열고:
+
+```bat
+ngrok http 8000
+```
+
+실행 후 출력 예시:
+```
+Forwarding  https://jubilant-trimmer-reggae.ngrok-free.app -> http://localhost:8000
+```
+
+이 `https://...ngrok-free.app` 주소가 **외부 접속 주소**입니다.
+
+---
+
+### 3단계: Android 앱 서버 URL 입력
+
+앱 서버 URL 입력란에:
+```
+https://jubilant-trimmer-reggae.ngrok-free.app
+```
+
+외부 접속 확인:
+```
+https://jubilant-trimmer-reggae.ngrok-free.app/health
+https://jubilant-trimmer-reggae.ngrok-free.app/docs
+```
+
+---
+
+### 빠른 점검 체크리스트
+
+- [ ] 서버 CMD 창이 열려있다 (uvicorn 실행 중)
+- [ ] ngrok CMD 창이 열려있다 (Forwarding https://... 표시)
+- [ ] 로컬 `http://127.0.0.1:8000/health` 응답함
+- [ ] 외부 `https://ngrok주소/health` 응답함
+
+---
+
+### 자주 나는 문제
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| `0.0.0.0`으로 접속 실패 | 올바른 주소 아님 | `127.0.0.1` 사용 |
+| `ERR_NGROK_334 endpoint already online` | 이미 ngrok 실행 중 | `taskkill /IM ngrok.exe /F` 후 재실행 |
+| ngrok URL이 바뀜 | 무료 플랜은 재시작 시 URL 변경 | ngrok 창의 최신 Forwarding 주소 사용 |
+| uvicorn 창 닫히면 연결 끊김 | 서버 종료됨 | 두 CMD 창 모두 열어두기 |
+
+- 장점: 즉시 사용, Depth V2 GPU 가속 가능, 설정 2분
+- 단점: PC가 켜져 있어야 함, URL이 재시작마다 바뀜 (유료 플랜 고정 가능)
 
 ---
 

@@ -55,11 +55,11 @@ class YoloDetector(context: Context) {
         }
         val bytes = context.assets.open(modelName).readBytes()
         val opts = OrtSession.SessionOptions().apply {
-            setIntraOpNumThreads(4)          // CPU 스레드 4개 병렬 추론
+            setIntraOpNumThreads(4)
             setInterOpNumThreads(2)
-            // NNAPI는 일부 기기에서 FP16 연산으로 클래스 오분류 발생
-            // → 정확도 우선으로 CPU 추론 사용
-            android.util.Log.d("VG_PERF", "CPU 추론 (4스레드) — 정확도 우선 모드")
+            // NNAPI는 FP16 연산으로 클래스 신뢰도가 0에 수렴 → 탐지 0개 오류 발생
+            // → CPU 추론 유지 (정확도 우선)
+            android.util.Log.d("VG_PERF", "CPU 4스레드 추론 — $modelName")
         }
         session = env.createSession(bytes, opts)
     }

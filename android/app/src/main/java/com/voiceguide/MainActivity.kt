@@ -257,9 +257,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         private const val PREFS_NAME       = "voiceguide"  // SharedPreferences 이름
         private const val PREF_URL         = "server_url"  // 저장된 서버 URL 키
         private const val PREF_LOCATIONS   = "saved_locations"  // 저장 장소 JSON 배열 키
-        private const val INTERVAL_MS      = 100L          // 캡처 간격: 0.1초 (10fps 목표)
+        private const val INTERVAL_MS      = 50L           // 캡처 간격: 0.05초 (20fps 목표)
         private const val SILENCE_WARN_MS  = 6000L         // 6초 무응답 시 Watchdog 경고
         private const val FAIL_WARN_COUNT  = 3             // 연속 3회 실패 시 경고
+        private const val CSV_LOG_ENABLED  = true          // 성능 CSV 로깅 (항상 활성화)
     }
 
     // ── 생명주기 ─────────────────────────────────────────────────────────
@@ -1209,30 +1210,31 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
      * 전송 크기 약 40~60% 감소 → 네트워크 지연 단축 → 체감 FPS 향상
      * YOLO 입력은 어차피 640×640으로 리사이즈되므로 품질 손실 없음
      */
-    private fun optimizeImageForUpload(file: File): File {
+    // Triple<최적화파일, 너비, 높이> 반환 — 크기를 따로 디코딩하지 않아도 됨
+    private fun optimizeImageForUpload(file: File): Triple<File, Int, Int> {
         return try {
             val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                ?: return file  // 디코딩 실패 시 원본 반환
+                ?: return Triple(file, 0, 0)
 
-            // 가로 기준 최대 640px — YOLO 입력 해상도에 맞춤
             val maxW = 640
             val scaled = if (bmp.width > maxW) {
-                val ratio  = maxW.toFloat() / bmp.width
-                val newH   = (bmp.height * ratio).toInt()
+                val ratio = maxW.toFloat() / bmp.width
+                val newH  = (bmp.height * ratio).toInt()
                 android.graphics.Bitmap.createScaledBitmap(bmp, maxW, newH, true)
                     .also { if (it != bmp) bmp.recycle() }
             } else bmp
 
+            val w = scaled.width
+            val h = scaled.height
             val out = File.createTempFile("vg_opt_", ".jpg", cacheDir)
             out.outputStream().use { stream ->
-                // JPEG 75%: 시각적 품질 충분, 파일 크기 크게 감소
                 scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, stream)
             }
             scaled.recycle()
-            file.delete()  // 원본 삭제
-            out
+            file.delete()
+            Triple(out, w, h)
         } catch (_: Exception) {
-            file  // 실패 시 원본 그대로 사용
+            Triple(file, 0, 0)
         }
     }
 
@@ -1389,17 +1391,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val reqStart = System.currentTimeMillis()
                 lastRequestTime = reqStart
 
-                // 이미지 압축 최적화: 해상도 640×480으로 리사이즈 후 JPEG 75% 품질
-                // 기존 대비 전송 크기 약 40% 감소 → 네트워크 지연 단축
-                val optimized = optimizeImageForUpload(imageFile)
-
-                // 전송 이미지 크기 기록 — 서버 응답 bbox 좌표 정규화에 사용
-                android.graphics.BitmapFactory.Options().also { opts ->
-                    opts.inJustDecodeBounds = true
-                    android.graphics.BitmapFactory.decodeFile(optimized.absolutePath, opts)
-                    sentImgW = opts.outWidth.coerceAtLeast(1)
-                    sentImgH = opts.outHeight.coerceAtLeast(1)
-                }
+                // 이미지 최적화 + 크기를 동시에 반환 (별도 디코딩 불필요)
+                val (optimized, w, h) = optimizeImageForUpload(imageFile)
+                sentImgW = w.coerceAtLeast(1)
+                sentImgH = h.coerceAtLeast(1)
 
                 val body = MultipartBody.Builder().setType(MultipartBody.FORM)
                     .addFormDataPart("image", "frame.jpg",
@@ -1469,6 +1464,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                                   "네트워크 : ${netMs}ms\n" +
                                   "전체왕복 : ${roundTripMs}ms"
                     }
+                }
+
+                // CSV 성능 로그 (CSV_LOG_ENABLED=true 시 활성화)
+                if (CSV_LOG_ENABLED) {
+                    try {
+                        val fps = currentFps
+                        val line = "${System.currentTimeMillis()},fps=$fps," +
+                            "total=${roundTripMs}ms,server=${processMs}ms,net=${netMs}ms\n"
+                        java.io.File(getExternalFilesDir(null), "vg_perf.csv").appendText(line)
+                    } catch (_: Exception) {}
                 }
 
                 handleSuccess(sentence, alertMode)

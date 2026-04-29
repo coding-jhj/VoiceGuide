@@ -128,8 +128,10 @@ async def detect(
         db.save_gps(wifi_ssid or "__default__", lat, lng)
 
     # YOLO 탐지 + Depth V2 거리 추정 + 바닥 위험 감지
-    # 내부적으로 이미지당 깊이 맵 1회만 추론해서 효율적으로 처리
+    _t_detect = _time.monotonic()
     objects, hazards, scene = detect_and_depth(image_bytes)
+    _detect_ms = int((_time.monotonic() - _t_detect) * 1000)
+    print(f"[PERF] YOLO+Depth={_detect_ms}ms | objs={len(objects)} | hazards={len(hazards)}")
 
     # EMA 추적기: 프레임 간 거리 흔들림 제거 + 접근 감지
     # wifi_ssid가 없으면 "__default__" 세션으로 처리

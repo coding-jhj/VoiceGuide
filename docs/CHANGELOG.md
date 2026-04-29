@@ -19,7 +19,7 @@
 - **수정**: 서버 응답 `objects` JSON 파싱 → `Detection`으로 변환 → `boundingBoxOverlay` 즉시 갱신. `objects` 빈 배열이면 `clearDetections()`
 - `isSending` 안전망 추가: `finally`에 `isSending.set(false)` → 예외 발생 시 데드락 방지
 
-### 분析 중지 버튼 미작동 수정
+### 분석 중지 버튼 미작동 수정
 - **원인**: `handleSuccess()`가 `isAnalyzing` 체크 없이 백그라운드 Thread 완료 후에도 TTS 호출
 - **수정**: `handleSuccess()` 첫 줄에 `if (!isAnalyzing.get()) return` 추가
 

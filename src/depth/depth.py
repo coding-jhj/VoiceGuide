@@ -9,6 +9,7 @@ Depth Anything V2를 사용해 이미지 한 장으로 거리를 추정합니다
 """
 
 import os
+import time as _time
 import torch
 import numpy as np
 
@@ -18,6 +19,12 @@ _depth_model = None
 _model_available: bool | None = None  # None = 아직 확인 안 함
 
 _MODEL_PATH = "depth_anything_v2_vits.pth"  # 프로젝트 루트에 있어야 함
+
+# ── Depth V2 프레임 스킵 (성능 최적화) ─────────────────────────────────────────
+# 매 프레임 실행 시 서버 응답 700ms+ → 3프레임에 1번만 실행해서 300ms 이내 목표
+_depth_frame_counter: int = 0
+_last_depth_map: "np.ndarray | None" = None
+_DEPTH_RUN_EVERY: int = 3
 
 # ── 캘리브레이션 파라미터 ────────────────────────────────────────────────────
 # Depth V2의 출력은 "상대적 깊이"라 직접 미터가 아님
@@ -167,27 +174,36 @@ def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict], dict]:
     nparr    = np.frombuffer(image_bytes, np.uint8)
     image_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
+    global _depth_frame_counter, _last_depth_map
+
+    _t_yolo = _time.monotonic()
     objects, scene = detect_objects(image_bytes)  # YOLO + scene 분석
+    _yolo_ms = int((_time.monotonic() - _t_yolo) * 1000)
     hazards: list[dict] = []
 
     if _check_model():
-        depth_map = _infer_depth_map(image_np)
+        _depth_frame_counter += 1
+        # 3프레임마다 1번만 Depth V2 실행 — 나머지는 직전 결과 재사용
+        if _depth_frame_counter % _DEPTH_RUN_EVERY == 1 or _last_depth_map is None:
+            _t_depth = _time.monotonic()
+            fresh = _infer_depth_map(image_np)
+            _depth_ms = int((_time.monotonic() - _t_depth) * 1000)
+            print(f"[PERF] YOLO={_yolo_ms}ms | Depth={_depth_ms}ms (frame#{_depth_frame_counter})")
+            if fresh is not None:
+                _last_depth_map = fresh
+        depth_map = _last_depth_map
         if depth_map is not None:
-            # Depth V2 사용 가능 → bbox 기반 거리를 더 정확한 값으로 교체
             for obj in objects:
                 x1, y1, x2, y2 = obj["bbox"]
                 dm = _bbox_dist_m(depth_map, x1, y1, x2, y2)
                 obj["distance_m"]   = dm
                 obj["distance"]     = _label(dm)
-                obj["depth_source"] = "v2"  # 거리 추정 방식 기록
-            # YOLO가 못 잡는 계단·낙차를 Depth 맵으로 보완
+                obj["depth_source"] = "v2"
             hazards = detect_floor_hazards(depth_map)
         else:
-            # 추론 실패 → bbox fallback 유지
             for obj in objects:
                 obj["depth_source"] = "bbox"
     else:
-        # 모델 파일 없음 → bbox fallback 유지
         for obj in objects:
             obj["depth_source"] = "bbox"
 
