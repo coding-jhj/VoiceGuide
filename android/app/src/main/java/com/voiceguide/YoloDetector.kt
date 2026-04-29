@@ -54,8 +54,17 @@ class YoloDetector(context: Context) {
             "yolo11n.onnx"  // n 모델: 더 빠름 (5.4MB), 오탐 많음
         }
         val bytes = context.assets.open(modelName).readBytes()
-        // SessionOptions: 쓰레드 수, 가속기(GPU/NNAPI) 설정 가능
-        session = env.createSession(bytes, OrtSession.SessionOptions())
+        val opts = OrtSession.SessionOptions().apply {
+            setIntraOpNumThreads(4)          // CPU 스레드 4개 병렬 추론
+            setInterOpNumThreads(2)
+            try {
+                addNnapi()                   // Android NNAPI 하드웨어 가속 (DSP/NPU)
+                android.util.Log.d("VG_PERF", "NNAPI 가속 활성화")
+            } catch (_: Exception) {
+                android.util.Log.d("VG_PERF", "NNAPI 미지원 — CPU 추론")
+            }
+        }
+        session = env.createSession(bytes, opts)
     }
 
     fun detect(bitmap: Bitmap): List<Detection> {

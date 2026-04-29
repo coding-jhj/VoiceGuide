@@ -171,6 +171,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var lastFpsText = ""      // 마지막 FPS 텍스트 — STT 중에도 유지
     private var lastFrameDoneTime = 0L  // FPS 계산용 — 직전 프레임 완료 시각
     private var currentFps = 0.0f      // 최근 계산된 FPS
+    // FPS 스파크라인 그래프 (최근 10프레임)
+    private val fpsHistory = ArrayDeque<Float>(10)
+    private val SPARK = arrayOf("▁","▂","▃","▄","▅","▆","▇","█")
 
     // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
     // connectTimeout: 서버 연결 최대 대기 5초
@@ -463,8 +466,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)   // 말하는 중간에도 결과 수신
             // 침묵 감지 시간 단축 → 명령어 말한 뒤 빠르게 인식 완료
             putExtra("android.speech.extra.DICTATION_MODE", false)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1200L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 800L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 700L)   // 말 끝 후 0.7초 → 인식 완료
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
         }
         // FPS 정보 유지하면서 듣는 중 표시
         tvMode.text = "🎤 [$currentMode] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
@@ -1232,18 +1235,31 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             val t0 = System.currentTimeMillis()
             var bmp: android.graphics.Bitmap? = null
             try {
-                // EXIF 회전 정보를 반영해 바른 방향의 비트맵으로 디코딩
+                val tDecode = System.currentTimeMillis()
                 bmp = decodeBitmapUpright(imageFile)
+                val decodeMs = System.currentTimeMillis() - tDecode
+
                 val imgW = bmp.width
                 val imgH = bmp.height
 
+                val tInfer = System.currentTimeMillis()
                 val rawDetections = yoloDetector!!.detect(bmp)
-                // 투표 필터 → 같은 클래스 중복 bbox 제거(IoU 기반) 순서로 처리
-                val voted         = removeDuplicates(voteOnly(rawDetections))
-                val inferMs = System.currentTimeMillis() - t0
+                val inferMs = System.currentTimeMillis() - tInfer
+
+                val tDedup = System.currentTimeMillis()
+                val voted = removeDuplicates(voteOnly(rawDetections))
+                val dedupMs = System.currentTimeMillis() - tDedup
+
+                val totalMs = System.currentTimeMillis() - t0
+
+                // 구조화 성능 로그 — Logcat에서 tag:VG_PERF 로 필터
+                android.util.Log.d("VG_PERF",
+                    "decode|$decodeMs|infer|$inferMs|dedup|$dedupMs|total|$totalMs|objs|${voted.size}")
+
                 runOnUiThread {
                     val fps = calcFps()
-                    lastFpsText = "${fps}fps | 온디바이스:${inferMs}ms"
+                    val spark = buildSparkline()
+                    lastFpsText = "${fps}fps $spark | ${inferMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
                 }
 
@@ -1370,10 +1386,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 checkWaitingBus(json)   // 버스 대기 모드 자동 감지
 
                 // FPS + 처리시간 UI 업데이트
+                val netMs = if (processMs > 0) roundTripMs - processMs else roundTripMs
+                android.util.Log.d("VG_PERF",
+                    "mode|server|server_ms|$processMs|net_ms|$netMs|total|$roundTripMs")
                 runOnUiThread {
-                    val netMs = if (processMs > 0) roundTripMs - processMs else roundTripMs
                     val fps   = calcFps()
-                    lastFpsText = "${fps}fps | 서버:${processMs}ms 네트:${netMs}ms"
+                    val spark = buildSparkline()
+                    lastFpsText = "${fps}fps $spark | 서버:${processMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
                 }
 
@@ -1563,7 +1582,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         if (etServerUrl.text.toString().trim().isNotEmpty()) isElevenLabsSpeaking
         else ttsBusy.get()
 
-    /** 직전 프레임과의 시간 간격으로 FPS 계산. 소수점 1자리 반올림. */
+    /** 직전 프레임과의 시간 간격으로 FPS 계산 + 스파크라인 업데이트 */
     private fun calcFps(): String {
         val now = System.currentTimeMillis()
         val fps = if (lastFrameDoneTime > 0L && now > lastFrameDoneTime) {
@@ -1571,8 +1590,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         } else 0.0f
         lastFrameDoneTime = now
         currentFps = fps
-        return if (fps >= 10f) "%.0f".format(fps)
-               else            "%.1f".format(fps)
+
+        // 최근 10프레임 FPS 기록
+        if (fpsHistory.size >= 10) fpsHistory.removeFirst()
+        fpsHistory.addLast(fps)
+
+        val fpsStr = if (fps >= 10f) "%.0f".format(fps) else "%.1f".format(fps)
+        return fpsStr
+    }
+
+    /** FPS 히스토리를 Unicode 블록 문자 스파크라인으로 변환 */
+    private fun buildSparkline(): String {
+        if (fpsHistory.isEmpty()) return ""
+        val maxFps = fpsHistory.max().coerceAtLeast(1f)
+        return fpsHistory.joinToString("") { fps ->
+            val idx = ((fps / maxFps) * 7).toInt().coerceIn(0, 7)
+            SPARK[idx]
+        }
     }
 
     override fun onInit(status: Int) {
