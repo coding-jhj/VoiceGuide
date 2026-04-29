@@ -1,16 +1,17 @@
+import os
 import time
 import gradio as gr
 import cv2
 import numpy as np
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import build_sentence, build_hazard_sentence
-from src.voice.tts import speak
+from src.voice.tts import speak, _cache_path, _generate
 from src.nlg.templates import CLOCK_TO_DIRECTION
 
 
 def process_image(image, mode: str = "장애물"):
     if image is None:
-        return None, "이미지를 업로드해주세요."
+        return None, "이미지를 업로드해주세요.", None
 
     t0 = time.time()
     img_np = np.array(image)
@@ -44,7 +45,13 @@ def process_image(image, mode: str = "장애물"):
         sentence = sentence + " " + " ".join(extras)
 
     elapsed_ms = (time.time() - t0) * 1000
-    speak(sentence)
+    speak(sentence)  # 로컬 실행 시 서버 머신 스피커로 재생
+
+    # 브라우저 재생용 MP3 생성
+    audio_path = _cache_path(sentence)
+    if not os.path.exists(audio_path):
+        _generate(sentence, audio_path)
+    audio_out = audio_path if os.path.exists(audio_path) else None
 
     # 바운딩 박스 시각화
     annotated = img_np.copy()
@@ -88,7 +95,7 @@ def process_image(image, mode: str = "장애물"):
     else:
         lines.append("탐지된 장애물 없음")
 
-    return annotated, "\n".join(lines)
+    return annotated, "\n".join(lines), audio_out
 
 
 demo = gr.Interface(
@@ -104,6 +111,7 @@ demo = gr.Interface(
     outputs=[
         gr.Image(label="탐지 결과 (YOLO + 바닥 위험)"),
         gr.Textbox(label="음성 안내 / 상세 정보", lines=14),
+        gr.Audio(label="음성 안내 듣기", autoplay=True),
     ],
     title="VoiceGuide — 시각장애인 실내 보행 음성 안내 시스템",
     description=(

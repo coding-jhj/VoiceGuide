@@ -1546,7 +1546,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             try { speechRecognizer.cancel() } catch (_: Exception) {}
             isListening = false
         }
-        speakBuiltIn(text)
+        val serverUrl = etServerUrl.text.toString().trim()
+        if (serverUrl.isNotEmpty()) {
+            speakElevenLabs(text, serverUrl)
+        } else {
+            speakBuiltIn(text)
+        }
     }
 
     private fun speakBuiltIn(text: String, immediate: Boolean = false) {

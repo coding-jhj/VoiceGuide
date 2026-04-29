@@ -291,17 +291,17 @@ def _extract_find_target(text: str) -> str:
 
 @router.post("/tts")
 async def tts_endpoint(text: str = Form("")):
-    """ElevenLabs TTS — 텍스트를 음성 파일로 변환해 Android 앱에 반환."""
-    from src.voice.tts import _cache_path, _generate, _api_key
+    """ElevenLabs / gTTS — 텍스트를 음성 파일(MP3)로 변환해 Android 앱에 반환.
+    API 키 없으면 gTTS로 자동 폴백."""
+    from src.voice.tts import _cache_path, _generate
+    from fastapi.responses import JSONResponse
     import os
     if not text:
-        return {"error": "text is empty"}
-    if not _api_key:
-        return {"error": "ELEVENLABS_API_KEY not set"}
+        return JSONResponse({"error": "text is empty"}, status_code=400)
     path = _cache_path(text)
     if not os.path.exists(path):
         if not _generate(text, path):
-            return {"error": "TTS generation failed"}
+            return JSONResponse({"error": "TTS generation failed"}, status_code=500)
     return FileResponse(path, media_type="audio/mpeg")
 
 
