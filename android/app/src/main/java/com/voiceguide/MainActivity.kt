@@ -171,6 +171,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var lastFpsText = ""      // 마지막 FPS 텍스트 — STT 중에도 유지
     private var lastFrameDoneTime = 0L  // FPS 계산용 — 직전 프레임 완료 시각
     private var currentFps = 0.0f      // 최근 계산된 FPS
+    private var debugVisible = false   // 디버그 오버레이 표시 여부
 
     // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
     // connectTimeout: 서버 연결 최대 대기 5초
@@ -273,6 +274,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         btnStt      = findViewById(R.id.btnStt)
         previewView         = findViewById(R.id.previewView)
         boundingBoxOverlay  = findViewById(R.id.boundingBoxOverlay)
+
+        // 디버그 오버레이 — tvMode 길게 누르면 토글
+        val tvDebug = findViewById<android.widget.TextView>(R.id.tvDebug)
+        tvMode.setOnLongClickListener {
+            debugVisible = !debugVisible
+            tvDebug.visibility = if (debugVisible) android.view.View.VISIBLE else android.view.View.GONE
+            true
+        }
 
         // 저장된 서버 URL 복원 (없어도 무관)
         etServerUrl.setText(
@@ -1234,17 +1243,35 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             try {
                 // EXIF 회전 정보를 반영해 바른 방향의 비트맵으로 디코딩
                 bmp = decodeBitmapUpright(imageFile)
+                val t1 = System.currentTimeMillis()   // 디코딩 완료
                 val imgW = bmp.width
                 val imgH = bmp.height
 
                 val rawDetections = yoloDetector!!.detect(bmp)
+                val t2 = System.currentTimeMillis()   // YOLO 추론 완료
+
                 // 투표 필터 → 같은 클래스 중복 bbox 제거(IoU 기반) 순서로 처리
                 val voted         = removeDuplicates(voteOnly(rawDetections))
-                val inferMs = System.currentTimeMillis() - t0
+                val t3 = System.currentTimeMillis()   // 후처리 완료
+
+                val decodeMs = t1 - t0
+                val yoloMs   = t2 - t1
+                val postMs   = t3 - t2
+                val totalMs  = t3 - t0
+
                 runOnUiThread {
                     val fps = calcFps()
-                    lastFpsText = "${fps}fps | 온디바이스:${inferMs}ms"
+                    lastFpsText = "${fps}fps | 온디바이스:${totalMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
+                    if (debugVisible) {
+                        val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
+                        tv.text = "FPS    : ${fps}\n" +
+                                  "디코딩 : ${decodeMs}ms\n" +
+                                  "YOLO   : ${yoloMs}ms\n" +
+                                  "후처리 : ${postMs}ms\n" +
+                                  "전체   : ${totalMs}ms\n" +
+                                  "탐지수 : raw=${rawDetections.size} → ${voted.size}"
+                    }
                 }
 
                 bmp.recycle(); bmp = null
@@ -1375,6 +1402,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     val fps   = calcFps()
                     lastFpsText = "${fps}fps | 서버:${processMs}ms 네트:${netMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
+                    if (debugVisible) {
+                        val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
+                        tv.text = "FPS      : ${fps}\n" +
+                                  "서버처리 : ${if (processMs > 0) "${processMs}ms" else "-"}\n" +
+                                  "네트워크 : ${netMs}ms\n" +
+                                  "전체왕복 : ${roundTripMs}ms"
+                    }
                 }
 
                 handleSuccess(sentence, alertMode)

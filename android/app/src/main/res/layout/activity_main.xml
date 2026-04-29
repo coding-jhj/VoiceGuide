@@ -16,6 +16,23 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- ── 디버그 오버레이: 추론 속도 / FPS ── -->
+    <TextView
+        android:id="@+id/tvDebug"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="72dp"
+        android:layout_marginEnd="12dp"
+        android:padding="7dp"
+        android:text=""
+        android:textSize="11sp"
+        android:textColor="#FFFFFFFF"
+        android:fontFamily="monospace"
+        android:lineSpacingMultiplier="1.5"
+        android:background="#BB000000"
+        android:visibility="gone" />
+
     <!-- ── 하단 그라데이션 페이드 ── -->
     <View
         android:layout_width="match_parent"
