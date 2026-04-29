@@ -1511,12 +1511,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun speak(text: String) {
         if (isListening) return  // STT 중엔 TTS 차단 (마이크 간섭 방지)
-        val serverUrl = etServerUrl.text.toString().trim()
-        if (serverUrl.isNotEmpty()) {
-            speakElevenLabs(text, serverUrl)
-        } else {
-            speakBuiltIn(text)
-        }
+        // 서버 URL은 /detect 전용 — TTS는 항상 Android 내장 TTS 사용
+        // (ElevenLabs는 API 키 없으면 소리 안 남)
+        speakBuiltIn(text)
     }
 
     private fun speakBuiltIn(text: String, immediate: Boolean = false) {
