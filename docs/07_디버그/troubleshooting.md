@@ -411,6 +411,86 @@ pip install "torch>=2.6.0" torchvision torchaudio --index-url https://download.p
 
 ---
 
+### 34. 분석 중지 버튼 눌러도 계속 분석함 (2026-04-29 수정)
+
+**원인**: `handleSuccess()`가 `isAnalyzing` 체크 없이 실행 → 중지 후에도 백그라운드 Thread 완료 시 TTS 발화, UI 업데이트 계속됨
+
+**해결**: `handleSuccess()` 첫 줄에 `if (!isAnalyzing.get()) return` 추가 (`MainActivity.kt`)
+
+---
+
+### 35. 처음에 장애물 감지가 느리고, 새 물체 전환도 느림 (2026-04-29 수정)
+
+**원인 1**: `startAnalysis()` 재시작 시 `detectionHistory` 미초기화 → 이전 세션 투표 버퍼 잔존 → 첫 감지가 느림
+
+**원인 2**: `VOTE_MIN_COUNT = 2` → 물체가 2프레임 연속 감지돼야 통과 (ONNX 400ms × 2 = 800ms 지연)
+
+**해결**:
+- `startAnalysis()`에 `detectionHistory.clear()` 추가
+- `VOTE_MIN_COUNT` 2 → 1로 변경 (첫 프레임부터 즉시 통과)
+
+---
+
+### 36. 서버 `/tts` 엔드포인트가 소리 대신 JSON 에러 반환 (2026-04-29 수정)
+
+**증상**: ElevenLabs API 키 없을 때 `/tts` 엔드포인트가 `{"error": "ELEVENLABS_API_KEY not set"}`을 HTTP **200**으로 반환
+
+**문제**: Android가 HTTP 200을 성공으로 보고 JSON 내용을 `.mp3`로 저장 → MediaPlayer가 JSON을 MP3로 재생 시도 → 예외 → 무음
+
+**해결**: API 키 체크 제거, `_generate()` 내부 gTTS 폴백 활용. 진짜 실패 시 HTTP 400/500 반환 (`routes.py`)
+
+---
+
+### 37. 바운딩박스가 물체 없어진 뒤에도 유지됨 (2026-04-29 수정)
+
+**원인**: `sendToServer()` 서버 응답의 `objects` 배열을 완전히 무시 → 온디바이스(`processOnDevice`)와 달리 박스 갱신 코드 없음
+
+**해결**: 서버 응답 `objects` JSON 파싱 → `Detection`(정규화 좌표) 변환 → `boundingBoxOverlay` 즉시 갱신. 빈 배열이면 `clearDetections()` 호출
+
+---
+
+### 38. `isSending` 영구 `true` → 프레임 완전 멈춤
+
+**원인**: `sendToServer()` 예외 경로에서 `handleFail()` 호출 전 예외 발생 시 `isSending`이 `true`로 고착 → `captureAndProcess()` 매번 스킵 → 0fps 현상
+
+**해결**: `sendToServer()` `finally` 블록에 `isSending.set(false)` 추가 (안전망)
+
+---
+
+## FPS 실용 기준선
+
+> 시각장애인 보행 보조 앱의 최소 요구 성능
+
+| 등급 | FPS | 추론 시간 | 평가 |
+|------|-----|---------|------|
+| 위험 (걷기 부적합) | < 3fps | > 400ms | 실사용 불가 |
+| 경계선 | 3~5fps | 200~400ms | 주의 필요 |
+| 실용 최소선 ✓ | 5fps | ~200ms | 실내 천천히 보행 가능 |
+| 쾌적 ✓✓ | 10fps | ~100ms | 실외 보행 가능 |
+| 이상적 ✓✓✓ | 15fps | ~67ms | 자신감 있는 보행 |
+
+### 현재 VoiceGuide 예상 성능
+
+| 환경 | 예상 FPS | 평가 |
+|------|---------|------|
+| YOLO11n + NNAPI | 8~15fps | 쾌적 |
+| YOLO11n + CPU만 | 3~6fps | 실용 최소선 |
+| YOLO11m + NNAPI | 4~8fps | 실용권 |
+| YOLO11m + CPU만 | 1~3fps | 위험 영역 |
+| 서버 모드 (로컬 WiFi) | 3~6fps | 실용권 |
+| 서버 모드 (클라우드) | 1~3fps | 보행엔 부적합 |
+
+### tvDebug 화면에서 판단하는 법
+
+```
+FPS  : ① 5 이상인지 확인
+YOLO : ② 200ms 이하인지 확인
+전체 : ③ 300ms 이하인지 확인  ← 가장 중요
+탐지수: raw=N → M  (필터 후 줄어드는 게 정상)
+```
+
+---
+
 ## 현재 알려진 제한사항
 
 | 항목 | 상태 | 내용 |
