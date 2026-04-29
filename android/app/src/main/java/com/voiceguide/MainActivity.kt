@@ -430,7 +430,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             override fun onRmsChanged(v: Float)         {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech()                {}
-            override fun onPartialResults(p: Bundle?)   {}
             override fun onEvent(t: Int, p: Bundle?)    {}
         })
     }
