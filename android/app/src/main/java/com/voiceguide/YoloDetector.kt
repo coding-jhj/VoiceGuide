@@ -57,12 +57,9 @@ class YoloDetector(context: Context) {
         val opts = OrtSession.SessionOptions().apply {
             setIntraOpNumThreads(4)          // CPU 스레드 4개 병렬 추론
             setInterOpNumThreads(2)
-            try {
-                addNnapi()                   // Android NNAPI 하드웨어 가속 (DSP/NPU)
-                android.util.Log.d("VG_PERF", "NNAPI 가속 활성화")
-            } catch (_: Exception) {
-                android.util.Log.d("VG_PERF", "NNAPI 미지원 — CPU 추론")
-            }
+            // NNAPI는 일부 기기에서 FP16 연산으로 클래스 오분류 발생
+            // → 정확도 우선으로 CPU 추론 사용
+            android.util.Log.d("VG_PERF", "CPU 추론 (4스레드) — 정확도 우선 모드")
         }
         session = env.createSession(bytes, opts)
     }

@@ -1230,8 +1230,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     private fun processOnDevice(imageFile: File) {
         Thread {
-            // 새 분석 시작 시 이전 바운딩박스 즉시 제거
-            runOnUiThread { boundingBoxOverlay.clearDetections() }
             val t0 = System.currentTimeMillis()
             var bmp: android.graphics.Bitmap? = null
             try {
@@ -1279,7 +1277,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     Log.d("VG_DETECT", "  [$i] ${d.classKo} | conf=${String.format("%.2f", d.confidence)} | cx=${String.format("%.2f", d.cx)} | w=${String.format("%.2f", d.w)} h=${String.format("%.2f", d.h)} | area=${String.format("%.3f", d.w * d.h)}")
                 }
 
-                runOnUiThread { boundingBoxOverlay.setDetections(voted, imgW, imgH) }
+                runOnUiThread {
+                    if (voted.isEmpty()) {
+                        boundingBoxOverlay.clearDetections()  // 탐지 없을 때만 박스 제거
+                    } else {
+                        boundingBoxOverlay.setDetections(voted, imgW, imgH)
+                    }
+                }
 
                 if (voted.isEmpty()) {
                     Log.d("VG_DETECT", "→ 장애물 없음")
