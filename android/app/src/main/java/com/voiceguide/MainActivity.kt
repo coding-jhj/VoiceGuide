@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     // → 순간 오탐(인형·노트북 등)이 단발로 잡혀도 TTS 안내 안 됨
     private val detectionHistory = ArrayDeque<Set<String>>()
     private val VOTE_WINDOW    = 3
-    private val VOTE_MIN_COUNT = 2
+    private val VOTE_MIN_COUNT = 1
     private val ALWAYS_PASS    = setOf("자동차","오토바이","버스","트럭","기차","자전거",
                                        "칼","가위","개","말","곰","코끼리")
 
@@ -1053,7 +1053,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private fun startAnalysis() {
         isAnalyzing.set(true)
         autoListenEnabled = true
-        SentenceBuilder.clearStableClocks()  // 재시작 시 방향 캐시 초기화
+        SentenceBuilder.clearStableClocks()
+        detectionHistory.clear()  // 재시작 시 이전 투표 버퍼 초기화
         lastSentence = ""
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
@@ -1472,6 +1473,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
         isSending.set(false)
+        if (!isAnalyzing.get()) return  // 분석 중지 후 in-flight 요청 결과 무시
 
         // 질문 응답 직후 periodic TTS 억제 — critical은 항상 통과
         val effectiveMode = if (alertMode != "critical" &&
