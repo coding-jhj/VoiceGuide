@@ -72,37 +72,9 @@ def detect_floor_hazards(depth_map: np.ndarray) -> list[dict]:
 
     hazards: list[dict] = []
 
-    # ── 인접 밴드 간 깊이 변화율 분석 ────────────────────────────────────
-    for i in range(len(band_depths) - 1):
-        d_cur  = band_depths[i]       # i번 밴드의 깊이 (발에 가까운 쪽)
-        d_next = band_depths[i + 1]   # i+1번 밴드의 깊이 (조금 더 먼 쪽)
-        delta  = d_next - d_cur       # 양수 = 멀어짐(낙차), 음수 = 가까워짐(턱)
-
-        # ── 낙차 / 계단 하강 감지 ─────────────────────────────────────
-        # delta > _DROP_THRESH: 바닥이 갑자기 1.2m 이상 멀어짐 → 낙차
-        # d_cur < _MAX_WARN_DIST: 너무 먼 곳의 낙차는 경고 불필요
-        if delta > _DROP_THRESH and d_cur < _MAX_WARN_DIST:
-            # risk: delta가 클수록, 가까울수록 위험도 증가
-            risk = min(1.0, delta / 3.0) * (1 - d_cur / _MAX_WARN_DIST)
-            hazards.append({
-                "type":       "drop",
-                "distance_m": round(d_cur, 1),
-                "message":    f"조심! {round(d_cur, 1)}m 앞에 계단이나 낙차가 있어요. 멈추세요.",
-                "risk":       round(risk, 2),
-            })
-            break  # 가장 가까운 위험 1개만 보고 (여러 개 경고는 혼란)
-
-        # ── 계단 상승 / 턱 감지 ──────────────────────────────────────
-        # delta < -_STEP_THRESH: 바닥이 갑자기 1.0m 이상 가까워짐 → 턱/계단
-        if delta < -_STEP_THRESH and d_next < _MAX_WARN_DIST:
-            risk = min(1.0, abs(delta) / 2.0) * (1 - d_next / _MAX_WARN_DIST)
-            hazards.append({
-                "type":       "step",
-                "distance_m": round(d_next, 1),
-                "message":    f"발 앞에 턱이나 계단이 있어요. 약 {round(d_next, 1)}m.",
-                "risk":       round(risk, 2),
-            })
-            break
+    # ── 계단/낙차/턱 감지 제거 (강사님 피드백 — 실내 오탐률 높음) ──────────
+    # 키보드·책상 등 실내 환경에서 Depth 불연속으로 오탐 빈번
+    # → drop/step 감지 완전 제거, uneven/narrow만 유지
 
     # ── 울퉁불퉁한 길 감지 (낙차·턱 없을 때만) ──────────────────────────
     # 계단처럼 급격한 변화는 없지만 바닥 깊이가 전체적으로 들쭉날쭉한 경우
