@@ -256,7 +256,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         private const val PREFS_NAME       = "voiceguide"  // SharedPreferences 이름
         private const val PREF_URL         = "server_url"  // 저장된 서버 URL 키
         private const val PREF_LOCATIONS   = "saved_locations"  // 저장 장소 JSON 배열 키
-        private const val INTERVAL_MS      = 800L          // 캡처 간격: 0.8초 (빠른 응답)
+        private const val INTERVAL_MS      = 100L          // 캡처 간격: 0.1초 (10fps 목표)
         private const val SILENCE_WARN_MS  = 6000L         // 6초 무응답 시 Watchdog 경고
         private const val FAIL_WARN_COUNT  = 3             // 연속 3회 실패 시 경고
     }
@@ -1095,8 +1095,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         handler.postDelayed({
             if (isAnalyzing.get()) {
                 checkRevisit()
-                captureAndProcess()
-                scheduleNext()
+                captureAndProcess()  // isSending 플래그로 중복 방지
+                scheduleNext()       // 100ms 후 다시 시도 (실제 FPS = 추론시간에 의해 결정)
             }
         }, INTERVAL_MS)
     }
@@ -1255,6 +1255,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 // 구조화 성능 로그 — Logcat에서 tag:VG_PERF 로 필터
                 android.util.Log.d("VG_PERF",
                     "decode|$decodeMs|infer|$inferMs|dedup|$dedupMs|total|$totalMs|objs|${voted.size}")
+
+                // FPS < 10 이면 경고 로그
+                val estimatedFps = if (totalMs > 0) 1000f / totalMs else 0f
+                if (estimatedFps < 10f) {
+                    android.util.Log.w("VG_PERF",
+                        "⚠ FPS 미달: ${String.format("%.1f", estimatedFps)}fps (${totalMs}ms) — 모델 경량화 필요")
+                }
 
                 runOnUiThread {
                     val fps = calcFps()
@@ -1529,9 +1536,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     } catch (_: Exception) { "" }
 
     private fun speak(text: String) {
-        if (isListening) return  // STT 중엔 TTS 차단 (마이크 간섭 방지)
-        // 서버 URL은 /detect 전용 — TTS는 항상 Android 내장 TTS 사용
-        // (ElevenLabs는 API 키 없으면 소리 안 남)
+        // STT 중이면 먼저 취소하고 TTS 재생
+        // cancel()은 onResults/onError 없이 즉시 중단 → echo 방지하면서 TTS 재생 가능
+        if (isListening) {
+            try { speechRecognizer.cancel() } catch (_: Exception) {}
+            isListening = false
+        }
         speakBuiltIn(text)
     }
 
