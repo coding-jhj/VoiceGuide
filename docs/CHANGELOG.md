@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-29 (디버깅 세션 — TTS·바운딩박스·분석중지 전면 수정)
+
+### TTS 무음 버그 3개 수정
+- **Bug 1 — `/tts` 엔드포인트 HTTP 200 에러**: ElevenLabs 키 없을 때 `{"error":...}` JSON을 HTTP 200으로 반환 → Android가 성공으로 착각 → JSON을 MP3로 저장 → MediaPlayer 실패 → 무음. 수정: API 키 체크 제거, gTTS 폴백 사용, 실패 시 400/500 반환
+- **Bug 2 — `speak()` ElevenLabs 라우팅 누락**: 서버 URL 입력 시 `speakElevenLabs()` 분기가 없어서 항상 `speakBuiltIn()` 호출. `isSpeaking()`은 `isElevenLabsSpeaking`을 체크하는데 실제로는 `ttsBusy`가 쌓여 문장이 조용히 버려짐. 수정: `isSpeaking() = ttsBusy || isElevenLabsSpeaking`으로 통합
+- **Bug 3 — Gradio 데모 브라우저 무음**: `speak()`가 서버 머신 스피커로만 재생 → 브라우저 사용자 못 들음. 수정: `gr.Audio(autoplay=True)` 출력 추가, MP3 경로 반환
+
+### 서버 첫 요청 느림 + "분석 실패" 반복 수정
+- **원인**: 서버 시작 시 Depth V2 모델 미로드 → 첫 `/detect` 요청에서 모델 로딩(10~30초) → Android 8초 timeout 초과 → 연속 실패
+- **수정**: `src/api/main.py` lifespan에 `_load_model()` 워밍업 추가 (YOLO 워밍업에 이어 Depth V2도 서버 시작 시 로드)
+- Android `connectTimeout` 5s→10s, `readTimeout` 8s→20s
+
+### 바운딩박스 물체 사라져도 유지되는 버그 수정
+- **원인**: `sendToServer()` 서버 응답의 `objects` 배열을 무시 → 박스 갱신 코드 없음
+- **수정**: 서버 응답 `objects` JSON 파싱 → `Detection`으로 변환 → `boundingBoxOverlay` 즉시 갱신. `objects` 빈 배열이면 `clearDetections()`
+- `isSending` 안전망 추가: `finally`에 `isSending.set(false)` → 예외 발생 시 데드락 방지
+
+### 분析 중지 버튼 미작동 수정
+- **원인**: `handleSuccess()`가 `isAnalyzing` 체크 없이 백그라운드 Thread 완료 후에도 TTS 호출
+- **수정**: `handleSuccess()` 첫 줄에 `if (!isAnalyzing.get()) return` 추가
+
+### 첫 감지 느림 + 새 물체 전환 느림 수정
+- **원인 1**: `startAnalysis()` 재시작 시 `detectionHistory` 미초기화 → 이전 세션 투표 버퍼 잔존
+- **원인 2**: `VOTE_MIN_COUNT = 2` → 물체가 2프레임 연속 감지돼야 안내 (400~800ms 지연)
+- **수정**: `detectionHistory.clear()` 추가, `VOTE_MIN_COUNT` 2→1 (첫 프레임 즉시 통과)
+
+---
+
 ## 2026-04-29 (강사 미팅 피드백 즉일 반영)
 
 ### FPS 최적화 (10fps 목표)
