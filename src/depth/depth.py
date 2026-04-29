@@ -9,6 +9,7 @@ Depth Anything V2를 사용해 이미지 한 장으로 거리를 추정합니다
 """
 
 import os
+import time as _time
 import torch
 import numpy as np
 
@@ -174,14 +175,20 @@ def detect_and_depth(image_bytes: bytes) -> tuple[list[dict], list[dict], dict]:
     image_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     global _depth_frame_counter, _last_depth_map
+
+    _t_yolo = _time.monotonic()
     objects, scene = detect_objects(image_bytes)  # YOLO + scene 분석
+    _yolo_ms = int((_time.monotonic() - _t_yolo) * 1000)
     hazards: list[dict] = []
 
     if _check_model():
         _depth_frame_counter += 1
         # 3프레임마다 1번만 Depth V2 실행 — 나머지는 직전 결과 재사용
         if _depth_frame_counter % _DEPTH_RUN_EVERY == 1 or _last_depth_map is None:
+            _t_depth = _time.monotonic()
             fresh = _infer_depth_map(image_np)
+            _depth_ms = int((_time.monotonic() - _t_depth) * 1000)
+            print(f"[PERF] YOLO={_yolo_ms}ms | Depth={_depth_ms}ms (frame#{_depth_frame_counter})")
             if fresh is not None:
                 _last_depth_map = fresh
         depth_map = _last_depth_map

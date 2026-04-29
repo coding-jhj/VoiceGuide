@@ -259,6 +259,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         private const val INTERVAL_MS      = 50L           // 캡처 간격: 0.05초 (20fps 목표)
         private const val SILENCE_WARN_MS  = 6000L         // 6초 무응답 시 Watchdog 경고
         private const val FAIL_WARN_COUNT  = 3             // 연속 3회 실패 시 경고
+        private const val CSV_LOG_ENABLED  = false         // 성능 CSV 로깅 (분석 후 false로)
     }
 
     // ── 생명주기 ─────────────────────────────────────────────────────────
@@ -1437,6 +1438,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     val spark = buildSparkline()
                     lastFpsText = "${fps}fps $spark | 서버:${processMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
+                }
+
+                // CSV 성능 로그 (CSV_LOG_ENABLED=true 시 활성화)
+                if (CSV_LOG_ENABLED) {
+                    try {
+                        val fps = currentFps
+                        val line = "${System.currentTimeMillis()},fps=$fps," +
+                            "total=${roundTripMs}ms,server=${processMs}ms,net=${netMs}ms\n"
+                        java.io.File(getExternalFilesDir(null), "vg_perf.csv").appendText(line)
+                    } catch (_: Exception) {}
                 }
 
                 handleSuccess(sentence, alertMode)
