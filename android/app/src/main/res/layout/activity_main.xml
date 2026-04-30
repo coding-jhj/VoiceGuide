@@ -37,6 +37,22 @@
         android:background="#1A1A1A"
         android:lineSpacingMultiplier="1.4" />
 
+    <TextView
+        android:id="@+id/tvDetected"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="44dp"
+        android:text="인식: 대기 중"
+        android:textSize="15sp"
+        android:textColor="#D6EFFF"
+        android:gravity="center"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:background="#0B1B24"
+        android:maxLines="3" />
+
     <!-- 모드 / 방향 상태 표시 -->
     <TextView
         android:id="@+id/tvMode"

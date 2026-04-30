@@ -67,6 +67,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private lateinit var tts: TextToSpeech
     private lateinit var etServerUrl: EditText   // 서버 IP 입력 (없어도 온디바이스 동작)
     private lateinit var tvStatus: TextView      // 현재 안내 문장 표시
+    private lateinit var tvDetected: TextView    // 탐지된 물체 목록 표시
     private lateinit var tvMode: TextView        // 현재 모드 + 카메라 방향 표시
     private lateinit var btnToggle: Button       // 분석 시작/중지
     private lateinit var btnStt: Button          // 음성 명령 버튼
@@ -161,6 +162,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
         etServerUrl = findViewById(R.id.etServerUrl)
         tvStatus    = findViewById(R.id.tvStatus)
+        tvDetected  = findViewById(R.id.tvDetected)
         tvMode      = findViewById(R.id.tvMode)
         btnToggle   = findViewById(R.id.btnToggle)
         btnStt      = findViewById(R.id.btnStt)
@@ -952,6 +954,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         lastSuccessTime = System.currentTimeMillis()
         btnToggle.text = "분석 중지"
         tvStatus.text  = "분석 중..."
+        tvDetected.text = "인식: 분석 중"
         captureAndProcess()
         scheduleNext()
         scheduleWatchdog()
@@ -962,6 +965,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         handler.removeCallbacksAndMessages(null)
         btnToggle.text = "분석 시작"
         tvStatus.text  = "분석 중지됨"
+        tvDetected.text = "인식: 대기 중"
     }
 
     private fun scheduleNext() {
@@ -1023,7 +1027,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     "찾기"  -> SentenceBuilder.buildFind(findTarget, detections)
                     else   -> SentenceBuilder.build(detections)
                 }
-                handleSuccess(sentence)
+                handleSuccess(sentence, detectedText = formatOnDeviceDetections(detections))
             } catch (_: Exception) {
                 imageFile.delete()
                 // 온디바이스 실패(모델 오류 등) → 서버로 fallback 시도
@@ -1064,8 +1068,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val json      = JSONObject(response.body?.string() ?: "{}")
                 val sentence  = json.optString("sentence", "주변에 장애물이 없어요.")
                 val alertMode = json.optString("alert_mode", "critical")
+                val detectedText = formatServerObjects(json.optJSONArray("objects"))
                 checkWaitingBus(json)   // 버스 대기 모드 자동 감지
-                handleSuccess(sentence, alertMode)
+                handleSuccess(sentence, alertMode, detectedText)
             } catch (_: Exception) {
                 handleFail()
             } finally {
@@ -1095,12 +1100,58 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
-    private fun handleSuccess(sentence: String, alertMode: String = "critical") {
+    private fun formatServerObjects(objects: JSONArray?): String {
+        if (objects == null || objects.length() == 0) return "인식: 없음"
+
+        val parts = mutableListOf<String>()
+        for (i in 0 until minOf(objects.length(), 5)) {
+            val obj = objects.getJSONObject(i)
+            val name = obj.optString("class_ko", obj.optString("class", "물체"))
+            val conf = if (obj.has("conf")) {
+                String.format(Locale.KOREA, "%.2f", obj.optDouble("conf"))
+            } else {
+                ""
+            }
+            val distance = if (obj.has("distance_m")) {
+                String.format(Locale.KOREA, "%.1fm", obj.optDouble("distance_m"))
+            } else {
+                ""
+            }
+            val direction = obj.optString("direction", "")
+            val details = listOf(
+                direction,
+                distance,
+                if (conf.isNotEmpty()) "신뢰도 $conf" else ""
+            ).filter { it.isNotBlank() }.joinToString(" ")
+
+            parts.add(if (details.isBlank()) name else "$name($details)")
+        }
+
+        val more = if (objects.length() > 5) " 외 ${objects.length() - 5}개" else ""
+        return "인식: " + parts.joinToString(", ") + more
+    }
+
+    private fun formatOnDeviceDetections(detections: List<Detection>): String {
+        if (detections.isEmpty()) return "인식: 없음"
+
+        val parts = detections.take(5).map {
+            "${it.classKo}(신뢰도 ${String.format(Locale.KOREA, "%.2f", it.confidence)})"
+        }
+        val more = if (detections.size > 5) " 외 ${detections.size - 5}개" else ""
+        return "인식: " + parts.joinToString(", ") + more
+    }
+
+    private fun handleSuccess(
+        sentence: String,
+        alertMode: String = "critical",
+        detectedText: String = "인식: 없음"
+    ) {
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
         isSending.set(false)
 
         runOnUiThread {
+            tvDetected.text = detectedText
             if (sentence == "주변에 장애물이 없어요.") {
                 tvStatus.text = "장애물 없음"
                 return@runOnUiThread
@@ -1136,6 +1187,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         val fails = consecutiveFails.incrementAndGet()
         if (fails == FAIL_WARN_COUNT) {
             runOnUiThread {
+                tvDetected.text = "인식: 실패"
                 tvStatus.text = "⚠ 분석 실패 — 주의하세요"
                 if (!tts.isSpeaking) speak("분석에 문제가 생겼어요. 주의해서 이동하세요.")
             }
