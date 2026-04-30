@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
-import com.voiceguide.BuildConfig
 
 /**
  * 바운드박스 오버레이 View.
@@ -108,12 +107,8 @@ class BoundingBoxOverlay @JvmOverloads constructor(
 
             canvas.drawRect(RectF(left, top, right, bottom), boxPaint)
 
-            // 디버그 빌드에서만 confidence % 표시 (배포 시 클래스명만)
-            val label = if (BuildConfig.DEBUG) {
-                "${det.classKo} ${"%.0f".format(det.confidence * 100)}%"
-            } else {
-                det.classKo
-            }
+            // 클래스명만 표시 (confidence % 제거 — 사용자에게 의미 없는 디버그 정보)
+            val label = det.classKo
             val textH = textPaint.textSize
             val textW = textPaint.measureText(label)
             val labelY = if (top > textH + 8f) top - 4f else bottom + textH + 4f
