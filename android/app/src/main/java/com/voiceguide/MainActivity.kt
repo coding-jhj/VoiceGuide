@@ -199,6 +199,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private lateinit var speechRecognizer: SpeechRecognizer
     @Volatile private var currentMode = "장애물"  // 현재 활성 모드
     @Volatile private var findTarget  = ""        // 찾기 모드에서 탐색할 물체 이름
+    private var sttStartTime = 0L                 // STT 시작 시각 (지연 측정용)
 
     // ── 조도 센서 (빛 감지) ────────────────────────────────────────────
     @Volatile private var lastLux = 100f  // 이전 프레임 밝기 (lux 단위)
@@ -482,6 +483,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
         }
         // FPS 정보 유지하면서 듣는 중 표시
+        sttStartTime = System.currentTimeMillis()
+        Log.d("VG_STT", "STT started — mode=$currentMode")
         tvMode.text = "🎤 [$currentMode] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
         btnStt.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFDC2626.toInt())
         speechRecognizer.startListening(intent)
@@ -490,7 +493,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     /** STT 결과 처리 — 이미지 분석 불필요 모드는 즉시 처리 */
     private fun handleSttResult(text: String) {
         isListening = false
+        val sttElapsedMs = if (sttStartTime > 0L) System.currentTimeMillis() - sttStartTime else -1L
         val mode = classifyKeyword(text)
+        Log.d("VG_STT", "STT result: \"$text\" → mode=$mode | elapsed=${sttElapsedMs}ms")
         runOnUiThread { tvMode.text = "모드: $mode  |  방향: 정면" }
 
         // 자동 시작 응답 처리
@@ -1310,7 +1315,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 runOnUiThread {
                     val fps = calcFps()
                     val spark = buildSparkline()
-                    lastFpsText = "${fps}fps $spark | ${inferMs}ms"
+                    lastFpsText = "${fps}fps $spark | 📱 ${inferMs}ms"
                     tvMode.text = "[$currentMode] $lastFpsText"
                     if (debugVisible) {
                         val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
@@ -1490,10 +1495,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val netMs = if (processMs > 0) roundTripMs - processMs else roundTripMs
                 android.util.Log.d("VG_PERF",
                     "mode|server|server_ms|$processMs|net_ms|$netMs|total|$roundTripMs")
+                android.util.Log.d("VG_SERVER",
+                    "OK url=$serverUrl | mode=$currentMode | sentence=\"$sentence\" | alert=$alertMode")
                 runOnUiThread {
                     val fps   = calcFps()
                     val spark = buildSparkline()
-                    lastFpsText = "${fps}fps $spark | 서버:${processMs}ms"
+                    val serverTag = if (processMs > 0) "☁ ${processMs}ms" else "☁ ${roundTripMs}ms"
+                    lastFpsText = "${fps}fps $spark | $serverTag"
                     tvMode.text = "[$currentMode] $lastFpsText"
                     if (debugVisible) {
                         val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
@@ -1515,7 +1523,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 }
 
                 handleSuccess(sentence, alertMode)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.e("VG_SERVER", "FAIL url=$serverUrl | ${e.javaClass.simpleName}: ${e.message}")
                 handleFail()
             } finally {
                 imageFile.delete()
