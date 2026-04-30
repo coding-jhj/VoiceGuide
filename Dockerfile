@@ -21,11 +21,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY src/ ./src/
 COPY templates/ ./templates/
 
-# YOLO 모델 복사 (있을 때만 — 없으면 ultralytics가 자동 다운로드)
-COPY yolo11m.pt ./yolo11m.pt
+# YOLO 모델 빌드 시 미리 다운로드 (첫 요청 지연 방지)
+# 없으면 첫 요청 시 ultralytics가 자동 다운로드
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11m.pt')" 2>/dev/null || echo "YOLO model will be downloaded on first request"
 
 # Depth 모델은 크기(99MB)로 인해 제외 → bbox fallback 사용
-# 필요 시: COPY depth_anything_v2_vits.pth ./depth_anything_v2_vits.pth
 
 # Cloud Run은 PORT 환경변수를 자동 주입 (기본 8080)
 ENV PORT=8080
