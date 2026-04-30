@@ -1188,7 +1188,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     isSending.set(true)
-                    val useServer = etServerUrl.text.toString().trim().isNotEmpty()
+                    val useServer = getSavedServerUrl().isNotEmpty()
                     if (yoloDetector != null && !useServer) processOnDevice(file)
                     else sendToServer(file)
                 }
