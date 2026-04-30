@@ -42,6 +42,22 @@ C:\VoiceGuide\VoiceGuide\android
 
 ---
 
+## CMD 실행 순서
+
+실행/배포/Android Logcat 확인 순서는 아래 문서에 정리했습니다.
+
+```text
+docs/00_실행/CMD_RUNBOOK.md
+```
+
+핵심 확인 명령:
+
+```bat
+cd /d C:\VoiceGuide\VoiceGuide
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+gcloud run services logs tail voiceguide --region asia-northeast3
+```
+
 ## 서버-클라이언트 연동 확인 기준
 
 강사님 피드백의 "클라이언트와 서버를 붙인다"는 말은 Android 앱이 서버 URL을 저장했다는 뜻이 아니라, **한 요청이 앱 → 서버 → DB/tracker → 대시보드 → 앱 응답까지 이어지는지 로그로 증명한다**는 뜻입니다.

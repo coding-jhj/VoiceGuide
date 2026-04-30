@@ -1,5 +1,27 @@
 # VoiceGuide 실행 가이드
 
+## CMD 기준 빠른 실행
+
+Windows CMD에서 실행하는 최신 순서는 아래 문서를 먼저 보세요.
+
+```text
+docs/00_실행/CMD_RUNBOOK.md
+```
+
+가장 중요한 순서:
+
+```bat
+cd /d C:\VoiceGuide\VoiceGuide
+gcloud run deploy voiceguide --source . --region asia-northeast3 --memory 2Gi --cpu 2 --timeout 120 --allow-unauthenticated --port 8080
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+```
+
+Android Studio에서 열 폴더:
+
+```text
+C:\VoiceGuide\VoiceGuide\android
+```
+
 ## 사전 준비
 
 - Python 3.10 (anaconda `ai_env` 환경)

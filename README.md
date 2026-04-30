@@ -1,5 +1,27 @@
 # VoiceGuide
 
+## CMD 실행 바로가기
+
+Windows CMD에서 실행/배포/Android 확인하는 순서는 아래 문서에 정리했습니다.
+
+```text
+docs/00_실행/CMD_RUNBOOK.md
+```
+
+현재 기준 핵심 명령:
+
+```bat
+cd /d C:\VoiceGuide\VoiceGuide
+gcloud run deploy voiceguide --source . --region asia-northeast3 --memory 2Gi --cpu 2 --timeout 120 --allow-unauthenticated --port 8080
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+```
+
+Android Studio에서 열 폴더:
+
+```text
+C:\VoiceGuide\VoiceGuide\android
+```
+
 > 시각장애인을 위한 AI 음성 주변 인지 서비스  
 > KDT AI Human 3팀 | 2026-04-24 ~ 2026-05-13
 

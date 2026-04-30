@@ -1,5 +1,30 @@
 # VoiceGuide GCP 배포 — 지금 당장 하는 법
 
+## CMD 빠른 실행
+
+Windows CMD에서 그대로 실행:
+
+```bat
+cd /d C:\VoiceGuide\VoiceGuide
+
+gcloud run deploy voiceguide ^
+  --source . ^
+  --region asia-northeast3 ^
+  --memory 2Gi ^
+  --cpu 2 ^
+  --timeout 120 ^
+  --allow-unauthenticated ^
+  --port 8080
+```
+
+배포 후 서버 연동 확인:
+
+```bat
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+```
+
+전체 실행 순서는 `docs/00_실행/CMD_RUNBOOK.md`를 참고합니다.
+
 > 목적: 오늘 발표/시연에서 서버를 안정적으로 올리기  
 > 두 가지 방법: **Cloud Run** (빠름, 30분) / **Compute Engine** (강사님 지정, 1시간)
 

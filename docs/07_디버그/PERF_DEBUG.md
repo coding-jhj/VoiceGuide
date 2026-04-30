@@ -5,6 +5,22 @@
 
 ---
 
+## CMD 실행 순서
+
+Windows CMD 기준 실행/배포/Logcat 확인 순서는 아래 문서에 정리했습니다.
+
+```text
+docs/00_실행/CMD_RUNBOOK.md
+```
+
+성능 확인 핵심:
+
+```bat
+cd /d C:\VoiceGuide\VoiceGuide
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+gcloud run services logs tail voiceguide --region asia-northeast3
+```
+
 ## 1. 왜 300ms / 10fps가 목표인가 — 보행 물리학 근거
 
 "빠를수록 좋다"가 아닌, **보행 안전에 필요한 최소 기준**을 역산한 수치입니다.
