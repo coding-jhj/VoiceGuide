@@ -17,10 +17,22 @@ Android 앱과 Gradio 데모가 호출하는 API 엔드포인트를 정의합니
   - 이미지가 필요 없는 모드(저장/위치목록)는 빠르게 처리하고 반환
 """
 
+import os
 from datetime import datetime
 
-from fastapi import APIRouter, UploadFile, Form
+from fastapi import APIRouter, Depends, UploadFile, Form, Header, HTTPException
 from fastapi.responses import FileResponse
+
+# ── API Key 인증 ────────────────────────────────────────────────────────────
+# .env에 API_KEY=비밀값 설정 시 모든 /detect 요청에 Authorization: Bearer <키> 필요
+# API_KEY 미설정 시 인증 없음 (로컬 개발 모드)
+_API_KEY = os.getenv("API_KEY", "")
+
+def _verify_api_key(authorization: str = Header(default="")) -> None:
+    if not _API_KEY:
+        return  # 키 미설정 = 개발 모드, 인증 건너뜀
+    if authorization != f"Bearer {_API_KEY}":
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
 from src.depth.depth import detect_and_depth
 from src.nlg.sentence import (
     build_sentence, build_hazard_sentence, build_find_sentence,
@@ -73,7 +85,7 @@ def _space_changes(current: list[dict], previous: list[dict]) -> list[str]:
     return changes
 
 
-@router.post("/detect")
+@router.post("/detect", dependencies=[Depends(_verify_api_key)])
 async def detect(
     image:              UploadFile,
     wifi_ssid:          str   = Form(""),        # 공간 기억 + 장소 저장에 사용

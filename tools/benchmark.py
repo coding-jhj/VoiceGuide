@@ -185,7 +185,79 @@ def bench_sentence_generation() -> dict:
     }
 
 
-# ── 실험 5: Depth 모델 상태 확인 ─────────────────────────────────────────────
+# ── 실험 5: 클래스별 Precision / Recall / F1 ─────────────────────────────────
+def bench_precision_recall(image_dir: str = "data/test_images") -> dict:
+    """
+    data/test_images/{class_name}/ 구조에서 클래스별 탐지 성능 측정.
+      - Recall    = 탐지된 이미지 수 / 전체 이미지 수  (놓친 것 없는가)
+      - Precision = 맞게 탐지된 수   / 전체 탐지 수    (잘못 잡은 것 없는가)
+      - F1        = 2 * P * R / (P + R)
+      - FPR       = 다른 클래스 이미지에서 해당 클래스가 잘못 탐지된 비율
+    """
+    from src.depth.depth import detect_and_depth
+    from pathlib import Path
+
+    base = Path(image_dir)
+    if not base.exists():
+        return {"error": f"{image_dir} 없음 — 테스트 이미지 필요", "pass": False}
+
+    class_dirs = [d for d in base.iterdir() if d.is_dir()]
+    if not class_dirs:
+        return {"error": "클래스 폴더 없음", "pass": False}
+
+    per_class: dict[str, dict] = {}
+
+    for cls_dir in sorted(class_dirs):
+        cls_name = cls_dir.name
+        images = list(cls_dir.glob("*.jpg")) + list(cls_dir.glob("*.png"))
+        if not images:
+            continue
+
+        tp = fp = fn = 0
+        for img_path in images[:10]:  # 클래스당 최대 10장 (속도)
+            img_bytes = img_path.read_bytes()
+            try:
+                objects, _, _ = detect_and_depth(img_bytes)
+                detected_classes = {o["class_ko"] for o in objects}
+                if cls_name in detected_classes:
+                    tp += 1
+                else:
+                    fn += 1
+                # 해당 클래스가 아닌 탐지 결과 = FP 후보 (다른 클래스로 오탐)
+                fp += len([c for c in detected_classes if c != cls_name])
+            except Exception:
+                fn += 1
+
+        total = tp + fn
+        recall    = tp / total if total > 0 else 0.0
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        per_class[cls_name] = {
+            "tp": tp, "fp": fp, "fn": fn,
+            "recall":    round(recall * 100, 1),
+            "precision": round(precision * 100, 1),
+            "f1":        round(f1 * 100, 1),
+        }
+
+    if not per_class:
+        return {"error": "측정 가능한 클래스 없음", "pass": False}
+
+    avg_recall    = round(sum(v["recall"]    for v in per_class.values()) / len(per_class), 1)
+    avg_precision = round(sum(v["precision"] for v in per_class.values()) / len(per_class), 1)
+    avg_f1        = round(sum(v["f1"]        for v in per_class.values()) / len(per_class), 1)
+    low_recall = [k for k, v in per_class.items() if v["recall"] < 50]
+
+    return {
+        "per_class":     per_class,
+        "avg_recall":    avg_recall,
+        "avg_precision": avg_precision,
+        "avg_f1":        avg_f1,
+        "low_recall_classes": low_recall,
+        "pass": avg_recall >= 60.0,
+    }
+
+
+# ── 실험 6: Depth 모델 상태 확인 ─────────────────────────────────────────────
 def bench_depth_model() -> dict:
     from src.depth.depth import _check_model, _DEVICE
     model_available = _check_model()
@@ -292,7 +364,16 @@ def main():
     nlg = bench_sentence_generation()
     print(f"  → {nlg['passed']}/{nlg['total']} 통과  {'✅' if nlg['pass'] else '❌'}")
 
-    print("\n[5/5] Depth 모델 상태 확인...")
+    print("\n[5/5] 클래스별 Precision/Recall/F1 측정...")
+    prf = bench_precision_recall()
+    if "error" in prf:
+        print(f"  → 건너뜀: {prf['error']}")
+    else:
+        print(f"  → 평균 Recall={prf['avg_recall']}%  Precision={prf['avg_precision']}%  F1={prf['avg_f1']}%  {'✅' if prf['pass'] else '❌'}")
+        if prf['low_recall_classes']:
+            print(f"  → Recall 낮은 클래스: {prf['low_recall_classes']}")
+
+    print("\n[6/6] Depth 모델 상태 확인...")
     dep = bench_depth_model()
     print(f"  → {dep['mode']} ({dep['device']})")
 
@@ -301,6 +382,7 @@ def main():
         "detection":     det,
         "direction":     dir_,
         "sentence":      nlg,
+        "prf":           prf,
         "depth":         dep,
     }
 
@@ -312,6 +394,8 @@ def main():
     print(f"  탐지 파이프라인: {'✅ 통과' if det['pass'] else '❌ 실패'}")
     print(f"  방향 정확도  : {'✅ 통과' if dir_['pass'] else '❌ 미달'} ({dir_['accuracy']}%)")
     print(f"  문장 생성    : {'✅ 통과' if nlg['pass'] else '❌ 실패'}")
+    if "error" not in prf:
+        print(f"  P/R/F1       : Recall={prf['avg_recall']}% / Precision={prf['avg_precision']}% / F1={prf['avg_f1']}%")
     print(f"  Depth 모드   : {dep['mode']}")
     print(f"\n  종합: {'🎉 모든 목표 달성!' if all_pass else '⚠️ 일부 목표 미달성'}")
 

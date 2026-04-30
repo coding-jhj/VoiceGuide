@@ -253,7 +253,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var yoloDetector: YoloDetector? = null
 
     companion object {
-        private const val PERM_CODE        = 100           // 권한 요청 코드 (임의 숫자)
+        private const val PERM_CODE          = 100  // 카메라 + 마이크 (앱 시작 시)
+        private const val PERM_CODE_LOCATION = 101  // GPS — 하차알림 기능 사용 시
+        private const val PERM_CODE_SMS      = 102  // SMS — SOS 설정 시
         private const val PREFS_NAME       = "voiceguide"  // SharedPreferences 이름
         private const val PREF_URL         = "server_url"  // 저장된 서버 URL 키
         private const val PREF_LOCATIONS   = "saved_locations"  // 저장 장소 JSON 배열 키
@@ -403,8 +405,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             override fun onResults(results: Bundle) {
                 val candidates = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     ?.takeIf { it.isNotEmpty() } ?: return
-                // 후보 중 장애물 fallback이 아닌 키워드가 매칭되는 것 우선 선택
-                val text = candidates.firstOrNull { classifyKeyword(it) != "장애물" }
+                // 후보 중 실제 키워드가 매칭된 것 우선 선택, 없으면 첫 번째 사용
+                val text = candidates.firstOrNull { classifyKeyword(it) != "unknown" }
                     ?: candidates.first()
                 runOnUiThread {
                     btnStt.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF059669.toInt())
@@ -608,7 +610,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     handler.postDelayed({ requestPermissions() }, 800)
                 } else speak("이미 분석 중이에요.")
             }
-            "긴급" -> triggerSOS()
+            "긴급" -> requestSmsPermission { triggerSOS() }
             "식사" -> {
                 currentMode = "식사"
                 speak("식사 도우미 모드예요. 식기와 음식 위치를 알려드릴게요.")
@@ -632,10 +634,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 if (hour != null) setMedicationAlarm(hour)
                 else speak("몇 시에 약을 드실 건가요? 예) 8시에 약 먹어야 해.")
             }
-            "하차알림" -> {
-                speak("현재 위치를 기준으로 200미터 이내에 도착하면 알려드릴게요. GPS를 켜주세요.")
+            "하차알림" -> requestLocationPermission {
+                speak("현재 위치를 기준으로 200미터 이내에 도착하면 알려드릴게요.")
                 startGpsTracking()
             }
+            "unknown" -> speak("다시 말씀해 주세요.")
             else -> {
                 currentMode = mode
                 SentenceBuilder.clearStableClocks()
@@ -1002,13 +1005,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     /**
      * STT 텍스트 → 모드 분류.
      * VoiceGuideConstants.kt의 STT_KEYWORDS 맵에서 순서대로 검색.
-     * 어떤 키워드에도 안 걸리면 "장애물" 반환 → 안내 누락 없음.
+     * 매칭 없으면 "unknown" 반환 → handleSttResult에서 "다시 말씀해 주세요" 처리.
      */
     private fun classifyKeyword(text: String): String {
         for ((mode, keywords) in STT_KEYWORDS) {
             if (keywords.any { text.contains(it) }) return mode
         }
-        return "장애물"  // fallback: 무슨 말을 해도 기본 모드로 동작
+        return "unknown"
     }
 
     // ── ONNX 온디바이스 추론 초기화 ────────────────────────────────────
@@ -1028,14 +1031,33 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 카메라 & 분석 루프 ──────────────────────────────────────────────
 
+    // 권한 요청 콜백 저장 (비동기 결과 처리용)
+    private var locationPermissionCallback: (() -> Unit)? = null
+    private var smsPermissionCallback: (() -> Unit)? = null
+
+    /** 앱 시작 시 필수 권한만 요청: 카메라 + 마이크 */
     private fun requestPermissions() {
         val needed = mutableListOf<String>()
-        if (!hasPerm(Manifest.permission.CAMERA))              needed.add(Manifest.permission.CAMERA)
-        if (!hasPerm(Manifest.permission.RECORD_AUDIO))        needed.add(Manifest.permission.RECORD_AUDIO)
-        if (!hasPerm(Manifest.permission.ACCESS_FINE_LOCATION)) needed.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        if (!hasPerm(Manifest.permission.SEND_SMS))            needed.add(Manifest.permission.SEND_SMS)
+        if (!hasPerm(Manifest.permission.CAMERA))       needed.add(Manifest.permission.CAMERA)
+        if (!hasPerm(Manifest.permission.RECORD_AUDIO)) needed.add(Manifest.permission.RECORD_AUDIO)
         if (needed.isEmpty()) startCamera()
         else ActivityCompat.requestPermissions(this, needed.toTypedArray(), PERM_CODE)
+    }
+
+    /** GPS 기능(하차알림) 사용 시에만 위치 권한 요청 */
+    private fun requestLocationPermission(onGranted: () -> Unit) {
+        if (hasPerm(Manifest.permission.ACCESS_FINE_LOCATION)) { onGranted(); return }
+        locationPermissionCallback = onGranted
+        ActivityCompat.requestPermissions(this,
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERM_CODE_LOCATION)
+    }
+
+    /** SOS 보호자 문자 설정 시에만 SMS 권한 요청 */
+    private fun requestSmsPermission(onGranted: () -> Unit) {
+        if (hasPerm(Manifest.permission.SEND_SMS)) { onGranted(); return }
+        smsPermissionCallback = onGranted
+        ActivityCompat.requestPermissions(this,
+            arrayOf(Manifest.permission.SEND_SMS), PERM_CODE_SMS)
     }
 
     private fun hasPerm(p: String) =
@@ -1730,7 +1752,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERM_CODE &&
-            grantResults.all { it == PackageManager.PERMISSION_GRANTED }) startCamera()
+        when (requestCode) {
+            PERM_CODE -> if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) startCamera()
+            PERM_CODE_LOCATION -> {
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                    locationPermissionCallback?.invoke()
+                } else {
+                    speak("위치 권한이 없어요. 설정에서 허용해 주세요.")
+                }
+                locationPermissionCallback = null
+            }
+            PERM_CODE_SMS -> {
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                    smsPermissionCallback?.invoke()
+                } else {
+                    speak("SMS 권한이 없어요. SOS 기능이 제한됩니다.")
+                }
+                smsPermissionCallback = null
+            }
+        }
     }
 }

@@ -1,13 +1,16 @@
 """
-VoiceGuide 서버 송수신 테스트
+VoiceGuide 서버 통합 테스트
 ===============================
-실행: python -m pytest tests/test_server.py -v
-     또는 서버 실행 후: python tests/test_server.py
-
-서버가 실행 중이어야 합니다:
+실행 전 서버를 먼저 시작해야 합니다:
   uvicorn src.api.main:app --host 0.0.0.0 --port 8000
-"""
 
+통합 테스트만 실행:
+  pytest tests/test_server.py -v -m integration
+
+서버 없이 실행하는 단위 테스트:
+  pytest tests/ -v -m "not integration"
+"""
+import pytest
 import io
 import sys
 import json
@@ -30,6 +33,7 @@ def make_dummy_image(width=640, height=480) -> bytes:
 
 # ── 테스트 함수들 ─────────────────────────────────────────────────────────────
 
+@pytest.mark.integration
 def test_health():
     """서버가 살아있는지 확인."""
     r = requests.get(f"{BASE}/")
@@ -38,6 +42,7 @@ def test_health():
     print("✅ 서버 헬스체크 통과")
 
 
+@pytest.mark.integration
 def test_detect_obstacle():
     """장애물 모드 — 이미지 분석 응답 형식 확인."""
     img = make_dummy_image()
@@ -57,6 +62,7 @@ def test_detect_obstacle():
     print(f"✅ 장애물 모드: \"{body['sentence']}\" (alert={body['alert_mode']})")
 
 
+@pytest.mark.integration
 def test_detect_question():
     """질문 모드 — tracker 누적 상태 포함 응답 확인."""
     img = make_dummy_image()
@@ -71,6 +77,7 @@ def test_detect_question():
     print(f"✅ 질문 모드: \"{body['sentence']}\" (tracked={len(body['tracked'])}개)")
 
 
+@pytest.mark.integration
 def test_detect_find():
     """찾기 모드 — query_text에서 타깃 추출 확인."""
     img = make_dummy_image()
@@ -85,6 +92,7 @@ def test_detect_find():
     print(f"✅ 찾기 모드: \"{body['sentence']}\"")
 
 
+@pytest.mark.integration
 def test_detect_save():
     """저장 모드 — 이미지 없이 WiFi 기반 장소 저장."""
     img = make_dummy_image()
@@ -97,6 +105,7 @@ def test_detect_save():
     print(f"✅ 저장 모드: \"{body['sentence']}\"")
 
 
+@pytest.mark.integration
 def test_status_endpoint():
     """GET /status/{session_id} — tracker 상태 + GPS 반환 확인."""
     r = requests.get(f"{BASE}/status/{SESSION}")
@@ -112,6 +121,7 @@ def test_status_endpoint():
           f"track={len(body['track'])}포인트")
 
 
+@pytest.mark.integration
 def test_locations():
     """GET /locations — 저장 장소 목록 반환 확인."""
     r = requests.get(f"{BASE}/locations", params={"wifi_ssid": SESSION})
@@ -122,6 +132,7 @@ def test_locations():
     print(f"✅ /locations: {len(body['locations'])}개 장소")
 
 
+@pytest.mark.integration
 def test_gps_stored():
     """/detect에서 GPS 전송 후 /status에서 확인."""
     img = make_dummy_image()
@@ -140,6 +151,7 @@ def test_gps_stored():
         print("⚠️  GPS 없음 (앱에서 GPS 좌표를 전송해야 함)")
 
 
+@pytest.mark.integration
 def test_dashboard():
     """GET /dashboard — HTML 페이지 반환 확인."""
     r = requests.get(f"{BASE}/dashboard")
