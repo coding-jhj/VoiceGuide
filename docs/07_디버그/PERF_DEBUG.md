@@ -108,7 +108,10 @@ adb logcat -s VG_PERF,VG_DETECT
 VG_PERF: decode|35|infer|280|dedup|12|total|327|objs|2
 
 # 서버 모드
-VG_PERF: mode|server|server_ms|243|net_ms|89|total|332
+VG_PERF: request_id|and-...|route|server|server_ms|243|net_ms|89|total|332|bytes|52231
+
+# 클라이언트-서버 상관관계 확인
+VG_LINK: request_id=and-... response_id=and-... mode=질문 status=200 upload=52231B total=332ms server=243ms net=89ms objects=2
 ```
 
 | 필드 | 의미 |
@@ -119,10 +122,24 @@ VG_PERF: mode|server|server_ms|243|net_ms|89|total|332
 | `total` | 전체 처리 시간 (ms) |
 | `server_ms` | 서버 내부 처리 시간 |
 | `net_ms` | 네트워크 전송 시간 |
+| `request_id` | Android 요청과 서버 로그를 맞추는 추적 ID |
 
 `infer`가 높으면 → NNAPI 활성화 여부 확인 ("NNAPI 가속 활성화" 로그)  
 `net_ms`가 높으면 → WiFi 환경 개선 (5GHz 전환, 거리 단축)  
 `server_ms`가 높으면 → 서버 GPU 사용 여부 확인
+
+---
+
+### 서버만 먼저 붙었는지 확인
+
+Android를 빼고 Python 더미 클라이언트로 GCP 서버, `/status`, `/dashboard`를 먼저 검증합니다.
+
+```powershell
+cd C:\VoiceGuide\VoiceGuide
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+```
+
+성공하면 서버/DB/대시보드는 붙어 있습니다. 그 다음 Android Logcat에서 같은 `request_id`가 서버 로그에 찍히는지 확인합니다.
 
 ---
 

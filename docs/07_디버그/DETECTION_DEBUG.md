@@ -42,6 +42,48 @@ C:\VoiceGuide\VoiceGuide\android
 
 ---
 
+## 서버-클라이언트 연동 확인 기준
+
+강사님 피드백의 "클라이언트와 서버를 붙인다"는 말은 Android 앱이 서버 URL을 저장했다는 뜻이 아니라, **한 요청이 앱 → 서버 → DB/tracker → 대시보드 → 앱 응답까지 이어지는지 로그로 증명한다**는 뜻입니다.
+
+확인해야 하는 신호:
+
+1. Android Logcat `VG_LINK`에 `request_id=and-...`가 찍힘
+2. GCP/FastAPI 로그에 같은 `request_id`의 `[LINK] START`와 `[PERF]`가 찍힘
+3. 서버 응답 JSON에 `request_id`, `process_ms`, `perf.detect_ms`, `perf.tracker_ms`, `perf.total_ms`가 있음
+4. `/status/{wifi_ssid}`에서 tracker objects/GPS track이 조회됨
+5. `/dashboard`가 같은 session 상태를 표시함
+
+앱 없이 먼저 서버만 확인:
+
+```powershell
+cd C:\VoiceGuide\VoiceGuide
+python tools\probe_server_link.py --base https://voiceguide-135456731041.asia-northeast3.run.app
+```
+
+정상 출력 예:
+
+```text
+[detect] HTTP 200 round_trip_ms=...
+{
+  "request_id": "probe-...",
+  "process_ms": 1234,
+  "perf": {
+    "detect_ms": 1200,
+    "tracker_ms": 0,
+    "nlg_ms": 34,
+    "total_ms": 1234
+  }
+}
+[status] HTTP 200
+[dashboard] HTTP 200 contains VoiceGuide=True
+[probe] OK: /detect, /status, and /dashboard are reachable and correlated.
+```
+
+이 테스트가 성공하면 서버/GCP/DB/대시보드는 살아있는 것입니다. 이 상태에서 Android만 안 되면 Logcat의 `VG_LINK`, `VG_FLOW`, `VG_PERF`, `VG_DETECT`를 봐야 합니다.
+
+---
+
 ## 요약
 
 바운딩 박스가 실제 물체 위치와 맞지 않았던 주된 원인은 `src/vision/detect.py`에서 YOLO 추론 전에 이미지를 좌우 반전하고 있었기 때문입니다.

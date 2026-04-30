@@ -52,6 +52,38 @@ import time as _time
 _last_sentence: dict[str, tuple[str, float]] = {}  # session_id → (sentence, timestamp)
 _DEDUP_SECS = 5.0   # 같은 문장 억제 시간
 
+
+def _with_perf(
+    payload: dict,
+    t0: float,
+    request_id: str,
+    detect_ms: int = 0,
+    tracker_ms: int = 0,
+) -> dict:
+    """Android/더미 클라이언트가 서버 연동을 검증할 수 있게 공통 성능 필드 추가."""
+    process_ms = int((_time.monotonic() - t0) * 1000)
+    nlg_ms = max(0, process_ms - detect_ms - tracker_ms)
+    payload.update({
+        "request_id": request_id,
+        "process_ms": process_ms,
+        "perf": {
+            "detect_ms": detect_ms,
+            "tracker_ms": tracker_ms,
+            "nlg_ms": nlg_ms,
+            "total_ms": process_ms,
+        },
+    })
+    print(
+        f"[LINK] request_id={request_id} mode={payload.get('mode', '')} "
+        f"sentence={payload.get('sentence', '')[:40]!r}"
+    )
+    print(
+        f"[PERF] request_id={request_id} detect={detect_ms}ms | "
+        f"tracker={tracker_ms}ms | nlg+rest={nlg_ms}ms | "
+        f"TOTAL={process_ms}ms | objs={len(payload.get('objects', []))}"
+    )
+    return payload
+
 def _should_suppress(session_id: str, sentence: str, alert_mode: str) -> bool:
     """같은 문장이 최근 N초 내에 이미 전달됐으면 억제 여부 반환."""
     if alert_mode == "critical":  # 위험 경고는 항상 발화
@@ -94,6 +126,7 @@ async def detect(
     query_text:         str   = Form(""),        # STT 원문 (찾기/저장 모드에서 추출에 사용)
     lat:                float = Form(0.0),       # GPS 위도 (대시보드 지도용)
     lng:                float = Form(0.0),       # GPS 경도 (대시보드 지도용)
+    request_id:         str   = Form(""),        # 클라이언트-서버 로그 상관관계 확인용
 ):
     """
     VoiceGuide 메인 분석 API.
@@ -104,40 +137,48 @@ async def detect(
       나머지     → 이미지 분석 (YOLO + Depth V2 + 문장 생성)
     """
 
+    _t0 = _time.monotonic()
+    request_id = request_id or f"srv-{int(_t0 * 1000)}"
+    session_id = wifi_ssid or "__default__"
+    print(
+        f"[LINK] request_id={request_id} START mode={mode} "
+        f"session={session_id} lat={lat} lng={lng}"
+    )
+
     # ── 저장 모드: 이미지 없이 즉시 처리 ────────────────────────────────────
     # "여기 저장해줘 편의점" → query_text에서 "편의점" 추출 → DB 저장
     if mode == "저장":
         label = extract_label(query_text) or f"위치_{datetime.now().strftime('%H%M')}"
         if not wifi_ssid:
             # WiFi 없으면 공간 ID를 알 수 없어 저장 불가
-            return {
+            return _with_perf({
+                "mode": mode,
                 "sentence":     "WiFi에 연결되어 있지 않아 저장할 수 없어요.",
                 "objects": [], "hazards": [], "changes": [], "depth_source": "none",
-            }
+            }, _t0, request_id)
         db.save_location(label, wifi_ssid)
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":     build_navigation_sentence(label, "save"),
             "objects": [], "hazards": [], "changes": [], "depth_source": "none",
-        }
+        }, _t0, request_id)
 
     # ── 위치목록 모드: DB 조회 후 즉시 반환 ──────────────────────────────────
     if mode == "위치목록":
         locations = db.get_locations(wifi_ssid)  # wifi_ssid 있으면 해당 위치 장소만
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":    build_navigation_sentence("", "list", locations=locations),
             "locations":   locations,
             "objects": [], "hazards": [], "changes": [], "depth_source": "none",
-        }
+        }, _t0, request_id)
 
     # ── 이미지 분석 공통 흐름 (장애물/찾기/확인/질문 모드) ───────────────────
     image_bytes = await image.read()  # multipart form에서 이미지 바이트 추출
 
-    # FPS 측정: 서버 처리 시간 기록 시작
-    _t0 = _time.monotonic()
-
     # GPS 위치 기록 (대시보드 지도 표시용) — 좌표가 있을 때만 저장
     if lat != 0.0 or lng != 0.0:
-        db.save_gps(wifi_ssid or "__default__", lat, lng)
+        db.save_gps(session_id, lat, lng)
 
     # YOLO 탐지 + Depth V2 거리 추정 + 바닥 위험 감지
     _t_detect = _time.monotonic()
@@ -146,7 +187,7 @@ async def detect(
 
     # EMA 추적기: 프레임 간 거리 흔들림 제거 + 접근 감지
     _t_tracker = _time.monotonic()
-    tracker = get_tracker(wifi_ssid or "__default__")
+    tracker = get_tracker(session_id)
     objects, motion_changes = tracker.update(objects)
     _tracker_ms = int((_time.monotonic() - _t_tracker) * 1000)
 
@@ -166,7 +207,8 @@ async def detect(
         alert_mode = get_alert_mode(objects[0], is_hazard=bool(hazards)) if objects else (
             "critical" if hazards else "silent"
         )
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":    sentence,
             "alert_mode":  alert_mode,
             "objects":     objects,
@@ -175,19 +217,20 @@ async def detect(
             "scene":       scene,
             "tracked":     tracked,
             "depth_source": objects[0].get("depth_source", "bbox") if objects else "bbox",
-        }
+        }, _t0, request_id, _detect_ms, _tracker_ms)
 
     # ── 식사 도우미 모드: 식기·음식 위치 집중 안내 ──────────────────────────
     if mode == "식사":
         sentence = _build_meal_sentence(objects)
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":    sentence,
             "objects":     objects,
             "hazards":     [],
             "changes":     [],
             "alert_mode":  "silent",
             "depth_source": objects[0].get("depth_source","bbox") if objects else "bbox",
-        }
+        }, _t0, request_id, _detect_ms, _tracker_ms)
 
     # ── 색상 모드: 가장 큰 물체의 색상 안내 ─────────────────────────────────
     if mode == "색상":
@@ -198,27 +241,29 @@ async def detect(
             sentence = f"{name}는 {color} 계열이에요." if color else f"{name}의 색상을 인식하지 못했어요."
         else:
             sentence = "색상을 확인할 물체가 보이지 않아요. 카메라를 물체에 가까이 대주세요."
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":    sentence,
             "alert_mode":  "silent",
             "objects":     objects,
             "hazards":     hazards,
             "changes":     [],
             "depth_source": objects[0].get("depth_source","bbox") if objects else "bbox",
-        }
+        }, _t0, request_id, _detect_ms, _tracker_ms)
 
     # ── 찾기 모드: 특정 물체를 타깃으로 탐색 ────────────────────────────────
     if mode == "찾기":
         target = _extract_find_target(query_text)  # "의자 찾아줘" → "의자"
         sentence = build_find_sentence(target, objects, camera_orientation)
-        return {
+        return _with_perf({
+            "mode": mode,
             "sentence":    sentence,
             "alert_mode":  "critical",  # 사용자가 명시적으로 요청한 것 → 항상 즉각 안내
             "objects":     objects,
             "hazards":     hazards,
             "changes":     all_changes,
             "depth_source": objects[0].get("depth_source", "bbox") if objects else "bbox",
-        }
+        }, _t0, request_id, _detect_ms, _tracker_ms)
 
     # ── 장애물/확인 모드: 위험도 기반 문장 생성 ──────────────────────────────
     if hazards:
@@ -246,16 +291,11 @@ async def detect(
         sentence = sentence + " " + " ".join(extras)
 
     # 같은 문장이 5초 이내에 이미 전달됐으면 alert_mode를 "silent"로 낮춤 (TTS 겹침 방지)
-    sid = wifi_ssid or "__default__"
-    if _should_suppress(sid, sentence, alert_mode):
+    if _should_suppress(session_id, sentence, alert_mode):
         alert_mode = "silent"
 
-    # 전체 서버 처리 시간 + 단계별 분석 로그
-    process_ms = int((_time.monotonic() - _t0) * 1000)
-    _nlg_ms = process_ms - _detect_ms - _tracker_ms
-    print(f"[PERF] detect={_detect_ms}ms | tracker={_tracker_ms}ms | nlg+rest={_nlg_ms}ms | TOTAL={process_ms}ms | objs={len(objects)}")
-
-    return {
+    return _with_perf({
+        "mode": mode,
         "sentence":      sentence,
         "alert_mode":    alert_mode,
         "objects":       objects,
@@ -263,8 +303,7 @@ async def detect(
         "changes":       all_changes,
         "scene":         scene,
         "depth_source":  objects[0].get("depth_source", "bbox") if objects else "bbox",
-        "process_ms":    process_ms,  # 서버 처리 시간 ms — Android FPS 표시용
-    }
+    }, _t0, request_id, _detect_ms, _tracker_ms)
 
 
 _MEAL_CLASSES = {

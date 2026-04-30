@@ -16,6 +16,7 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.ultralytics/
 *.egg-info/
 dist/
 build/
@@ -46,6 +47,7 @@ voiceguide.db
 # Android 빌드 산출물
 android/app/build/
 android/.gradle/
+.gradle-*/
 android/local.properties
 서버_DB_수정/__pycache__/
 서버_DB_수정/%s
