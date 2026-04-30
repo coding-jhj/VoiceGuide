@@ -42,7 +42,7 @@ class YoloDetector(context: Context) {
     private val env = OrtEnvironment.getEnvironment()  // ONNX 실행 환경 (앱당 1개)
     private val session: OrtSession                    // 모델 세션 (추론 단위)
     private val inputSize   = 640       // YOLO 입력 해상도 (640×640)
-    private val confThreshold = 0.50f   // 서버(detect.py)의 CONF_THRESHOLD와 동일하게 맞춤
+    private val confThreshold = 0.35f   // 모바일 카메라 흔들림/어두운 환경에서 놓침을 줄이기 위해 완화
     private val iouThreshold  = 0.45f   // NMS IoU 임계값: 겹치는 박스 제거 기준
 
     init {
@@ -191,7 +191,7 @@ class YoloDetector(context: Context) {
             ))
         }
 
-        return nms(candidates.sortedByDescending { it.confidence }).take(5)
+        return nms(candidates.sortedByDescending { it.confidence }).take(8)
     }
 
     /**

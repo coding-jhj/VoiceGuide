@@ -73,13 +73,16 @@ DATABASE_URL=postgresql://postgres.XXXXX:비밀번호@aws-0-ap-northeast-2.poole
 ## Android 앱 연결
 
 1. ngrok 창에서 `Forwarding https://...` URL 복사
-2. 앱 서버 URL 입력창에 붙여넣기
+2. 앱 우상단 설정(⚙) → 서버 URL에 붙여넣기
 3. "분석 시작" 버튼 탭
 
 | 환경 | URL |
 |------|-----|
 | 같은 WiFi (빠름) | `http://192.168.x.x:8000` |
 | 다른 네트워크/LTE | ngrok URL |
+
+> 참고: Android `장애물`/`찾기` 모드는 서버 URL이 있어도 온디바이스 ONNX를 우선 사용합니다.  
+> ngrok URL은 질문, 색상, 신호등, 서버 TTS/대시보드 등 서버 연동 기능이 필요할 때 입력하면 됩니다.
 
 ---
 
@@ -91,6 +94,7 @@ DATABASE_URL=postgresql://postgres.XXXXX:비밀번호@aws-0-ap-northeast-2.poole
 | `/health` 응답 없음 | uvicorn 미시작 또는 포트 충돌 | `stop.bat` 후 `start.bat` 재실행 |
 | "DB 비밀번호 없음" 오류 | `.env` 미설정 | `.env`에 `DATABASE_URL` 추가 (없으면 SQLite 자동 사용) |
 | ngrok "Your connection..." 화면 | ngrok 브라우저 경고 | API 호출은 정상 — 브라우저로 직접 열면 경고 페이지 표시 |
+| 서버 URL 입력 후 장애물 인식이 안 됨 | 예전 APK 또는 잘못된 `android/` 프로젝트 설치 가능 | `C:\VoiceGuide\VoiceGuide\android` 최신 APK를 설치하고, 필요 시 설정 버튼 길게 눌러 디버그 오버레이 확인 |
 
 ---
 
@@ -100,4 +104,5 @@ DATABASE_URL=postgresql://postgres.XXXXX:비밀번호@aws-0-ap-northeast-2.poole
 - [ ] `http://127.0.0.1:8000/health` → `{"status":"ok"}` 응답 확인
 - [ ] ngrok 창에 `Forwarding https://...` URL 표시 확인
 - [ ] `https://[ngrok주소]/health` 외부에서 응답 확인
-- [ ] Android 앱에 ngrok URL 입력 후 분석 시작
+- [ ] Android 앱 설정에 ngrok URL 입력 후 서버 기능 확인
+- [ ] 기본 장애물/찾기 모드는 ngrok 없이도 ONNX 탐지되는지 확인

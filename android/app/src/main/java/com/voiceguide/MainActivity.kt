@@ -252,6 +252,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── ONNX 온디바이스 추론 ───────────────────────────────────────────
     private var yoloDetector: YoloDetector? = null
+    private val stairsDetector = StairsDetector()
 
     companion object {
         private const val PERM_CODE          = 100  // 카메라 + 마이크 (앱 시작 시)
@@ -284,6 +285,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         // 우상단 설정 아이콘 — 서버 URL 입력 + 디버그 모드 토글
         findViewById<android.widget.Button>(R.id.btnSettings).setOnClickListener {
             showSettingsDialog()
+        }
+        findViewById<android.widget.Button>(R.id.btnSettings).setOnLongClickListener {
+            debugVisible = !debugVisible
+            findViewById<android.widget.TextView>(R.id.tvDebug).visibility =
+                if (debugVisible) android.view.View.VISIBLE else android.view.View.GONE
+            android.widget.Toast.makeText(
+                this,
+                if (debugVisible) "디버그 모드 켜짐" else "디버그 모드 꺼짐",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            true
         }
 
         sensorManager   = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -337,19 +349,25 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         })
         layout.addView(swDebug)
 
-        androidx.appcompat.app.AlertDialog.Builder(ctx)
-            .setTitle("설정")
-            .setView(layout)
-            .setPositiveButton("저장") { _, _ ->
-                val url = etUrl.text.toString().trim()
-                getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                    .edit().putString(PREF_URL, url).apply()
-                debugVisible = swDebug.isChecked
-                val tvDebug = findViewById<android.widget.TextView>(R.id.tvDebug)
-                tvDebug.visibility = if (debugVisible) android.view.View.VISIBLE else android.view.View.GONE
-            }
-            .setNegativeButton("취소", null)
-            .show()
+        try {
+            androidx.appcompat.app.AlertDialog.Builder(ctx)
+                .setTitle("설정")
+                .setView(layout)
+                .setPositiveButton("저장") { _, _ ->
+                    val url = etUrl.text.toString().trim()
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                        .edit().putString(PREF_URL, url).apply()
+                    debugVisible = swDebug.isChecked
+                    val tvDebug = findViewById<android.widget.TextView>(R.id.tvDebug)
+                    tvDebug.visibility = if (debugVisible) android.view.View.VISIBLE else android.view.View.GONE
+                    android.widget.Toast.makeText(ctx, "설정을 저장했어요.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("취소", null)
+                .show()
+        } catch (e: Exception) {
+            Log.e("VG_SETTINGS", "Failed to show settings dialog", e)
+            android.widget.Toast.makeText(ctx, "설정 창을 열 수 없어요: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onResume() {
@@ -1188,8 +1206,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     isSending.set(true)
-                    val useServer = getSavedServerUrl().isNotEmpty()
-                    if (yoloDetector != null && !useServer) processOnDevice(file)
+                    if (shouldUseOnDeviceDetector()) processOnDevice(file)
                     else sendToServer(file)
                 }
                 override fun onError(e: ImageCaptureException) {
@@ -1197,6 +1214,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     handleFail()
                 }
             })
+    }
+
+    private fun shouldUseOnDeviceDetector(): Boolean {
+        if (yoloDetector == null) return false
+        return currentMode == "장애물" || currentMode == "찾기"
     }
 
     /**
@@ -1305,7 +1327,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 val imgH = bmp.height
 
                 val tInfer = System.currentTimeMillis()
-                val rawDetections = yoloDetector!!.detect(bmp)
+                val yoloDetections = yoloDetector!!.detect(bmp)
+                val stairsDetection = stairsDetector.detect(bmp)
+                val rawDetections = if (stairsDetection != null) {
+                    yoloDetections + stairsDetection
+                } else {
+                    yoloDetections
+                }
                 val inferMs = System.currentTimeMillis() - tInfer
 
                 val tDedup = System.currentTimeMillis()
@@ -1401,9 +1429,15 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                         handleSuccess("주변에 장애물이 없어요.")
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("VG_DETECT", "On-device detection failed", e)
                 bmp?.recycle()
-                sendToServer(imageFile)  // 온디바이스 실패 → 서버 시도 (서버도 실패시 handleFail)
+                if (getSavedServerUrl().isNotEmpty()) {
+                    sendToServer(imageFile)  // 온디바이스 실패 → 서버 시도 (서버도 실패시 handleFail)
+                } else {
+                    imageFile.delete()
+                    handleFail()
+                }
             }
         }.start()
     }

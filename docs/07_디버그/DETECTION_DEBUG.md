@@ -1,5 +1,47 @@
 # 탐지/바운딩 박스 디버깅 보고서
 
+## 2026-04-30 Android 장애물 인식 긴급 점검
+
+### 증상
+
+- 장애물 인식이 전혀 안 되는 것처럼 보임
+- 설정 아이콘에서 디버그 모드를 켰는데 오버레이가 보이지 않음
+
+### 확인된 원인
+
+Android 앱에 서버 URL이 저장되어 있으면 기본 장애물 분석도 서버로만 보내던 구조가 있었습니다. 이 상태에서 ngrok/GCP/로컬 서버가 꺼져 있거나 응답이 느리면 ONNX가 살아 있어도 기본 장애물 안내가 나오지 않을 수 있습니다.
+
+### 수정 내용
+
+- `MainActivity.captureAndProcess()`에서 `장애물`/`찾기` 모드는 서버 URL 여부와 관계없이 ONNX 우선 사용
+- ONNX 실패 시에만 저장된 서버 URL로 fallback
+- `StairsDetector` 결과를 ONNX 탐지 결과에 합쳐 계단 후보도 오버레이/문장 생성 경로로 전달
+- 설정 AlertDialog 실패 시 `VG_SETTINGS` Logcat + Toast 표시
+- 설정 버튼 길게 누르기로 디버그 오버레이 즉시 토글 가능
+- `YoloDetector` confidence threshold `0.50 → 0.35`, 최대 박스 `5 → 8`
+
+### 빠른 현장 확인
+
+1. 서버 URL을 비워도 `분석 시작` 후 바운딩 박스가 뜨는지 확인
+2. 우상단 설정 버튼을 길게 눌러 `tvDebug` 오버레이가 뜨는지 확인
+3. Logcat 필터:
+
+```text
+VG_DETECT
+VG_PERF
+VG_SETTINGS
+```
+
+4. Android Studio에서 열어야 하는 프로젝트:
+
+```text
+C:\VoiceGuide\VoiceGuide\android
+```
+
+루트의 `C:\VoiceGuide\android`는 예전 프로젝트가 섞여 있을 수 있으므로 최신 APK 확인 시 주의합니다.
+
+---
+
 ## 요약
 
 바운딩 박스가 실제 물체 위치와 맞지 않았던 주된 원인은 `src/vision/detect.py`에서 YOLO 추론 전에 이미지를 좌우 반전하고 있었기 때문입니다.
