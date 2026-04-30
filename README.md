@@ -15,7 +15,7 @@
 | 환경 | 대시보드 URL |
 |------|------------|
 | **로컬 WiFi** | `http://192.168.x.x:8000/dashboard` |
-| **GCP Cloud Run** | `https://voiceguide-xxx.run.app/dashboard` |
+| **GCP Cloud Run** ✅ 현재 운영 중 | `https://voiceguide-135456731041.asia-northeast3.run.app/dashboard` |
 | **AWS EC2** | `http://EC2공인IP:8000/dashboard` |
 | **Render** | `https://voiceguide-xxx.onrender.com/dashboard` |
 
@@ -33,9 +33,11 @@
 
 ### 외부 서버 배포 후 앱 연결
 
-1. GCP 등에 배포 → URL 확인 (예: `https://voiceguide-xxx.run.app`)
-2. Android 앱 서버 URL 입력창에 해당 URL 입력
-3. 앱 실행 → 대시보드에서 실시간 확인
+1. Android 앱 서버 URL 입력창에 아래 URL 입력:
+   ```
+   https://voiceguide-135456731041.asia-northeast3.run.app
+   ```
+2. 앱 실행 → 대시보드: `/dashboard` 접속
 
 ---
 

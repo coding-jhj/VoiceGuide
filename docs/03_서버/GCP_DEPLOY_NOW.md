@@ -75,8 +75,9 @@ gcloud run deploy voiceguide ^
 
 배포 완료 시:
 ```
-Service URL: https://voiceguide-xxxx-an.a.run.app
+Service URL: https://voiceguide-135456731041.asia-northeast3.run.app
 ```
+> ✅ 현재 이 URL로 운영 중 (2026-04-30 배포 완료)
 
 브라우저에서 확인:
 ```

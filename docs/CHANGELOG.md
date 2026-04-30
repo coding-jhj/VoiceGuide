@@ -2,6 +2,43 @@
 
 ---
 
+## 2026-04-30 (GCP 배포 완료 + 가이드라인 전 Phase 반영 + 다수 버그 수정)
+
+### GCP Cloud Run 서버 배포 완료
+- 서버 URL: `https://voiceguide-135456731041.asia-northeast3.run.app`
+- `Dockerfile`, `requirements-server.txt`, `.dockerignore` 추가
+- 콜드스타트 방지: `min-instances=1` 설정
+- 빌드 오류 수정: `libgl1-mesa-glx` → `libgl1`, `speech_recognition` 조건부 import
+
+### start.bat 인코딩 오류 수정
+- 한글 echo 문 → 영문으로 교체 (Windows CMD UTF-8 파싱 오류)
+- `conda run -n ai_env` 방식 → `call activate.bat` 방식으로 변경 (안정성 향상)
+
+### Android 서버 fallback 수정 (장애물 인식 안 되는 버그)
+- **원인**: 서버 URL 있으면 무조건 서버만 시도 → GCP 콜드스타트(30~60초) 타임아웃 → 아무것도 인식 못 함
+- **수정**: 서버 실패 시 온디바이스(ONNX) 자동 fallback 추가
+- `currentFile` 변수로 optimized 파일 추적 → 서버 실패 후 파일 유효성 보장
+
+### captureAndProcess() 서버 우선 구조로 변경
+- **기존**: `yoloDetector != null` 이면 무조건 온디바이스 (서버 URL 입력해도 서버 안 씀)
+- **수정**: 서버 URL 있으면 서버 우선, 실패하면 온디바이스 fallback
+
+### BoundingBoxOverlay BuildConfig 오류 수정
+- `BuildConfig` import 제거, confidence % 항상 숨김 (Android Studio 빌드 오류 해결)
+
+### 가이드라인(06_student_development_guideline.md) 전 Phase 반영
+- Phase 1: `서버_DB/`, `서버_DB_수정/` → `legacy/` 이동
+- Phase 3: 권한 분리 (카메라/마이크 즉시, GPS/SMS는 기능 사용 시), STT fallback `unknown`
+- Phase 3.5: `_INFO_ONLY_KO` 추가 (키보드/TV 등 비위험 물체 "위험!" 제거), beep 구간 2.5~7m
+- Phase 4: `benchmark.py` Precision/Recall/F1 측정 함수 추가
+- Phase 5: API Key Bearer 토큰 인증, CORS 미들웨어, snapshots 정리 정책
+- Phase 6: 테스트 integration/demo 마커 분리
+- Phase 7: bbox 위험도 색상(빨강/노랑/초록), 버튼 주/보조 계층, contentDescription
+- `INTERVAL_MS` 50→700ms, `VOTE_MIN_COUNT` 1→2
+- `routes.py` 색상 모드 전용 분기, STT/서버 Log.d 디버그 추가
+
+---
+
 ## 2026-04-30 (GCP 배포 + EXIF 회전 버그 수정)
 
 ### GCP Cloud Run 배포로 전환
