@@ -15,13 +15,12 @@
 | 환경 | 대시보드 URL |
 |------|------------|
 | **로컬 WiFi** | `http://192.168.x.x:8000/dashboard` |
-| **Railway 배포** | `https://voiceguide-xxx.up.railway.app/dashboard` |
 | **GCP Cloud Run** | `https://voiceguide-xxx.run.app/dashboard` |
 | **AWS EC2** | `http://EC2공인IP:8000/dashboard` |
 | **Render** | `https://voiceguide-xxx.onrender.com/dashboard` |
 
 > 👉 무료 외부 서버 배포 방법: [docs/DEPLOY_GUIDE.md](docs/DEPLOY_GUIDE.md)  
-> Railway, GCP, AWS, Oracle Cloud, Render 전부 **무료**로 배포 가능합니다.
+> GCP, AWS, Oracle Cloud, Render 전부 **무료**로 배포 가능합니다.
 
 ### 기능
 
@@ -34,7 +33,7 @@
 
 ### 외부 서버 배포 후 앱 연결
 
-1. Railway/GCP 등에 배포 → URL 확인 (예: `https://voiceguide-xxx.up.railway.app`)
+1. GCP 등에 배포 → URL 확인 (예: `https://voiceguide-xxx.run.app`)
 2. Android 앱 서버 URL 입력창에 해당 URL 입력
 3. 앱 실행 → 대시보드에서 실시간 확인
 
@@ -533,7 +532,6 @@ VoiceGuide/
 │   ├── main.py            items CRUD + /detect DB 저장 엔드포인트
 │   └── SUPABASE_DB_CONNECT_GUIDE.md
 │
-├── railway.toml           Railway 무료 배포 설정
 ├── .env                   환경변수 (DATABASE_URL, API 키 등)
 │
 ├── tools/
