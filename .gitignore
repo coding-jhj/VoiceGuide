@@ -37,6 +37,7 @@ datasets/
 
 # 학습 실행 결과 (로컬 전용)
 runs/
+flagged/
 
 # TTS 캐시 (자동 재생성)
 __tts_cache__/
