@@ -285,6 +285,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var awaitingStartConfirm = false
     @Volatile private var isListening = false      // STT 활성 중 → TTS 차단
     @Volatile private var autoListenEnabled = false // TTS 끝나면 자동 재청취
+    @Volatile private var pendingStartupCommand: String? = null
 
     @Volatile private var pendingStatusText = ""  // TTS 재생 시작 시점에 tvStatus 동기화
 
@@ -340,6 +341,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 생명주기 ─────────────────────────────────────────────────────────
 
+    @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -679,8 +681,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             if (text.contains("네") || text.contains("예") || text.contains("응")) {
                 requestPermissions()
             } else if (mode != "unknown") {
+                pendingStartupCommand = text
                 requestPermissions()
-                handler.postDelayed({ handleSttResult(text) }, 1500L)
             } else {
                 speak("알겠어요. 분석 시작 버튼을 누르시면 시작돼요.")
             }
@@ -1036,6 +1038,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         hasPerm(Manifest.permission.ACCESS_FINE_LOCATION) ||
             hasPerm(Manifest.permission.ACCESS_COARSE_LOCATION)
 
+    @Suppress("DEPRECATION")
     private fun startCamera() {
         val future = ProcessCameraProvider.getInstance(this)
         future.addListener({
@@ -1088,7 +1091,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         tvStatus.text  = "분석 중..."
         startGpsUpdates()
         scheduleWatchdog()
-        scheduleAutoListen()
+        val startupCommand = pendingStartupCommand
+        if (startupCommand != null) {
+            pendingStartupCommand = null
+            handler.postDelayed({ handleSttResult(startupCommand) }, 300L)
+        } else {
+            scheduleAutoListen()
+        }
     }
 
     private fun stopAnalysis() {
@@ -1674,6 +1683,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     /** JPEG 파일의 EXIF 회전 태그를 읽어 실제 화면 방향으로 비트맵을 회전한다. */
+    @Suppress("DEPRECATION")
     private fun performVibrationFeedback(pattern: VibrationPattern) {
         if (pattern == VibrationPattern.NONE) return
         val timings = when (pattern) {
@@ -1885,7 +1895,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── 유틸리티 ────────────────────────────────────────────────────────
 
-    @Suppress("MissingPermission")
+    @Suppress("MissingPermission", "DEPRECATION")
     private fun getWifiSsid(): String = try {
         val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         wm.connectionInfo.ssid?.replace("\"", "") ?: ""
@@ -2022,6 +2032,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun scheduleMedicineReminder(text: String) {
         speak("약 알림 기능은 현재 준비 중이에요.")
     }
