@@ -53,6 +53,13 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | `GET /team-locations` | 최근 팀 위치 조회 |
 | `GET /history/{session_id}` | 최근 24시간 탐지 이벤트 내역 |
 | `GET /dashboard/summary` | 전체 단말 기준 최근 24시간 탐지 통계 |
+| `POST /locations/save` | 세션별 저장 장소 등록 |
+| `GET /locations` | 저장 장소 목록 조회 |
+| `GET /locations/find/{label}` | 저장 장소 검색 |
+| `DELETE /locations/{label}` | 저장 장소 삭제 |
+| `POST /gps/route/save` | 현재 GPS track을 저장 경로로 확정 |
+| `GET /routes/{session_id}` | 저장된 GPS 경로 목록 |
+| `GET /routes/{session_id}/{route_id}` | 저장 경로 좌표 조회 |
 | `GET /dashboard` | HTML 대시보드 |
 
 ### DB/대시보드
@@ -66,7 +73,7 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | `recent_detections` | `/detect_json` 호환 보조 |
 | `saved_locations` | `/locations/save`, `/locations`, `/locations/find/{label}`, `/locations/{label}` DELETE 라우터 구현 완료 |
 
-현재 코드 기준으로 `/history/{session_id}`, `/routes/{session_id}`, `/gps/route/save`, `/dashboard/summary`가 구현되어 있습니다.
+현재 코드 기준으로 `/history/{session_id}`, `/routes/{session_id}`, `/gps/route/save`, `/dashboard/summary`, `/locations` 저장/조회/검색/삭제 라우트가 구현되어 있습니다.
 
 ---
 
@@ -78,7 +85,7 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | Depth 모듈이 거리 계산 담당 | 현재 주 경로는 bbox 기반 거리 추정. `depth_source`는 `on_device_bbox` |
 | `/detect_json` 중심 업로드 | Android 현재 주 경로는 `POST /detect`; `/detect_json`은 호환용 |
 | `/status`가 `recent_detections` 반환 | 현재 `/status`는 `objects`, `gps`, `track`, `latest_event` 반환 |
-| 장소 저장 API가 완성됨 | Android 내부 저장은 동작. 서버 `/locations` 라우터는 아직 없음 |
+| 장소 저장 API가 완성됨 | 서버 `/locations` 라우터가 세션별 저장 장소 등록/조회/검색/삭제를 제공 |
 | 서버 FPS가 핵심 병목 | 서버는 추론을 하지 않으므로 현재 병목은 Android 추론/후처리와 네트워크 업로드 빈도 |
 
 ---
@@ -134,6 +141,7 @@ python -m pytest tests/ -v -m "not integration"
 - `/detect` 응답 스키마와 `depth_source`
 - `/detect_json` 저장 및 `recent_detections` 회귀
 - `/spaces/snapshot`
+- `/locations` 저장/조회/검색/삭제
 - API key 보호 라우트
 - 한국어 NLG 조사/거리 문장
 - 서버 런타임 import

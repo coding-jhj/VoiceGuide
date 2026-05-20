@@ -130,6 +130,10 @@ cd android
 | GET | `/routes/{session_id}` | 대시보드 | 저장된 GPS 경로 목록 |
 | GET | `/routes/{session_id}/{route_id}` | 대시보드 | 특정 GPS 경로 좌표 |
 | GET | `/dashboard/summary` | 대시보드 | 전체 단말 24시간 탐지 통계 |
+| POST | `/locations/save` | Android | 세션별 저장 장소 등록 |
+| GET | `/locations` | Android | 저장 장소 목록 조회 |
+| GET | `/locations/find/{label}` | Android | 저장 장소 검색 |
+| DELETE | `/locations/{label}` | Android | 저장 장소 삭제 |
 | GET | `/dashboard` | 브라우저 | 대시보드 HTML |
 
 ---

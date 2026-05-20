@@ -668,15 +668,29 @@ def save_location(label: str, wifi_ssid: str):
                 "VALUES (?, ?, ?)", (label, wifi_ssid, ts))
 
 
-def delete_location(label: str):
+def delete_location(label: str, wifi_ssid: str = "") -> int:
     with _conn() as conn:
         if _IS_POSTGRES:
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM saved_locations WHERE label = %s", (label,))
+                if wifi_ssid:
+                    cur.execute(
+                        "DELETE FROM saved_locations WHERE label = %s AND wifi_ssid = %s",
+                        (label, wifi_ssid),
+                    )
+                else:
+                    cur.execute(
+                        "DELETE FROM saved_locations WHERE label = %s", (label,))
+                return cur.rowcount
         else:
-            conn.execute(
-                "DELETE FROM saved_locations WHERE label = ?", (label,))
+            if wifi_ssid:
+                cur = conn.execute(
+                    "DELETE FROM saved_locations WHERE label = ? AND wifi_ssid = ?",
+                    (label, wifi_ssid),
+                )
+            else:
+                cur = conn.execute(
+                    "DELETE FROM saved_locations WHERE label = ?", (label,))
+            return cur.rowcount
 
 
 def get_locations(wifi_ssid: str = "") -> list[dict]:
@@ -835,6 +849,33 @@ def get_latest_session() -> str | None:
 
 _DETECTIONS_KEEP = 500  # 세션별 최대 보관 수
 
+
+def _recent_detection_values(d: dict) -> tuple:
+    bbox = d.get("bbox_norm_xywh") or []
+    if len(bbox) >= 4:
+        x, y, w, h = (float(v) for v in bbox[:4])
+        cx = x + w / 2
+        cy = y + h / 2
+    else:
+        cx = float(d.get("cx", 0.0) or 0.0)
+        cy = float(d.get("cy", 0.0) or 0.0)
+        w = float(d.get("w", 0.0) or 0.0)
+        h = float(d.get("h", 0.0) or 0.0)
+
+    return (
+        d.get("class_ko") or d.get("classKo") or d.get("label") or d.get("class") or "",
+        d.get("confidence", 0.0),
+        round(cx, 6),
+        round(cy, 6),
+        round(w, 6),
+        round(h, 6),
+        d.get("zone") or d.get("direction") or "12시",
+        d.get("dist_m", d.get("distance_m", 0.0)),
+        d.get("is_vehicle", False),
+        d.get("is_animal", False),
+    )
+
+
 def save_detections(
     device_id: str,
     session_id: str,
@@ -852,12 +893,7 @@ def save_detections(
         if _IS_POSTGRES:
             rows = [
                 (device_id, session_id, request_id,
-                 d.get("class_ko", ""), d.get("confidence", 0.0),
-                 d.get("cx", 0.0), d.get("cy", 0.0),
-                 d.get("w", 0.0),  d.get("h", 0.0),
-                 d.get("zone", "12시"), d.get("dist_m", 0.0),
-                 d.get("is_vehicle", False), d.get("is_animal", False),
-                 mode, lat, lng, ts)
+                 *_recent_detection_values(d), mode, lat, lng, ts)
                 for d in detections
             ]
             with conn.cursor() as cur:
@@ -877,14 +913,26 @@ def save_detections(
                 )
         else:
             rows = [
-                (device_id, session_id, request_id,
-                 d.get("class_ko", ""), d.get("confidence", 0.0),
-                 d.get("cx", 0.0), d.get("cy", 0.0),
-                 d.get("w", 0.0),  d.get("h", 0.0),
-                 d.get("zone", "12시"), d.get("dist_m", 0.0),
-                 int(d.get("is_vehicle", False)), int(d.get("is_animal", False)),
-                 mode, lat, lng, ts)
-                for d in detections
+                (
+                    device_id,
+                    session_id,
+                    request_id,
+                    values[0],
+                    values[1],
+                    values[2],
+                    values[3],
+                    values[4],
+                    values[5],
+                    values[6],
+                    values[7],
+                    int(values[8]),
+                    int(values[9]),
+                    mode,
+                    lat,
+                    lng,
+                    ts,
+                )
+                for values in (_recent_detection_values(d) for d in detections)
             ]
             conn.executemany(
                 "INSERT INTO recent_detections "

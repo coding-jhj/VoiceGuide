@@ -136,15 +136,14 @@ class SessionTracker:
         for raw in objects:
             obj = dict(raw)
             key = _object_key(obj)
-            new_d = float(obj.get("distance_m") or 99.0)
+            new_d = float(obj.get("distance_m") or obj.get("smoothed_distance_m") or 99.0)
             new_r = float(obj.get("risk_score") or 0.0)
 
             if key in self._tracks:
                 tr = self._tracks[key]
                 old_d = float(tr.get("distance_m", new_d))
-                old_r = float(tr.get("risk_score", new_r))
                 smooth_d = round(_EMA_ALPHA * new_d + (1 - _EMA_ALPHA) * old_d, 1)
-                smooth_r = round(_EMA_ALPHA * new_r + (1 - _EMA_ALPHA) * old_r, 2)
+                smooth_r = new_r
                 delta = old_d - smooth_d
 
                 # 일반 접근 경고: 0.4m 이상 가까워지고 아직 2.5m 이내
@@ -189,7 +188,8 @@ class SessionTracker:
                     "alerted_fast": False,
                 }
 
-            obj["distance_m"] = smooth_d
+            obj["distance_m"] = new_d
+            obj["smoothed_distance_m"] = smooth_d
             obj["risk_score"] = max(0.0, min(smooth_r, 1.0))
             obj["vibration_pattern"] = obj.get("vibration_pattern") or _risk_pattern(obj["risk_score"], obj)
             obj["track_id"] = obj.get("track_id", self._tracks[key].get("track_id", 0))

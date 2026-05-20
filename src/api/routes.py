@@ -26,6 +26,8 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, Body, Form, Header, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
+from src.api import locations as location_api
+
 # ── API Key 인증 ────────────────────────────────────────────────────────────
 _API_KEY = os.getenv("API_KEY", "")
 
@@ -46,6 +48,7 @@ from src.nlg.sentence import (
 )
 from src.api import db
 from src.api import events
+from src.api.detections import normalize_detection_objects, normalize_legacy_detections
 from src.api.tracker import get_tracker
 
 router = APIRouter()
@@ -298,7 +301,7 @@ async def detect(
     if lat != 0.0 or lng != 0.0:
         db.save_gps(session_id, lat, lng)
 
-    objects = _normalize_objects(payload.get("objects", []))
+    objects = normalize_detection_objects(payload.get("objects", []))
     current_objects = list(objects)
     hazards = payload.get("hazards", [])
     if not isinstance(hazards, list):
@@ -467,24 +470,7 @@ async def detect_from_json(body: dict):
         db.save_gps(session_id, lat, lng)
 
     # 폰 포맷 → 서버 내부 포맷으로 변환
-    objects = [
-        {
-            "class":      d.get("class_ko", ""),
-            "class_ko":   d.get("class_ko", ""),
-            "confidence": d.get("confidence", 0.0),
-            "distance_m": d.get("dist_m", 0.0),
-            "risk_score": float(d.get("risk_score", 0.0)),
-            "track_id": d.get("track_id", 0),
-            "vibration_pattern": d.get("vibration_pattern", "NONE"),
-            "direction":  d.get("zone", "12시"),
-            "is_vehicle": d.get("is_vehicle", False),
-            "is_animal":  d.get("is_animal", False),
-            "depth_source": "bbox_ondevice",
-            "cx": d.get("cx", 0.0), "cy": d.get("cy", 0.0),
-            "w":  d.get("w", 0.0),  "h":  d.get("h", 0.0),
-        }
-        for d in raw_detections
-    ]
+    objects = normalize_legacy_detections(raw_detections)
 
     # tracker 업데이트 (EMA 평활화 + 접근 감지)
     _t_tracker = _time.monotonic()
@@ -668,6 +654,55 @@ async def stream_session_events(session_id: str):
 @router.get("/sessions", dependencies=[Depends(_verify_api_key)])
 async def list_sessions():
     return {"sessions": db.get_recent_sessions()}
+
+@router.post("/locations/save", dependencies=[Depends(_verify_api_key)])
+async def save_location(body: dict | None = Body(default=None)):
+    body = body or {}
+    label, scope = location_api.location_from_body(body, _normalize_session_id)
+    if not label:
+        raise HTTPException(status_code=400, detail="label is required")
+    db.save_location(label, scope)
+    location = {"label": label, "wifi_ssid": scope, "timestamp": ""}
+    saved = db.get_locations(scope)
+    if saved:
+        location = saved[0]
+    return location_api.save_payload(label, scope, location)
+
+@router.get("/locations", dependencies=[Depends(_verify_api_key)])
+async def list_locations(wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    return location_api.list_payload(db.get_locations(scope))
+
+@router.get("/locations/find/{label}", dependencies=[Depends(_verify_api_key)])
+async def find_location(label: str, wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    location = location_api.find_in_locations(label, db.get_locations(scope)) if scope else db.find_location(label)
+    if not location:
+        raise HTTPException(status_code=404, detail=location_api.missing_payload(label))
+    return location_api.found_payload(label, location)
+
+@router.delete("/locations/{label}", dependencies=[Depends(_verify_api_key)])
+async def delete_location(label: str, wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    deleted = db.delete_location(label, scope) > 0
+    if not deleted:
+        raise HTTPException(status_code=404, detail=location_api.delete_payload(label, False))
+    return location_api.delete_payload(label, True)
 
 @router.get("/team-locations", dependencies=[Depends(_verify_api_key)])
 async def get_team_locations():

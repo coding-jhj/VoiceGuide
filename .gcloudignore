@@ -1,6 +1,41 @@
-# gcloud run deploy --source . 업로드 파일 필터
-# .gitignore 규칙을 상속하되 서버 모델 파일만 예외 허용
-#!include:.gitignore
+# Files excluded from `gcloud run deploy --source .`.
+# The Cloud Run server does not need Android builds, TFLite assets, training
+# data, model-export tools, tests, or project documentation.
 
-# yolo26s.pt는 커스텀 모델 — hub 다운로드 불가, 반드시 포함
-!yolo26s.pt
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+android/
+train/
+tools/
+tests/
+docs/
+data/
+models/
+datasets/
+runs/
+flagged/
+__tts_cache__/
+
+*.pt
+*.pth
+*.onnx
+*.onnx.data
+*.tflite
+voiceguide.db
+
+.idea/
+.vscode/
+.DS_Store
