@@ -26,6 +26,8 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, Body, Form, Header, HTTPException, Response
 from fastapi.responses import StreamingResponse
 
+from src.api import locations as location_api
+
 # ── API Key 인증 ────────────────────────────────────────────────────────────
 _API_KEY = os.getenv("API_KEY", "")
 
@@ -46,6 +48,7 @@ from src.nlg.sentence import (
 )
 from src.api import db
 from src.api import events
+from src.api.detections import normalize_detection_objects, normalize_legacy_detections
 from src.api.tracker import get_tracker
 
 router = APIRouter()
@@ -169,93 +172,6 @@ def _space_changes(current: list[dict], previous: list[dict]) -> list[str]:
     return changes
 
 
-_ZONE_BOUNDARIES = [
-    (0.11, "8시"), (0.22, "9시"), (0.33, "10시"),
-    (0.44, "11시"), (0.56, "12시"), (0.67, "1시"),
-    (0.78, "2시"), (0.89, "3시"), (1.01, "4시"),
-]
-
-
-def _direction_from_bbox(obj: dict) -> str:
-    if obj.get("direction"):
-        return str(obj["direction"])
-    bbox = obj.get("bbox_norm_xywh") or []
-    if len(bbox) >= 4:
-        cx = float(bbox[0]) + float(bbox[2]) / 2
-    else:
-        cx = float(obj.get("cx", 0.5))
-    for boundary, label in _ZONE_BOUNDARIES:
-        if cx < boundary:
-            return label
-    return "4시"
-
-
-def _distance_from_bbox(obj: dict) -> float:
-    if obj.get("distance_m") is not None:
-        return round(float(obj["distance_m"]), 1)
-    bbox = obj.get("bbox_norm_xywh") or []
-    if len(bbox) >= 4:
-        area = max(0.0001, float(bbox[2]) * float(bbox[3]))
-    else:
-        area = max(0.0001, float(obj.get("w", 0.1)) * float(obj.get("h", 0.1)))
-    try:
-        from src.config.policy import get_policy
-        calib = float(get_policy().get("on_device", {}).get("bbox_calib_area", 0.12))
-    except Exception:
-        calib = 0.12
-    return round(min(15.0, max(0.1, (calib / area) ** 0.5)), 1)
-
-
-def _risk_from_object(obj: dict) -> float:
-    if obj.get("risk_score") is not None:
-        return float(obj["risk_score"])
-    dist = float(obj.get("distance_m", 15.0))
-    bbox = obj.get("bbox_norm_xywh") or [0, 0, 0.1, 0.1]
-    area = float(bbox[2]) * float(bbox[3]) if len(bbox) >= 4 else 0.01
-    distance_score = max(0.0, min(1.0, (7.0 - dist) / 7.0))
-    area_score = max(0.0, min(1.0, area / 0.12))
-    return round(max(distance_score, area_score), 2)
-
-
-def _normalize_objects(raw_objects: list[dict]) -> list[dict]:
-    from src.config.policy import get_policy
-    classes = get_policy().get("classes", {})
-    vehicle_ko = set(classes.get("vehicle_ko", []))
-    animal_ko = set(classes.get("animal_ko", []))
-    critical_ko = set(classes.get("critical_ko", []))
-
-    objects = []
-    for raw in raw_objects:
-        if not isinstance(raw, dict):
-            continue
-        class_ko = str(raw.get("class_ko") or raw.get("classKo") or raw.get("label") or "").strip()
-        if not class_ko:
-            continue
-        bbox = raw.get("bbox_norm_xywh")
-        if not bbox:
-            cx = float(raw.get("cx", 0.5))
-            cy = float(raw.get("cy", 0.5))
-            w = float(raw.get("w", 0.1))
-            h = float(raw.get("h", 0.1))
-            bbox = [round(cx - w / 2, 6), round(cy - h / 2, 6), round(w, 6), round(h, 6)]
-        bbox = [round(float(v), 6) for v in bbox[:4]]
-        obj = {
-            "class": str(raw.get("class") or raw.get("class_name") or class_ko),
-            "class_ko": class_ko,
-            "confidence": round(float(raw.get("confidence", 0.0)), 4),
-            "bbox_norm_xywh": bbox,
-            "direction": _direction_from_bbox({**raw, "bbox_norm_xywh": bbox}),
-            "depth_source": str(raw.get("depth_source", "on_device_bbox")),
-            "is_vehicle": bool(raw.get("is_vehicle", class_ko in vehicle_ko)),
-            "is_animal": bool(raw.get("is_animal", class_ko in animal_ko)),
-            "is_dangerous": bool(raw.get("is_dangerous", class_ko in critical_ko)),
-        }
-        obj["distance_m"] = _distance_from_bbox({**raw, "bbox_norm_xywh": bbox})
-        obj["risk_score"] = _risk_from_object(obj)
-        objects.append(obj)
-    return sorted(objects, key=lambda x: x.get("risk_score", 0), reverse=True)[:8]
-
-
 @router.post("/detect", dependencies=[Depends(_verify_api_key)])
 async def detect(
     payload: dict = Body(...),
@@ -276,7 +192,7 @@ async def detect(
     if lat != 0.0 or lng != 0.0:
         db.save_gps(session_id, lat, lng)
 
-    objects = _normalize_objects(payload.get("objects", []))
+    objects = normalize_detection_objects(payload.get("objects", []))
     current_objects = list(objects)
     hazards = payload.get("hazards", [])
     if not isinstance(hazards, list):
@@ -438,24 +354,7 @@ async def detect_from_json(body: dict):
         db.save_gps(session_id, lat, lng)
 
     # 폰 포맷 → 서버 내부 포맷으로 변환
-    objects = [
-        {
-            "class":      d.get("class_ko", ""),
-            "class_ko":   d.get("class_ko", ""),
-            "confidence": d.get("confidence", 0.0),
-            "distance_m": d.get("dist_m", 0.0),
-            "risk_score": float(d.get("risk_score", 0.0)),
-            "track_id": d.get("track_id", 0),
-            "vibration_pattern": d.get("vibration_pattern", "NONE"),
-            "direction":  d.get("zone", "12시"),
-            "is_vehicle": d.get("is_vehicle", False),
-            "is_animal":  d.get("is_animal", False),
-            "depth_source": "bbox_ondevice",
-            "cx": d.get("cx", 0.0), "cy": d.get("cy", 0.0),
-            "w":  d.get("w", 0.0),  "h":  d.get("h", 0.0),
-        }
-        for d in raw_detections
-    ]
+    objects = normalize_legacy_detections(raw_detections)
 
     # tracker 업데이트 (EMA 평활화 + 접근 감지)
     _t_tracker = _time.monotonic()
@@ -635,6 +534,55 @@ async def stream_session_events(session_id: str):
 @router.get("/sessions", dependencies=[Depends(_verify_api_key)])
 async def list_sessions():
     return {"sessions": db.get_recent_sessions()}
+
+@router.post("/locations/save", dependencies=[Depends(_verify_api_key)])
+async def save_location(body: dict | None = Body(default=None)):
+    body = body or {}
+    label, scope = location_api.location_from_body(body, _normalize_session_id)
+    if not label:
+        raise HTTPException(status_code=400, detail="label is required")
+    db.save_location(label, scope)
+    location = {"label": label, "wifi_ssid": scope, "timestamp": ""}
+    saved = db.get_locations(scope)
+    if saved:
+        location = saved[0]
+    return location_api.save_payload(label, scope, location)
+
+@router.get("/locations", dependencies=[Depends(_verify_api_key)])
+async def list_locations(wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    return location_api.list_payload(db.get_locations(scope))
+
+@router.get("/locations/find/{label}", dependencies=[Depends(_verify_api_key)])
+async def find_location(label: str, wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    location = location_api.find_in_locations(label, db.get_locations(scope)) if scope else db.find_location(label)
+    if not location:
+        raise HTTPException(status_code=404, detail=location_api.missing_payload(label))
+    return location_api.found_payload(label, location)
+
+@router.delete("/locations/{label}", dependencies=[Depends(_verify_api_key)])
+async def delete_location(label: str, wifi_ssid: str = "", device_id: str = "", session_id: str = ""):
+    scope = location_api.resolve_location_scope(
+        _normalize_session_id,
+        wifi_ssid=wifi_ssid,
+        device_id=device_id,
+        session_id=session_id,
+    )
+    deleted = db.delete_location(label, scope) > 0
+    if not deleted:
+        raise HTTPException(status_code=404, detail=location_api.delete_payload(label, False))
+    return location_api.delete_payload(label, True)
 
 @router.get("/team-locations", dependencies=[Depends(_verify_api_key)])
 async def get_team_locations():

@@ -1,0 +1,26 @@
+# Local development, tests, simulators, and model-preparation tools.
+-r requirements-server.txt
+
+# Numeric/image utilities used by tools/ and train/.
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+Pillow>=10.0.0
+
+# HTTP clients for simulator/integration tests.
+requests>=2.32.0
+httpx
+
+# ONNX export helpers for tools/export_onnx.py.
+onnx
+onnxscript
+
+# Dataset/search utilities used by training preparation scripts.
+ddgs
+
+# Test runner.
+pytest
+
+# Optional heavy ML dependencies for local model work. Install manually when
+# needed so Cloud Run and routine setup stay small:
+#   pip install torch==2.4.1 torchvision==0.19.1
+#   pip install ultralytics==8.4.33

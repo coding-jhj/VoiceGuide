@@ -49,6 +49,14 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | `GET /events/{session_id}` | SSE 실시간 대시보드 스트림 |
 | `GET /sessions` | 최근 GPS session 목록 조회 |
 | `GET /team-locations` | 최근 팀 위치 조회 |
+| `POST /locations/save` | 세션별 저장 장소 등록 |
+| `GET /locations` | 저장 장소 목록 조회 |
+| `GET /locations/find/{label}` | 저장 장소 검색 |
+| `DELETE /locations/{label}` | 저장 장소 삭제 |
+| `POST /gps/route/save` | 현재 GPS track을 저장 경로로 확정 |
+| `GET /routes/{session_id}` | 저장된 GPS 경로 목록 |
+| `GET /routes/{session_id}/{route_id}` | 저장 경로 좌표 조회 |
+| `GET /history/{session_id}` | 최근 24시간 탐지 이력 |
 | `GET /dashboard` | HTML 대시보드 |
 
 ### DB/대시보드
@@ -60,9 +68,7 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | `snapshots` | session별 최근 공간 상태 |
 | `gps_history` | 현재 이동 경로 좌표 |
 | `recent_detections` | `/detect_json` 호환 및 질문 복원 보조 |
-| `saved_locations` | DB 헬퍼는 존재하나 현재 라우터에는 `/locations` 엔드포인트 없음 |
-
-`feature/jaehyun` 기준으로 `/history/{session_id}`, `/routes/{session_id}`, `/gps/route/save`는 아직 구현되어 있지 않습니다.
+| `saved_locations` | 세션별 저장 장소. `/locations` 라우터에서 등록/조회/검색/삭제 |
 
 ---
 
@@ -74,7 +80,7 @@ VoiceGuide는 서버 추론형 구조에서 온디바이스 우선 구조로 정
 | Depth 모듈이 거리 계산 담당 | 현재 주 경로는 bbox 기반 거리 추정. `depth_source`는 `on_device_bbox` |
 | `/detect_json` 중심 업로드 | Android 현재 주 경로는 `POST /detect`; `/detect_json`은 호환용 |
 | `/status`가 `recent_detections` 반환 | 현재 `/status`는 `objects`, `gps`, `track`, `latest_event` 반환 |
-| 장소 저장 API가 완성됨 | Android 내부 저장은 동작. 서버 `/locations` 라우터는 아직 없음 |
+| 장소 저장 API가 완성됨 | 서버 `/locations` 라우터가 세션별 저장 장소 등록/조회/검색/삭제를 제공 |
 | 서버 FPS가 핵심 병목 | 서버는 추론을 하지 않으므로 현재 병목은 Android 추론/후처리와 네트워크 업로드 빈도 |
 
 ---
@@ -130,6 +136,7 @@ python -m pytest tests/ -v -m "not integration"
 - `/detect` 응답 스키마와 `depth_source`
 - `/detect_json` 저장 및 `recent_detections` 회귀
 - `/spaces/snapshot`
+- `/locations` 저장/조회/검색/삭제
 - API key 보호 라우트
 - 한국어 NLG 조사/거리/찾기 문장
 - 서버 런타임 import
@@ -183,9 +190,9 @@ python test_simulation.py
 
 ### 중간
 
-4. `/locations` 서버 라우트 정리
-   - `db.py`에는 `save_location/get_locations/find_location/delete_location`가 있으나 `routes.py`에는 노출되지 않습니다.
-   - Android가 현재 `SharedPreferences`를 쓰므로, 서버 동기화를 할지 제거할지 결정해야 합니다.
+4. Android 장소 동기화 경로 정리
+   - 서버 `/locations` 라우터는 구현되어 있습니다.
+   - Android가 현재 `SharedPreferences`와 서버 저장 장소를 어떻게 동기화할지 결정해야 합니다.
 
 5. `/detect_json` 경로 정리
    - Android에는 `sendDetectionsJson()` 구형 경로 함수가 남아 있습니다.
@@ -194,7 +201,7 @@ python test_simulation.py
 6. 대시보드/이력 API 정리
    - SSE `/events/{session_id}`
    - `/team-locations`
-   - `/history/{session_id}` 및 `/routes/{session_id}`는 아직 라우터에 없으므로 구현하거나 문서에서 제외 유지
+   - `/history/{session_id}` 및 `/routes/{session_id}`는 라우터에 있으므로 대시보드 노출 방식 정리
 
 ### 낮음
 

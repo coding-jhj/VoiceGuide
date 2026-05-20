@@ -117,6 +117,10 @@ GET /dashboard
 | GET | `/api/policy` | policy.json 동기화 (ETag 캐싱) |
 | GET | `/status/{session_id}` | 세션 현재 상태 조회 |
 | GET | `/events/{session_id}` | SSE 실시간 스트림 |
+| POST | `/locations/save` | 세션별 저장 장소 등록 |
+| GET | `/locations` | 저장 장소 목록 조회 |
+| GET | `/locations/find/{label}` | 저장 장소 검색 |
+| DELETE | `/locations/{label}` | 저장 장소 삭제 |
 | GET | `/history/{session_id}` | 24시간 탐지 이벤트 내역 |
 | GET | `/routes/{session_id}` | 저장된 GPS 경로 목록 |
 | GET | `/dashboard` | 대시보드 HTML |

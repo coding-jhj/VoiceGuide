@@ -168,6 +168,10 @@ sequenceDiagram
 | `GET` | `/events/{session_id}` | 대시보드 | SSE 실시간 상태 스트림 |
 | `GET` | `/sessions` | 대시보드 | 최근 위치가 있는 session 목록 |
 | `GET` | `/team-locations` | 대시보드 | 최근 팀 위치 조회 |
+| `POST` | `/locations/save` | Android/대시보드 | 세션별 저장 장소 등록 |
+| `GET` | `/locations` | Android/대시보드 | 저장 장소 목록 조회 |
+| `GET` | `/locations/find/{label}` | Android/대시보드 | 저장 장소 검색 |
+| `DELETE` | `/locations/{label}` | Android/대시보드 | 저장 장소 삭제 |
 | `GET` | `/history/{session_id}` | 대시보드 | 최근 24시간 탐지 이력 |
 | `GET` | `/routes/{session_id}` | 대시보드 | 저장된 GPS 경로 목록 |
 | `GET` | `/routes/{session_id}/{route_id}` | 대시보드 | 특정 GPS 경로 좌표 |

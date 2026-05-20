@@ -142,9 +142,8 @@ class SessionTracker:
             if key in self._tracks:
                 tr = self._tracks[key]
                 old_d = float(tr.get("distance_m", new_d))
-                old_r = float(tr.get("risk_score", new_r))
                 smooth_d = round(_EMA_ALPHA * new_d + (1 - _EMA_ALPHA) * old_d, 1)
-                smooth_r = round(_EMA_ALPHA * new_r + (1 - _EMA_ALPHA) * old_r, 2)
+                smooth_r = new_r
                 delta = old_d - smooth_d
 
                 # 일반 접근 경고: 0.4m 이상 가까워지고 아직 2.5m 이내

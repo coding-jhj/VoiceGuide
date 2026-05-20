@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from src.api.main import app
 from src.api import db
 from src.api import routes
+import uuid
 
 db.init_db()
 
@@ -66,6 +67,108 @@ def test_detect_response_schema():
     assert body["objects"][0]["depth_source"] == "on_device_bbox"
 
 
+def test_detect_preserves_android_risk_and_vibration_pattern():
+    payload = {
+        "event_id": "evt-client-judgement-1",
+        "request_id": "req-client-judgement-1",
+        "device_id": "client_judgement_device",
+        "wifi_ssid": "client_judgement_wifi",
+        "mode": "obstacle",
+        "camera_orientation": "front",
+        "objects": [
+            {
+                "class_ko": "box",
+                "confidence": 0.88,
+                "bbox_norm_xywh": [0.35, 0.40, 0.18, 0.20],
+                "distance_m": 1.2,
+                "risk_score": 0.92,
+                "vibration_pattern": "DOUBLE",
+            }
+        ],
+    }
+
+    response = client.post("/detect", json=payload)
+
+    assert response.status_code == 200
+    obj = response.json()["objects"][0]
+    assert obj["risk_score"] == 0.92
+    assert obj["vibration_pattern"] == "DOUBLE"
+    assert obj["depth_source"] == "on_device_bbox"
+
+
+def test_detect_json_uses_same_on_device_depth_source_name():
+    payload = {
+        "device_id": "detect_json_depth_device",
+        "wifi_ssid": "detect_json_depth_wifi",
+        "request_id": "req-detect-json-depth",
+        "mode": "obstacle",
+        "camera_orientation": "front",
+        "detections": [
+            {
+                "class_ko": "box",
+                "confidence": 0.88,
+                "cx": 0.5,
+                "cy": 0.5,
+                "w": 0.18,
+                "h": 0.20,
+                "zone": "12시",
+                "dist_m": 1.2,
+                "risk_score": 0.83,
+                "vibration_pattern": "URGENT",
+            }
+        ],
+    }
+
+    response = client.post("/detect_json", json=payload)
+
+    assert response.status_code == 200
+    obj = response.json()["objects"][0]
+    assert obj["depth_source"] == "on_device_bbox"
+    assert obj["risk_score"] == 0.83
+    assert obj["vibration_pattern"] == "URGENT"
+
+
+def test_detect_does_not_smooth_android_risk_across_frames():
+    session = "client_risk_stream"
+    first = {
+        "event_id": "evt-client-risk-stream-1",
+        "request_id": "req-client-risk-stream-1",
+        "device_id": session,
+        "wifi_ssid": session,
+        "mode": "obstacle",
+        "objects": [
+            {
+                "class_ko": "box",
+                "confidence": 0.90,
+                "bbox_norm_xywh": [0.40, 0.40, 0.20, 0.20],
+                "distance_m": 2.0,
+                "risk_score": 0.10,
+                "vibration_pattern": "NONE",
+            }
+        ],
+    }
+    second = {
+        **first,
+        "event_id": "evt-client-risk-stream-2",
+        "request_id": "req-client-risk-stream-2",
+        "objects": [
+            {
+                **first["objects"][0],
+                "risk_score": 0.90,
+                "vibration_pattern": "URGENT",
+            }
+        ],
+    }
+
+    assert client.post("/detect", json=first).status_code == 200
+    response = client.post("/detect", json=second)
+
+    assert response.status_code == 200
+    obj = response.json()["objects"][0]
+    assert obj["risk_score"] == 0.90
+    assert obj["vibration_pattern"] == "URGENT"
+
+
 def test_detect_json_persists_recent_detections():
     payload = {
         "device_id": "test_detect_json_device",
@@ -107,6 +210,45 @@ def test_spaces_snapshot_endpoint():
     response = client.post("/spaces/snapshot", json=payload)
     assert response.status_code == 200
     assert response.json() == {"saved": True}
+
+
+def test_locations_route_saves_and_lists_by_session():
+    session = f"test_locations_{uuid.uuid4().hex}"
+    label = "테스트 출입구"
+
+    save = client.post(
+        "/locations/save",
+        json={"label": label, "wifi_ssid": session},
+    )
+    assert save.status_code == 200
+    assert save.json()["saved"] is True
+    assert save.json()["location"]["label"] == label
+    assert "sentence" in save.json()
+
+    listed = client.get("/locations", params={"wifi_ssid": session})
+    assert listed.status_code == 200
+    body = listed.json()
+    assert "sentence" in body
+    assert body["locations"][0]["label"] == label
+    assert body["locations"][0]["wifi_ssid"] == session
+
+
+def test_locations_route_finds_and_deletes_by_session():
+    session = f"test_locations_{uuid.uuid4().hex}"
+    label = "테스트 엘리베이터"
+    client.post("/locations/save", json={"label": label, "wifi_ssid": session})
+
+    found = client.get(f"/locations/find/{label}", params={"wifi_ssid": session})
+    assert found.status_code == 200
+    assert found.json()["found"] is True
+    assert found.json()["location"]["label"] == label
+
+    deleted = client.delete(f"/locations/{label}", params={"wifi_ssid": session})
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted"] is True
+
+    missing = client.get(f"/locations/find/{label}", params={"wifi_ssid": session})
+    assert missing.status_code == 404
 
 
 def test_protected_status_requires_api_key(monkeypatch):

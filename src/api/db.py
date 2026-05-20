@@ -586,15 +586,29 @@ def save_location(label: str, wifi_ssid: str):
                 "VALUES (?, ?, ?)", (label, wifi_ssid, ts))
 
 
-def delete_location(label: str):
+def delete_location(label: str, wifi_ssid: str = "") -> int:
     with _conn() as conn:
         if _IS_POSTGRES:
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM saved_locations WHERE label = %s", (label,))
+                if wifi_ssid:
+                    cur.execute(
+                        "DELETE FROM saved_locations WHERE label = %s AND wifi_ssid = %s",
+                        (label, wifi_ssid),
+                    )
+                else:
+                    cur.execute(
+                        "DELETE FROM saved_locations WHERE label = %s", (label,))
+                return cur.rowcount
         else:
-            conn.execute(
-                "DELETE FROM saved_locations WHERE label = ?", (label,))
+            if wifi_ssid:
+                cur = conn.execute(
+                    "DELETE FROM saved_locations WHERE label = ? AND wifi_ssid = ?",
+                    (label, wifi_ssid),
+                )
+            else:
+                cur = conn.execute(
+                    "DELETE FROM saved_locations WHERE label = ?", (label,))
+            return cur.rowcount
 
 
 def get_locations(wifi_ssid: str = "") -> list[dict]:

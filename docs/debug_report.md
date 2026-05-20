@@ -163,8 +163,9 @@
 ### 14. [test_server.py] /locations 엔드포인트 미존재
 
 - **위치**: `tests/test_server.py`
-- **문제**: `test_locations`에서 `GET /locations`를 요청하지만, `routes.py`에 이 엔드포인트가 정의되어 있지 않다. 통합 테스트(`-m integration`) 실행 시 404로 실패한다.
-- **해결 방향**: 엔드포인트를 추가하거나 테스트에서 해당 케이스를 제거한다.
+- **상태**: 해결됨.
+- **변경**: `src/api/routes.py`에 `/locations` 등록/조회/검색/삭제 라우트를 추가했고, `src/api/locations.py`에서 응답 조립과 세션 scope 처리를 담당한다.
+- **검증**: `tests/test_api.py`에 TestClient 기반 `/locations` 회귀 테스트를 추가했고, `tests/test_server.py`의 skip을 제거했다.
 
 ---
 
