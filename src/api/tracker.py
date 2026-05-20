@@ -136,7 +136,7 @@ class SessionTracker:
         for raw in objects:
             obj = dict(raw)
             key = _object_key(obj)
-            new_d = float(obj.get("distance_m") or 99.0)
+            new_d = float(obj.get("distance_m") or obj.get("smoothed_distance_m") or 99.0)
             new_r = float(obj.get("risk_score") or 0.0)
 
             if key in self._tracks:
@@ -188,7 +188,8 @@ class SessionTracker:
                     "alerted_fast": False,
                 }
 
-            obj["distance_m"] = smooth_d
+            obj["distance_m"] = new_d
+            obj["smoothed_distance_m"] = smooth_d
             obj["risk_score"] = max(0.0, min(smooth_r, 1.0))
             obj["vibration_pattern"] = obj.get("vibration_pattern") or _risk_pattern(obj["risk_score"], obj)
             obj["track_id"] = obj.get("track_id", self._tracks[key].get("track_id", 0))

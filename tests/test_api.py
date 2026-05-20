@@ -169,6 +169,48 @@ def test_detect_does_not_smooth_android_risk_across_frames():
     assert obj["vibration_pattern"] == "URGENT"
 
 
+def test_detect_preserves_android_distance_and_exposes_smoothed_distance():
+    session = f"client_distance_stream_{uuid.uuid4().hex}"
+    first = {
+        "event_id": f"evt-{session}-1",
+        "request_id": f"req-{session}-1",
+        "device_id": session,
+        "wifi_ssid": session,
+        "mode": "obstacle",
+        "objects": [
+            {
+                "class_ko": "box",
+                "confidence": 0.90,
+                "bbox_norm_xywh": [0.40, 0.40, 0.20, 0.20],
+                "distance_m": 4.0,
+                "risk_score": 0.10,
+                "vibration_pattern": "NONE",
+            }
+        ],
+    }
+    second = {
+        **first,
+        "event_id": f"evt-{session}-2",
+        "request_id": f"req-{session}-2",
+        "objects": [
+            {
+                **first["objects"][0],
+                "distance_m": 1.0,
+                "risk_score": 0.90,
+                "vibration_pattern": "URGENT",
+            }
+        ],
+    }
+
+    assert client.post("/detect", json=first).status_code == 200
+    response = client.post("/detect", json=second)
+
+    assert response.status_code == 200
+    obj = response.json()["objects"][0]
+    assert obj["distance_m"] == 1.0
+    assert obj["smoothed_distance_m"] == 2.3
+
+
 def test_detect_json_persists_recent_detections():
     payload = {
         "device_id": "test_detect_json_device",
@@ -202,6 +244,41 @@ def test_detect_json_persists_recent_detections():
     recent = db.get_recent_detections(expected_session, max_age_s=60)
     assert recent
     assert recent[0]["class_ko"] == "의자"
+
+
+def test_detect_json_persists_normalized_bbox_distance_and_direction():
+    session = f"detect_json_normalized_{uuid.uuid4().hex}"
+    payload = {
+        "device_id": session,
+        "wifi_ssid": session,
+        "request_id": f"req-{session}",
+        "mode": "장애물",
+        "camera_orientation": "front",
+        "detections": [
+            {
+                "class_ko": "상자",
+                "confidence": 0.77,
+                "bbox_norm_xywh": [0.25, 0.30, 0.40, 0.20],
+                "direction": "10시",
+                "distance_m": 2.6,
+                "is_vehicle": False,
+                "is_animal": False,
+            }
+        ],
+    }
+
+    response = client.post("/detect_json", json=payload)
+
+    assert response.status_code == 200
+    recent = db.get_recent_detections(session, max_age_s=60)
+    assert recent
+    assert recent[0]["class_ko"] == "상자"
+    assert recent[0]["zone"] == "10시"
+    assert recent[0]["dist_m"] == 2.6
+    assert recent[0]["cx"] == 0.45
+    assert recent[0]["cy"] == 0.40
+    assert recent[0]["w"] == 0.40
+    assert recent[0]["h"] == 0.20
 
 
 def test_spaces_snapshot_endpoint():

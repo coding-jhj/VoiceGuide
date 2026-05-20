@@ -40,7 +40,7 @@ def get_alert_mode(obj: dict, is_hazard: bool = False) -> str:
     g_m = float(am["generic_critical_m"])
     b_m = float(am["beep_until_m"])
 
-    dist_m     = obj.get("distance_m", 99.0)
+    dist_m     = obj.get("smoothed_distance_m", obj.get("distance_m", 99.0))
     is_vehicle = obj.get("is_vehicle", False)
     is_animal  = obj.get("is_animal",  False)
 
@@ -137,6 +137,10 @@ def _loc(abs_clock: str, dist_m: float) -> str:
     return f"{direction} {dist_str}"
 
 
+def _guide_distance(obj: dict) -> float:
+    return obj.get("smoothed_distance_m", obj.get("distance_m", 0.0))
+
+
 # ── 주요 물체 문장 생성 (위험도 1순위) ────────────────────────────────────────
 
 def _primary(obj: dict, abs_clock: str) -> str:
@@ -155,7 +159,7 @@ def _primary(obj: dict, abs_clock: str) -> str:
     everyday_ko = _policy.class_set("everyday_ko")
     animal_m = float(_policy.alert_thresholds()["animal_critical_m"])
 
-    dist_m     = obj.get("distance_m", 0.0)
+    dist_m     = _guide_distance(obj)
     name       = obj["class_ko"]
     ig         = _i_ga(name)
     direction  = _direction(abs_clock)
@@ -190,7 +194,7 @@ def _secondary(obj: dict, abs_clock: str) -> str:
 
     _primary보다 짧게 — 두 문장 합쳐도 TTS가 너무 길지 않아야 함
     """
-    dist_m     = obj.get("distance_m", 0.0)
+    dist_m     = _guide_distance(obj)
     name       = obj["class_ko"]
     loc_str    = _loc(abs_clock, dist_m)
     vehicle_ko = _policy.class_set("vehicle_ko")
