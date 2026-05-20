@@ -502,7 +502,10 @@ async def detect_from_json(body: dict):
 
     # NLG 문장 생성
     hazards: list[str] = []
-    if mode == "찾기":
+    if mode == "들고있는것":
+        sentence = build_held_sentence(objects)
+        alert_mode = "critical"
+    elif mode == "찾기":
         target = body.get("query_text", "")
         sentence = build_find_sentence(target, objects, camera_orientation)
         alert_mode = "critical"

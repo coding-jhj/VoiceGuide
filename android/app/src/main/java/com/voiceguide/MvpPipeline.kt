@@ -158,6 +158,9 @@ class MvpPipeline {
         if (det != null && det.classKo in VoicePolicy.vehicleKo() && risk >= 0.55f) {
             return VibrationPattern.URGENT
         }
+        if (det != null && det.classKo in VoicePolicy.everydayKo()) {
+            return VibrationPattern.NONE
+        }
         return when {
             risk >= 0.75f -> VibrationPattern.URGENT
             risk >= 0.55f -> VibrationPattern.DOUBLE

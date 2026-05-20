@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoiceGuide 공모전 제출 수준 정리 문서</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5f6f85;
+      --line: #dbe4ef;
+      --paper: #ffffff;
+      --bg: #eef3f8;
+      --blue: #2563eb;
+      --green: #0f8f72;
+      --red: #c2413b;
+      --yellow: #b36b00;
+      --code: #101828;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+      line-height: 1.72;
+      font-size: 15px;
+    }
+    .page {
+      max-width: 1180px;
+      margin: 24px auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 50px rgba(23,32,51,.12);
+    }
+    header {
+      padding: 42px 48px 34px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(135deg, #f8fbff 0%, #edf5ff 62%, #f4fbf8 100%);
+    }
+    .eyebrow {
+      display: inline-block;
+      margin: 0 0 12px;
+      color: var(--blue);
+      font-weight: 800;
+      font-size: 13px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    .subtitle {
+      max-width: 920px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #40516a;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 24px 18px;
+      border-right: 1px solid var(--line);
+      background: #f8fafc;
+    }
+    nav h2 {
+      margin: 0 0 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    nav a {
+      display: block;
+      padding: 7px 9px;
+      color: #31435d;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      font-size: 13px;
+    }
+    nav a:hover {
+      background: #eaf2ff;
+      border-left-color: var(--blue);
+    }
+    article {
+      padding: 32px 44px 60px;
+      min-width: 0;
+    }
+    section { margin: 0 0 42px; }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      line-height: 1.32;
+      border-bottom: 2px solid #edf2f7;
+      padding-bottom: 8px;
+    }
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 18px;
+    }
+    p { margin: 0 0 12px; }
+    ul, ol { margin-top: 8px; padding-left: 22px; }
+    li { margin: 4px 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 18px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      text-align: left;
+      font-weight: 800;
+    }
+    .callout {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      padding: 14px 16px;
+      margin: 14px 0;
+      background: #f8fbff;
+    }
+    .danger { border-left-color: var(--red); background: #fff7f6; }
+    .ok { border-left-color: var(--green); background: #f3fbf7; }
+    .warn { border-left-color: var(--yellow); background: #fff9eb; }
+    code {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      background: #eef2f7;
+      padding: 1px 4px;
+      font-size: .92em;
+    }
+    pre {
+      background: var(--code);
+      color: #e8eef7;
+      padding: 16px;
+      overflow: auto;
+      border-radius: 6px;
+      font-size: 12.5px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+    pre code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      font-size: inherit;
+    }
+    .small { color: var(--muted); font-size: 13px; }
+    .score {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0 22px;
+    }
+    .metric {
+      border: 1px solid var(--line);
+      padding: 12px;
+      background: #fbfdff;
+    }
+    .metric b { display:block; font-size: 20px; color: var(--blue); }
+    a { color: var(--blue); }
+    @media (max-width: 860px) {
+      .page { margin: 0; border: 0; }
+      header { padding: 30px 22px; }
+      h1 { font-size: 26px; }
+      main { display: block; }
+      nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      article { padding: 26px 20px 44px; }
+      .score { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <p class="eyebrow">공모전 제출 전 기술 점검 문서</p>
+      <h1>시각장애인용 지능형 웨어러블 가이드 서비스: 입상권 수준으로 다듬기</h1>
+      <p class="subtitle">
+        이 문서는 상담 메모가 아니라, 공모전 제출 수준을 판단하기 위한 기술 점검표입니다.
+        현재 VoiceGuide 코드베이스를 기준으로 이미 구현된 코드, 부족한 부분, 공모전에서 보여줘야 할 검증 자료,
+        Ultralytics 공식 문서 기반 YOLO 개선 방향을 한 번에 정리했습니다.
+      </p>
+      <div class="meta">
+        <span class="pill">작성 기준: 2026-05-20</span>
+        <span class="pill">대상 프로젝트: C:\VoiceGuide\VoiceGuide</span>
+        <span class="pill">핵심 모델: yolo11n_320.tflite</span>
+        <span class="pill">목표: 완성도, 검증, 발표 설득력</span>
+      </div>
+    </header>
+
+    <main>
+      <nav>
+        <h2>목차</h2>
+        <a href="#summary">1. 결론</a>
+        <a href="#current">2. 현재 프로젝트 수준</a>
+        <a href="#target">3. 입상권 목표 수준</a>
+        <a href="#ultralytics">4. Ultralytics 근거</a>
+        <a href="#architecture">5. 제출용 구조</a>
+        <a href="#actual-code">6. 현재 실제 코드</a>
+        <a href="#add-code">7. 추가해야 할 실제 코드</a>
+        <a href="#verification">8. 검증 계획</a>
+        <a href="#checklist">9. 제출 전 점검</a>
+        <a href="#presentation">10. 발표 스토리</a>
+      </nav>
+
+      <article>
+        <section id="summary">
+          <h2>1. 결론: 지금 당장 해야 할 일</h2>
+          <div class="callout danger">
+            <b>가장 큰 위험:</b> 아이디어는 좋은데, 팀이 “공부했다/구현했다/검증했다”를 분리해서 증명하지 못하면
+            외부에서 잘하는 팀에게 밀립니다. 입상하려면 화면과 코드보다 먼저, 심사자가 믿을 수 있는 근거를 만들어야 합니다.
+          </div>
+          <p>
+            현재 프로젝트는 완전히 엉망인 상태가 아닙니다. Android 온디바이스 YOLO, TTS/진동, FastAPI 서버,
+            대시보드, GPS, 정책 JSON, 테스트가 이미 있습니다. 다만 공모전 기준으로는 “작동함”만으로 부족하고,
+            다음 4가지를 보강해야 합니다.
+          </p>
+          <ol>
+            <li><b>YOLO 모델 선택 근거:</b> 팀이 선정한 <code>yolo11n_320.tflite</code>를 기준 모델로 두고, 공식 export/benchmark 자료로 재현 가능한 근거를 만듭니다.</li>
+            <li><b>실사용 검증:</b> 실내 복도, 계단, 문, 의자, 사람, 자동차/자전거 등 최소 8개 시나리오를 영상/표로 남깁니다.</li>
+            <li><b>안전 정책:</b> 단순 객체 탐지가 아니라 거리, 중앙 위치, 위험 클래스, 반복 안내 억제, 물건 확인 응답을 정책으로 설명합니다.</li>
+            <li><b>제출 정리:</b> 구현 코드, 테스트 결과, 시연 영상, 공식 문서 근거를 한 세트로 묶어 제출 자료를 만듭니다.</li>
+          </ol>
+          <div class="score">
+            <div class="metric"><b>B</b>현재 구현 완성도</div>
+            <div class="metric"><b>C+</b>검증 자료</div>
+            <div class="metric"><b>B+</b>아이디어 차별성</div>
+            <div class="metric"><b>A 목표</b>입상권 제출 수준</div>
+          </div>
+        </section>
+
+        <section id="current">
+          <h2>2. 현재 프로젝트 수준</h2>
+          <table>
+            <tr><th>영역</th><th>현재 있음</th><th>공모전 관점 부족</th><th>보완 방향</th></tr>
+            <tr>
+              <td>Android 탐지</td>
+              <td><code>TfliteYoloDetector.kt</code>에서 TFLite 모델을 직접 실행. GPU 실패 시 XNNPACK fallback.</td>
+              <td>실제 기기별 FPS, 발열, 장시간 안정성 기록이 부족.</td>
+              <td>30초/3분/10분 실행 로그를 표로 남기고, 모델별 속도 비교.</td>
+            </tr>
+            <tr>
+              <td>안내 정책</td>
+              <td><code>MvpPipeline.kt</code>, <code>SentenceBuilder.kt</code>, <code>policy.json</code>로 위험도/문장/진동 처리.</td>
+              <td>정책이 왜 안전한지 설명 자료가 약함.</td>
+              <td>위험도 공식, class weight, 거리 기준, TTS 억제 이유를 발표 자료에 넣기.</td>
+            </tr>
+            <tr>
+              <td>Tracker</td>
+              <td><code>MvpPipeline.kt</code>에서 IoU matching, track id, EMA smoothing을 직접 수행.</td>
+              <td>Ultralytics tracker와 무엇이 다른지 설명이 부족.</td>
+              <td>앱 런타임은 경량 자체 tracker, 영상 분석/검증은 Ultralytics tracker를 참고 도구로 구분.</td>
+            </tr>
+            <tr>
+              <td>물건 확인</td>
+              <td>STT 키워드 <code>들고있는것</code>, Android 즉시 캡처, 서버 <code>build_held_sentence()</code> 응답 연결.</td>
+              <td>공모전 문서에서 기능 가치가 충분히 드러나지 않았음.</td>
+              <td>“이거 뭐야 / 손에 든 거 뭐야”에 답하는 접근성 기능으로 별도 시연.</td>
+            </tr>
+            <tr>
+              <td>서버</td>
+              <td>FastAPI <code>/detect</code>, <code>/status</code>, <code>/events</code>, <code>/dashboard</code> 구현.</td>
+              <td>서버가 AI 추론을 하는 것으로 오해될 수 있음.</td>
+              <td>“추론은 Android, 서버는 기록/관제/검증”으로 명확히 말하기.</td>
+            </tr>
+            <tr>
+              <td>테스트</td>
+              <td><code>tests/test_api.py</code>, <code>tests/test_sentence.py</code> 등 존재.</td>
+              <td>실제 현장 시나리오 테스트와 모델 benchmark 테스트 부족.</td>
+              <td>시나리오별 JSON fixture와 성능 측정 스크립트 추가.</td>
+            </tr>
+            <tr>
+              <td>문서</td>
+              <td><code>docs/contest_package</code>에 기능/YOLO/시행착오 문서 존재.</td>
+              <td>입상 전략, 실제 코드 근거, 검증 자료가 분리되어 있음.</td>
+              <td>이 HTML을 기준 문서로 삼고, 기능/검증/발표 자료를 한 흐름으로 정리.</td>
+            </tr>
+          </table>
+        </section>
+
+        <section id="target">
+          <h2>3. 입상권 목표 수준</h2>
+          <h3>최소 통과 수준이 아니라 입상권 수준</h3>
+          <table>
+            <tr><th>심사 포인트</th><th>그냥 제출</th><th>입상권 제출</th></tr>
+            <tr>
+              <td>문제 정의</td>
+              <td>시각장애인을 위한 안내 앱입니다.</td>
+              <td>보행 중 즉시성이 필요한 위험을 온디바이스 탐지와 짧은 TTS/진동으로 줄이는 시스템입니다.</td>
+            </tr>
+            <tr>
+              <td>기술 차별성</td>
+              <td>YOLO로 장애물을 인식합니다.</td>
+              <td>YOLO 결과를 그대로 말하지 않고, IoU tracking, EMA smoothing, 위험도 정책, 물건 확인, 중복 TTS 억제를 거쳐 안내합니다.</td>
+            </tr>
+            <tr>
+              <td>검증</td>
+              <td>실행 영상 1개.</td>
+              <td>시나리오별 탐지율, 평균 지연, 오탐 사례, 개선 전후 비교, 실패 사례까지 포함.</td>
+            </tr>
+            <tr>
+              <td>공익성</td>
+              <td>시각장애인에게 도움이 됩니다.</td>
+              <td>보행 보조의 핵심은 “많이 말하기”가 아니라 “위험한 순간에 짧고 확실히 말하기”라는 설계 철학을 제시.</td>
+            </tr>
+          </table>
+
+          <div class="callout ok">
+            <b>추천 제출 컨셉:</b> “서버 AI 서비스”가 아니라 “네트워크가 없어도 동작하는 온디바이스 보행 보조 + 보호자/관리자 관제 대시보드”로 잡는 것이 좋습니다.
+            장애인 보조 서비스에서 네트워크 지연은 치명적이므로, 온디바이스 추론 구조 자체가 강한 장점입니다.
+          </div>
+        </section>
+
+        <section id="ultralytics">
+          <h2>4. Ultralytics 공식 자료에서 가져와야 할 근거</h2>
+          <p>
+            Ultralytics는 모델 자체만 제공하는 것이 아니라 export, benchmark, track, solutions 같은 검증 도구까지 제공합니다.
+            우리 앱의 실시간 실행은 Android TFLite와 자체 경량 tracker를 유지하고, Ultralytics 기능은 모델 변환과 검증,
+            발표 자료 제작에 활용하는 방향이 가장 현실적입니다. 이렇게 나누면 앱 속도를 떨어뜨리지 않으면서도
+            공식 자료를 근거로 기술 완성도를 설명할 수 있습니다.
+          </p>
+          <ul>
+            <li>YOLO11 공식 문서: <a href="https://docs.ultralytics.com/models/yolo11/">https://docs.ultralytics.com/models/yolo11/</a></li>
+            <li>Export 공식 문서: <a href="https://docs.ultralytics.com/modes/export/">https://docs.ultralytics.com/modes/export/</a></li>
+            <li>Benchmark 공식 문서: <a href="https://docs.ultralytics.com/modes/benchmark/">https://docs.ultralytics.com/modes/benchmark/</a></li>
+            <li>Track 공식 문서: <a href="https://docs.ultralytics.com/modes/track/">https://docs.ultralytics.com/modes/track/</a></li>
+            <li>Solutions 공식 문서: <a href="https://docs.ultralytics.com/solutions/">https://docs.ultralytics.com/solutions/</a></li>
+            <li>Ultralytics GitHub: <a href="https://github.com/ultralytics/ultralytics">https://github.com/ultralytics/ultralytics</a></li>
+          </ul>
+          <div class="callout warn">
+            <b>주의:</b> Ultralytics 모델/코드는 AGPL-3.0 또는 Enterprise 라이선스 조건을 확인해야 합니다.
+            공모전 제출물에는 “상용 배포 전 라이선스 검토 필요”를 써두는 편이 안전합니다.
+          </div>
+
+          <h3>우리 프로젝트에 적용할 공식 문서 기반 선택</h3>
+          <table>
+            <tr><th>Ultralytics 기능</th><th>우리 프로젝트 적용</th><th>공모전에서 보여줄 결과</th></tr>
+            <tr>
+              <td>Export</td>
+              <td><code>tools/export_selected_yolo_tflite.py</code>로 선정 모델을 TFLite asset으로 재생성.</td>
+              <td>모델 파일이 수동 복사가 아니라 공식 export 절차로 재현 가능함을 증명.</td>
+            </tr>
+            <tr>
+              <td>Benchmark</td>
+              <td>PC와 가능하면 Android 실기기에서 export format별 추론 시간을 측정.</td>
+              <td>평균/P95 지연 시간 표, “음성 안내까지 몇 ms 걸리는지” 그래프.</td>
+            </tr>
+            <tr>
+              <td>Track</td>
+              <td>앱 런타임에는 자체 IoU/EMA tracker 유지. Ultralytics BoT-SORT/ByteTrack은 녹화 영상 분석과 비교 검증에 사용.</td>
+              <td>“공식 tracker를 참고했고, Android에서는 지연을 줄이기 위해 경량 tracker를 구현했다”는 설명.</td>
+            </tr>
+            <tr>
+              <td>Solutions</td>
+              <td>Object counting, heatmap, trackzone은 제품 런타임보다 대시보드/발표 검증 자료에 활용.</td>
+              <td>위험 구간, 반복 출현 물체, 시연 영상 분석 자료.</td>
+            </tr>
+            <tr>
+              <td>Predict 설정</td>
+              <td>현재 Kotlin의 <code>confThreshold</code>, <code>iouThreshold</code>를 시나리오별로 조정.</td>
+              <td>오탐/미탐 개선 전후 표. 예: 컵/휴대폰/의자/사람/자전거 시나리오.</td>
+            </tr>
+          </table>
+          <div class="callout ok">
+            <b>정리:</b> Ultralytics 기능을 앱에 전부 넣는 것이 목표가 아닙니다.
+            앱 속도를 지키는 기능은 Android에 두고, 공식 기능은 export와 검증, 발표 근거를 강하게 만드는 데 씁니다.
+          </div>
+        </section>
+
+        <section id="architecture">
+          <h2>5. 제출용 시스템 구조</h2>
+          <pre><code>[Android 웨어러블/스마트폰]
+CameraX frame
+  -> TfliteYoloDetector
+  -> YOLO11 TFLite inference
+  -> NMS / bbox normalization
+  -> MvpPipeline
+  -> IoU tracking + EMA smoothing + risk score
+  -> SentenceBuilder
+  -> TTS + vibration
+  -> POST /detect
+
+[FastAPI 서버]
+/detect
+  -> object normalization
+  -> session tracker
+  -> DB 저장
+  -> performance metric 저장
+  -> SSE publish
+
+[Dashboard]
+/dashboard
+  -> 현재 객체, GPS, 이동 경로, 최근 이벤트, heatmap 확인
+</code></pre>
+          <p>
+            발표에서는 “탐지-판단-안내”를 분리해서 말해야 합니다. YOLO는 탐지 모델이고, 우리가 만든 부분은
+            보행 상황에서 쓸 수 있도록 탐지 결과를 안정화하고 안내 정책으로 변환하는 시스템입니다.
+          </p>
+          <h3>현재 구현 지도</h3>
+          <table>
+            <tr><th>기능</th><th>파일</th><th>상태</th><th>검사 때 보여줄 말</th></tr>
+            <tr>
+              <td>객체 탐지</td>
+              <td><code>TfliteYoloDetector.kt</code>, <code>yolo11n_320.tflite</code></td>
+              <td>구현됨</td>
+              <td>카메라 프레임을 Android에서 직접 추론합니다.</td>
+            </tr>
+            <tr>
+              <td>Tracker/안정화</td>
+              <td><code>MvpPipeline.kt</code></td>
+              <td>구현됨</td>
+              <td>IoU matching과 EMA로 흔들리는 bbox를 안정화합니다.</td>
+            </tr>
+            <tr>
+              <td>물건 확인</td>
+              <td><code>MainActivity.kt</code>, <code>SentenceBuilder.kt</code>, <code>src/nlg/sentence.py</code></td>
+              <td>구현 및 테스트 추가</td>
+              <td>“이거 뭐야”라고 물으면 가장 가까운 물체를 짧게 답합니다.</td>
+            </tr>
+            <tr>
+              <td>찾기</td>
+              <td><code>SentenceBuilder.buildFind()</code>, <code>build_find_sentence()</code></td>
+              <td>구현됨</td>
+              <td>찾는 물체가 보이면 방향과 거리를 말합니다.</td>
+            </tr>
+            <tr>
+              <td>대시보드</td>
+              <td><code>src/api/routes.py</code>, <code>templates/dashboard.html</code></td>
+              <td>구현됨</td>
+              <td>서버는 추론이 아니라 기록, GPS, 관제, 검증 역할입니다.</td>
+            </tr>
+            <tr>
+              <td>공식 export 재현</td>
+              <td><code>tools/export_selected_yolo_tflite.py</code></td>
+              <td>추가됨</td>
+              <td>모델 asset을 Ultralytics 공식 export 흐름으로 재생성할 수 있습니다.</td>
+            </tr>
+          </table>
+        </section>
+
+        <section id="actual-code">
+          <h2>6. 현재 프로젝트의 실제 코드 근거</h2>
+          <p>
+            아래는 예시가 아니라 현재 프로젝트에 있는 실제 구현의 핵심입니다. 검사 받을 때는 파일 경로를 함께 보여주면 됩니다.
+          </p>
+
+          <h3>6-1. Android YOLO 추론: <code>android/app/src/main/java/com/voiceguide/TfliteYoloDetector.kt</code></h3>
+          <pre><code>class TfliteYoloDetector(context: Context) {
+    private var interpreter: Interpreter
+    private var gpuDelegate: GpuDelegate? = null
+    private val modelBuffer: ByteBuffer
+    val modelName: String
+    var executionProvider: String = "TFLite-XNNPACK"
+        private set
+    private val inputSize: Int
+    private val outputRows: Int
+    private val outputCols: Int
+    private val isRawOutput: Boolean
+    private val confThreshold = 0.30f
+    private val iouThreshold  = 0.45f
+
+    init {
+        modelName = listOf("yolo11n_320.tflite", "yolo26n_float32.tflite").firstOrNull { name ->
+            try { context.assets.open(name).close(); true }
+            catch (_: Exception) { false }
+        } ?: throw IllegalStateException("TFLite 모델 파일이 assets에 필요합니다.")
+
+        val modelBytes = context.assets.open(modelName).readBytes()
+        modelBuffer = ByteBuffer.allocateDirect(modelBytes.size).order(ByteOrder.nativeOrder())
+        modelBuffer.put(modelBytes)
+        modelBuffer.rewind()
+
+        interpreter = createInterpreter()
+        val inputShape  = interpreter.getInputTensor(0).shape()
+        inputSize       = inputShape.getOrNull(1) ?: 320
+        val outputShape = interpreter.getOutputTensor(0).shape()
+        outputRows = outputShape.getOrNull(1) ?: 300
+        outputCols = outputShape.getOrNull(2) ?: 6
+        isRawOutput = (outputRows == 84)
+    }
+
+    private fun createInterpreter(): Interpreter {
+        val compatList = CompatibilityList()
+        return try {
+            if (compatList.isDelegateSupportedOnThisDevice) {
+                val options = GpuDelegate.Options().apply {
+                    setPrecisionLossAllowed(false)
+                    setInferencePreference(GpuDelegate.Options.INFERENCE_PREFERENCE_SUSTAINED_SPEED)
+                }
+                gpuDelegate = GpuDelegate(options)
+                executionProvider = "TFLite-GPU-FP32"
+                modelBuffer.rewind()
+                Interpreter(modelBuffer, Interpreter.Options().apply {
+                    addDelegate(gpuDelegate)
+                })
+            } else {
+                createXnnpackInterpreter()
+            }
+        } catch (e: Exception) {
+            gpuDelegate?.close()
+            gpuDelegate = null
+            createXnnpackInterpreter()
+        } finally {
+            compatList.close()
+        }
+    }
+}</code></pre>
+
+          <h3>6-2. 위험도/진동 정책: <code>android/app/src/main/java/com/voiceguide/MvpPipeline.kt</code></h3>
+          <pre><code>private fun computeRisk(det: Detection): Float {
+    val distanceM = bboxDistanceM(det)
+    val area = det.w * det.h
+    val centerWeight = 1f - min(0.6f, abs(det.cx - 0.5f) * 1.2f)
+    val distanceWeight = when {
+        distanceM <= 0.8f -> 1.0f
+        distanceM <= 1.5f -> 0.85f
+        distanceM <= 2.5f -> 0.65f
+        distanceM <= 4.0f -> 0.35f
+        else -> 0.15f
+    }
+    val classWeight = when {
+        det.classKo in VoicePolicy.vehicleKo() -> 1.0f
+        det.classKo in VoicePolicy.animalKo() -> 0.85f
+        det.classKo in VoicePolicy.criticalKo() -> 0.9f
+        det.classKo in VoicePolicy.cautionKo() -> 0.65f
+        else -> 0.45f
+    }
+    val sizeBoost = min(0.25f, area * 1.8f)
+    return (centerWeight * distanceWeight * classWeight + sizeBoost).coerceIn(0f, 1f)
+}
+
+private fun patternFor(risk: Float, det: Detection?): VibrationPattern {
+    if (det != null && det.classKo in VoicePolicy.vehicleKo() && risk >= 0.55f) {
+        return VibrationPattern.URGENT
+    }
+    if (det != null && det.classKo in VoicePolicy.everydayKo()) {
+        return VibrationPattern.NONE
+    }
+    return when {
+        risk >= 0.75f -> VibrationPattern.URGENT
+        risk >= 0.55f -> VibrationPattern.DOUBLE
+        risk >= 0.35f -> VibrationPattern.SHORT
+        else -> VibrationPattern.NONE
+    }
+}</code></pre>
+
+          <h3>6-3. 서버 수신 API: <code>src/api/routes.py</code></h3>
+          <pre><code>@router.post("/detect", dependencies=[Depends(_verify_api_key)])
+async def detect(payload: dict = Body(...)):
+    _t0 = _time.monotonic()
+    wifi_ssid = str(payload.get("wifi_ssid", ""))
+    device_id = str(payload.get("device_id", ""))
+    mode = str(payload.get("mode", "장애물"))
+    lat = float(payload.get("lat") or 0.0)
+    lng = float(payload.get("lng") or 0.0)
+    request_id = str(payload.get("request_id") or "")
+    request_id = request_id or f"srv-{int(_t0 * 1000)}"
+    event_id = str(payload.get("event_id") or request_id or uuid.uuid4().hex)
+    session_id = _normalize_session_id(wifi_ssid, device_id)
+
+    if lat != 0.0 or lng != 0.0:
+        db.save_gps(session_id, lat, lng)
+
+    objects = _normalize_objects(payload.get("objects", []))
+    tracker = get_tracker(session_id)
+    objects, motion_changes = tracker.update(objects)
+
+    sentence = build_sentence(objects, motion_changes, camera_orientation="front")
+    alert_mode = get_alert_mode(objects[0]) if objects else "silent"
+
+    response_payload = _with_perf({
+        "mode": mode,
+        "event_id": event_id,
+        "session_id": session_id,
+        "sentence": sentence,
+        "alert_mode": alert_mode,
+        "objects": objects,
+        "changes": motion_changes,
+        "depth_source": objects[0].get("depth_source", "bbox") if objects else "bbox",
+    }, _t0, request_id)
+
+    await _publish_dashboard_event(
+        session_id,
+        response_payload,
+        db.get_last_gps(session_id),
+        db.get_gps_track(session_id, limit=100),
+    )
+    return response_payload</code></pre>
+
+          <h3>6-4. 정책 SSOT: <code>src/config/policy.json</code></h3>
+          <pre><code>{
+  "classes": {
+    "vehicle_ko": ["자동차", "오토바이", "버스", "트럭", "기차", "자전거"],
+    "animal_ko": ["개", "말", "고양이"],
+    "critical_ko": ["자동차", "오토바이", "버스", "트럭", "기차", "자전거", "곰", "코끼리", "계단"],
+    "caution_ko": ["칼", "가위", "유리잔", "야구 방망이", "배낭", "핸드백", "여행가방", "공"]
+  },
+  "alert_mode": {
+    "vehicle_critical_m": 8.0,
+    "animal_critical_m": 3.0,
+    "generic_critical_m": 2.5,
+    "beep_until_m": 7.0
+  },
+  "on_device": {
+    "bbox_calib_area": 0.12,
+    "near_vehicle_area_ratio": 0.04,
+    "caution_area_ratio": 0.12
+  }
+}</code></pre>
+
+          <h3>6-5. 물건 확인 기능: 현재 연결 상태와 이번 보강</h3>
+          <p>
+            “물건 확인”은 별도 모델을 새로 붙이는 기능이 아닙니다.
+            사용자가 “이거 뭐야”, “손에 든 거 뭐야”, “바로 앞 뭐야”라고 말하면 현재 카메라 프레임의 YOLO 결과 중
+            손에 들었거나 바로 앞에 있는 물체를 골라 짧게 답하는 기능입니다.
+          </p>
+          <pre><code>// android/app/src/main/java/com/voiceguide/VoiceGuideConstants.kt
+"들고있는것" to listOf(
+    "손에 든 게 뭐야", "손에 든 거 뭐야", "손에 들고 있는 게 뭐야",
+    "들고 있는 게 뭐야", "들고 있는 거 뭐야",
+    "바로 앞에 뭐 있어", "바로 앞 뭐야",
+    "이거 뭐야", "이게 뭐야"
+)
+
+// android/app/src/main/java/com/voiceguide/MainActivity.kt
+"들고있는것" -> {
+    tvStatus.text = "확인 중..."
+    captureAndProcessAsHeld()
+}
+
+// src/nlg/sentence.py
+def build_held_sentence(objects: list[dict]) -> str:
+    if not objects:
+        return "손에 든 물건이나 바로 앞에 뭔가 없어 보여요."
+    closest = min(objects, key=lambda o: o.get("distance_m", 99.0))
+    dist_m = closest.get("distance_m", 99.0)
+    name = closest["class_ko"]
+    if dist_m < 1.0:
+        return f"손에 들고 있는 건 {name}{_i_eyo(name)}."
+    if dist_m < 2.0:
+        return f"바로 앞에 {name}{_i_ga(name)} 있어요."
+    if dist_m < 3.0:
+        return f"가까이에 {name}{_i_ga(name)} 있어요."
+    return "손에 든 물건이나 바로 앞에 뭔가 없어 보여요."</code></pre>
+          <div class="callout ok">
+            <b>이번 보강:</b> 서버의 <code>/detect_json</code>도 <code>mode="들고있는것"</code>을 별도 처리하도록 고쳤습니다.
+            그래서 Android가 어떤 업로드 경로를 쓰더라도 일반 장애물 안내가 아니라 물건 확인 문장으로 답합니다.
+            Android 쪽은 즉시 캡처 모드에서 “확인할게요” 음성을 빼고 화면 상태만 바꾸도록 수정해,
+            실제 답변 음성이 앞 안내음을 끊어버리는 문제도 줄였습니다.
+            이후 실기기 로그에서 <code>STT result: "이거 뭐야"</code> →
+            <code>force=true</code> → <code>speak immediate=true</code> →
+            <code>start</code> → <code>done</code> 흐름을 확인했습니다.
+            첫 안내 직후 “네” 대신 실제 명령을 말해도 명령을 버리지 않고 분석 시작 후 이어서 처리하도록 보강했습니다.
+            물건 확인/질문은 더 이상 JPEG 파일 캡처 경로를 우선 사용하지 않고,
+            다음 <code>ImageAnalysis</code> 스트림 프레임을 즉시 처리하도록 바꿔 전처리 지연과 FPS 저하를 줄였습니다.
+            화면 표시도 <code>장애물</code>이 아니라 <code>물건 확인</code>, <code>주변 확인</code>, <code>일반 안내</code>로 구분되게 정리했습니다.
+          </div>
+
+          <h3>6-6. 테스트 근거: <code>tests/test_api.py</code></h3>
+          <pre><code>def test_detect_response_schema():
+    payload = {
+        "event_id": "evt-test-1",
+        "request_id": "req-test-1",
+        "device_id": "test_device",
+        "wifi_ssid": "test_wifi",
+        "mode": "장애물",
+        "camera_orientation": "front",
+        "objects": [
+            {
+                "class_ko": "의자",
+                "confidence": 0.91,
+                "bbox_norm_xywh": [0.4, 0.45, 0.2, 0.25],
+            }
+        ],
+        "client_perf": {"infer_ms": 12},
+    }
+    response = client.post("/detect", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert "sentence"     in body
+    assert "objects"      in body
+    assert "hazards"      in body
+    assert "changes"      in body
+    assert "depth_source" in body
+    assert "event_id"     in body
+    assert "session_id"   in body
+    assert isinstance(body["sentence"], str)
+    assert isinstance(body["objects"],  list)
+    assert len(body["sentence"]) > 0
+    assert body["objects"][0]["depth_source"] == "on_device_bbox"</code></pre>
+        </section>
+
+        <section id="add-code">
+          <h2>7. 공모전용으로 추가해야 할 실제 코드</h2>
+          <p>
+            아래 코드는 “아이디어 예시”가 아니라 프로젝트에 그대로 추가할 수 있는 파일 단위 코드입니다.
+            목적은 모델 성능과 제출 검증을 재현 가능하게 만드는 것입니다.
+          </p>
+
+          <h3>7-1. 선정 모델 export 스크립트: <code>tools/export_selected_yolo_tflite.py</code></h3>
+          <pre><code>from pathlib import Path
+from ultralytics import YOLO
+
+
+ROOT = Path(__file__).resolve().parents[1]
+ASSET_DIR = ROOT / "android" / "app" / "src" / "main" / "assets"
+
+
+def export_selected_model(model_name: str = "yolo11n.pt", imgsz: int = 320) -> None:
+    model = YOLO(model_name)
+    out = model.export(
+        format="tflite",
+        imgsz=imgsz,
+        half=False,
+        int8=False,
+        nms=False,
+    )
+    out_path = Path(out)
+    target = ASSET_DIR / "yolo11n_320.tflite"
+    target.write_bytes(out_path.read_bytes())
+    print(f"exported {model_name} imgsz={imgsz} -> {target}")
+
+
+def main() -> None:
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    export_selected_model()
+
+
+if __name__ == "__main__":
+    main()</code></pre>
+
+          <h3>7-2. Ultralytics tracker는 앱이 아니라 검증 영상에 사용</h3>
+          <p>
+            공식 <code>track</code> 모드는 BoT-SORT와 ByteTrack을 지원합니다.
+            다만 Android TFLite 앱 안에 Python tracker를 넣는 방식은 실시간성과 구조에 맞지 않습니다.
+            대신 시연 영상을 PC에서 분석해 “공식 tracker 기준으로도 같은 물체가 연속 추적된다”는 검증 자료를 만들 수 있습니다.
+          </p>
+          <pre><code>from ultralytics import YOLO
+
+model = YOLO("yolo11n.pt")
+results = model.track(
+    source="data/contest_videos/hallway.mp4",
+    tracker="bytetrack.yaml",
+    conf=0.30,
+    iou=0.45,
+    persist=True,
+    save=True,
+)
+
+for frame in results:
+    boxes = frame.boxes
+    if boxes is not None and boxes.id is not None:
+        print("tracked ids:", boxes.id.cpu().tolist())</code></pre>
+
+          <h3>7-3. Benchmark 결과를 공모전 표로 만들기</h3>
+          <pre><code>from ultralytics.utils.benchmarks import benchmark
+
+benchmark(
+    model="yolo11n.pt",
+    data="coco8.yaml",
+    imgsz=320,
+    half=False,
+    device="cpu",
+)</code></pre>
+
+          <h3>7-4. 제출용 성능 HTML 리포트 생성: <code>tools/contest_eval_report.py</code></h3>
+          <p>
+            현재 Android 앱은 <code>VG_PERF</code> 태그에
+            <code>request_id|...|infer|...|total|...|e2e|...</code> 형식의 구조화 로그를 남깁니다.
+            이 로그를 <code>perf_log.txt</code>로 저장한 뒤 아래 스크립트를 실행하면
+            <code>docs/competition/android_perf_report.html</code>이 생성됩니다.
+          </p>
+          <pre><code>adb logcat -v time -s VG_PERF &gt; perf_log.txt
+python tools/contest_eval_report.py</code></pre>
+          <p>
+            2026-05-20 실제 기기(SM-F936N) 테스트 기준으로 1226프레임을 측정했고,
+            평균 전체 지연 37.0ms, P95 전체 지연 58.0ms, 평균 YOLO 추론 16.3ms,
+            P95 YOLO 추론 24.0ms, 추정 FPS 약 27fps가 확인됐습니다.
+            AndroidRuntime 크래시는 확인되지 않았고, 앱은 <code>TFLite-XNNPACK</code> 경로로 실행됐습니다.
+          </p>
+
+          <h3>7-5. 시나리오 fixture 테스트: <code>tests/test_contest_scenarios.py</code></h3>
+          <pre><code>from fastapi.testclient import TestClient
+
+from src.api.main import app
+
+
+client = TestClient(app)
+
+
+def post_scene(name: str, objects: list[dict]):
+    return client.post("/detect", json={
+        "event_id": f"contest-{name}",
+        "request_id": f"contest-{name}",
+        "device_id": "contest-device",
+        "wifi_ssid": "contest-room",
+        "mode": "장애물",
+        "camera_orientation": "front",
+        "objects": objects,
+        "client_perf": {"infer_ms": 25},
+    })
+
+
+def test_contest_scene_front_vehicle_is_critical():
+    response = post_scene("front-vehicle", [
+        {
+            "class_ko": "자동차",
+            "confidence": 0.93,
+            "bbox_norm_xywh": [0.28, 0.24, 0.42, 0.48],
+        }
+    ])
+    assert response.status_code == 200
+    body = response.json()
+    assert body["alert_mode"] in {"critical", "urgent"}
+    assert "자동차" in body["sentence"]
+    assert body["objects"][0]["risk_score"] >= 0.55
+
+
+def test_contest_scene_everyday_object_not_overwarned():
+    response = post_scene("chair", [
+        {
+            "class_ko": "의자",
+            "confidence": 0.88,
+            "bbox_norm_xywh": [0.4, 0.42, 0.18, 0.20],
+        }
+    ])
+    assert response.status_code == 200
+    body = response.json()
+    assert "의자" in body["sentence"]
+    assert "위험!" not in body["sentence"]
+
+
+def test_contest_scene_multiple_objects_returns_ranked_objects():
+    response = post_scene("multi", [
+        {
+            "class_ko": "의자",
+            "confidence": 0.86,
+            "bbox_norm_xywh": [0.60, 0.55, 0.10, 0.12],
+        },
+        {
+            "class_ko": "사람",
+            "confidence": 0.91,
+            "bbox_norm_xywh": [0.30, 0.25, 0.38, 0.45],
+        },
+    ])
+    assert response.status_code == 200
+    objects = response.json()["objects"]
+    assert len(objects) >= 1
+    risks = [float(o["risk_score"]) for o in objects]
+    assert risks == sorted(risks, reverse=True)</code></pre>
+
+          <h3>7-6. Android 성능 로그가 이미 남는 위치</h3>
+          <p>
+            <code>MainActivity.kt</code>의 <code>processOnDeviceInternal()</code>은 이미 아래 형식의
+            <code>VG_PERF</code> 로그를 남깁니다. 별도 JSON 로그를 새로 추가하지 말고,
+            현재 앱에서 실제로 출력되는 이 로그를 기준으로 성능 HTML 리포트를 생성합니다.
+          </p>
+          <pre><code>android.util.Log.d(
+    "VG_PERF",
+    "request_id|$requestId|route|on_device|model|${detector.modelName}" +
+    "|provider|${detector.executionProvider}|preprocess|$preprocessMs" +
+    "|infer|$inferMs|postprocess|$dedupMs|mvp|${if (shouldRunMvp) "run" else "skip"}" +
+    "|total|$totalMs|e2e|$e2eMs|objs|${voted.size}"
+)</code></pre>
+        </section>
+
+        <section id="verification">
+          <h2>8. 검증 계획</h2>
+          <table>
+            <tr><th>검증</th><th>명령/방법</th><th>합격 기준</th><th>증거 파일</th></tr>
+            <tr>
+              <td>서버 단위 테스트</td>
+              <td><code>python -m pytest tests/ -v -m "not integration"</code></td>
+              <td>전체 통과. 실패 시 제출 전 수정.</td>
+              <td>pytest 결과 캡처</td>
+            </tr>
+            <tr>
+              <td>Android 빌드</td>
+              <td><code>cd android && .\gradlew.bat assembleDebug</code></td>
+              <td>APK 빌드 성공.</td>
+              <td>빌드 로그 캡처</td>
+            </tr>
+            <tr>
+              <td>모델 속도</td>
+              <td><code>adb logcat -v time -s VG_PERF &gt; perf_log.txt</code></td>
+              <td>평균 전체 지연 200ms 이하 목표. 실제 수치로 작성.</td>
+              <td><code>perf_log.txt</code>, <code>docs/competition/android_perf_report.html</code></td>
+            </tr>
+            <tr>
+              <td>현장 시나리오</td>
+              <td>복도, 계단, 의자, 사람, 차량/자전거, 저조도, 역광, 실내 혼잡 촬영</td>
+              <td>각 시나리오별 성공/실패/개선점 기록.</td>
+              <td>시연 영상, 캡처, 표</td>
+            </tr>
+            <tr>
+              <td>대시보드</td>
+              <td><code>/dashboard</code>, <code>/status/{session_id}</code>, <code>/events/{session_id}</code></td>
+              <td>객체, GPS, 이벤트가 실시간 갱신.</td>
+              <td>화면 녹화</td>
+            </tr>
+          </table>
+
+          <h3>절대 하면 안 되는 말</h3>
+          <ul>
+            <li>“정확한 거리 측정”이라고 말하지 않습니다. 현재는 bbox 기반 추정입니다.</li>
+            <li>“YOLO26이 검증 완료”라고 말하지 않습니다. 현재는 fallback 또는 비교 후보입니다.</li>
+            <li>“시각장애인을 완전히 안전하게 보행시킨다”고 말하지 않습니다. 보조 안내 시스템입니다.</li>
+            <li>mAP, FPS, latency 숫자를 측정 없이 만들지 않습니다.</li>
+          </ul>
+        </section>
+
+        <section id="checklist">
+          <h2>9. 제출 전 점검</h2>
+          <div class="callout ok">
+            제출 전에는 기능을 더 늘리는 것보다 현재 기능이 실제 기기에서 안정적으로 동작한다는 증거를 먼저 확보해야 합니다.
+            아래 항목은 공모전 제출물에 들어갈 코드, 테스트, 시연 자료를 빠짐없이 확인하기 위한 체크리스트입니다.
+          </div>
+          <h3>기술 점검 체크리스트</h3>
+          <ol>
+            <li>Android 실기기에서 장애물 안내, 찾기, 물건 확인을 각각 5회 이상 실행하고 실패 사례를 기록.</li>
+            <li><code>yolo11n_320.tflite</code> 기준 모델을 공식 export 스크립트로 재생성할 수 있는지 확인.</li>
+            <li>반복 안내가 너무 잦은 장면과 명시적 질문에 답해야 하는 장면을 분리해 경고 피로를 점검.</li>
+            <li>bbox 기반 거리 추정은 “정확한 거리”가 아니라 “위험도 판단용 근사값”으로 표현.</li>
+            <li>Ultralytics tracker는 앱 런타임이 아니라 검증 영상 분석과 비교 자료에 사용.</li>
+            <li>테스트 결과, Android 빌드 결과, 시연 영상, 성능 로그를 제출 자료에 함께 첨부.</li>
+          </ol>
+        </section>
+
+        <section id="presentation">
+          <h2>10. 발표 스토리</h2>
+          <h3>한 문장</h3>
+          <p>
+            VoiceGuide는 시각장애인의 보행 중 위험을 스마트폰/웨어러블 카메라로 즉시 감지하고,
+            네트워크 없이도 짧은 음성·진동으로 안내하며, 보호자/관리자가 대시보드로 상황을 확인할 수 있는 온디바이스 AI 보행 보조 서비스입니다.
+          </p>
+          <h3>3분 발표 흐름</h3>
+          <ol>
+            <li><b>문제:</b> 보행 보조는 “많은 정보”보다 “즉시 필요한 위험 정보”가 중요합니다.</li>
+            <li><b>해결:</b> Android에서 YOLO를 직접 실행해 지연을 줄이고, 서버는 기록/관제 역할로 분리했습니다.</li>
+            <li><b>핵심 기술:</b> YOLO 탐지, IoU tracking, EMA smoothing, 위험도 정책, TTS/진동, SSE 대시보드.</li>
+            <li><b>검증:</b> 테스트 코드, 시나리오 영상, latency/FPS 리포트, 실패 사례와 개선 계획.</li>
+            <li><b>확장:</b> TFLite/NCNN 비교, 사용자 맞춤 정책, 보호자 알림, 실외 위험 데이터셋 보강.</li>
+          </ol>
+          <div class="callout">
+            <b>발표 톤:</b> 완벽한 자율보행 시스템이 아니라, 시각장애인의 보행 중 위험 인지를 돕는 보조 시스템으로 설명합니다.
+            현재 한계와 검증 방법을 함께 제시하면 기술 신뢰도가 높아집니다.
+          </div>
+          <p class="small">
+            참고한 공식 자료: Ultralytics YOLO11 docs, Ultralytics Export docs, Ultralytics Benchmark docs, ultralytics/ultralytics GitHub repository.
+          </p>
+        </section>
+      </article>
+    </main>
+  </div>
+</body>
+</html>

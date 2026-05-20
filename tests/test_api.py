@@ -107,6 +107,44 @@ def test_detect_json_persists_recent_detections():
     assert recent[0]["class_ko"] == "의자"
 
 
+def test_detect_json_held_mode_uses_item_confirmation_sentence():
+    payload = {
+        "device_id": "held_mode_device",
+        "wifi_ssid": "held_mode_wifi",
+        "request_id": "req-held-mode-1",
+        "mode": "들고있는것",
+        "camera_orientation": "front",
+        "detections": [
+            {
+                "class_ko": "의자",
+                "confidence": 0.86,
+                "cx": 0.45,
+                "cy": 0.55,
+                "w": 0.20,
+                "h": 0.25,
+                "zone": "12시",
+                "dist_m": 2.2,
+            },
+            {
+                "class_ko": "컵",
+                "confidence": 0.88,
+                "cx": 0.50,
+                "cy": 0.58,
+                "w": 0.35,
+                "h": 0.40,
+                "zone": "12시",
+                "dist_m": 0.6,
+            },
+        ],
+    }
+    response = client.post("/detect_json", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "들고있는것"
+    assert body["alert_mode"] == "critical"
+    assert body["sentence"] == "손에 들고 있는 건 컵이에요."
+
+
 def test_spaces_snapshot_endpoint():
     # 공간 스냅샷 수동 저장 엔드포인트 — 디버깅/테스트 전용
     payload = {"space_id": "test_ssid", "objects": []}

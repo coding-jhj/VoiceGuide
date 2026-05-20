@@ -1,5 +1,5 @@
 import pytest
-from src.nlg.sentence import build_sentence, build_find_sentence
+from src.nlg.sentence import build_sentence, build_find_sentence, build_held_sentence
 
 
 def test_empty_objects():
@@ -181,3 +181,18 @@ def test_max_two_objects_policy():
     result = build_sentence(objects, [])
     # 3번째 물체("테이블")가 결과에 포함되지 않아야 함
     assert "테이블" not in result, f"3번째 물체가 문장에 포함됨 → {result}"
+
+
+def test_held_sentence_answers_nearest_object():
+    """물건 확인 모드는 위험도보다 손/바로 앞에 가까운 물체를 우선 답해야 함."""
+    objects = [
+        {"class_ko": "의자", "direction": "12시", "distance_m": 2.4, "risk_score": 0.7},
+        {"class_ko": "컵", "direction": "12시", "distance_m": 0.6, "risk_score": 0.2},
+    ]
+    result = build_held_sentence(objects)
+    assert result == "손에 들고 있는 건 컵이에요."
+
+
+def test_held_sentence_empty_scene():
+    result = build_held_sentence([])
+    assert result == "손에 든 물건이나 바로 앞에 뭔가 없어 보여요."

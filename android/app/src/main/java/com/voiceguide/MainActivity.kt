@@ -79,6 +79,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private var imageAnalysis: ImageAnalysis? = null
     private var lastStreamFrameTime = 0L
     private var lastStreamSkipLogTime = 0L
+    @Volatile private var pendingImmediateMode: String? = null
+    @Volatile private var temporaryDisplayMode: String? = null
+    @Volatile private var temporaryDisplayModeUntil = 0L
     // newSingleThreadExecutor: 카메라 캡처를 UI 스레드와 분리 (UI 멈춤 방지)
     private val cameraExecutor = Executors.newSingleThreadExecutor()
     // Handler: 메인 스레드에서 지연 작업 예약 (1초 간격 루프, Watchdog)
@@ -149,7 +152,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     /**
      * 거리 기반 분류.
      *
-     * 가까이(bbox 8%+) → voice  (음성 안내 — 이미 말했어도 아직 가까이면 계속 안내)
+     * 가까이(bbox 8%+) → voice  (음성 안내 — 같은 클래스는 쿨다운 후 재안내)
      * 멀리 있음        → beep   (있다는 것만 인지)
      * 위험 사물        → 항상 voice
      *
@@ -158,9 +161,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private fun classify(voted: List<Detection>): Pair<List<Detection>, Boolean> {
         val voice = mutableListOf<Detection>()
         var shouldBeep = false
+        val now = System.currentTimeMillis()
         for (d in voted) {
             val isClose = d.classKo in VoicePolicy.voteBypassKo() || d.w * d.h > BEEP_AREA_THRESH
-            if (isClose) voice.add(d) else shouldBeep = true
+            val lastSpokenAt = classLastSpoken[d.classKo] ?: 0L
+            val recentlySpoken = now - lastSpokenAt < CLASS_COOLDOWN_MS
+            if (isClose && !recentlySpoken) voice.add(d) else if (!isClose) shouldBeep = true
         }
         return voice to (shouldBeep && voice.isEmpty())
     }
@@ -268,7 +274,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── STT 음성 명령 ──────────────────────────────────────────────────
     private lateinit var speechRecognizer: SpeechRecognizer
-    @Volatile private var currentMode = "장애물"  // 현재 활성 모드
+    @Volatile private var currentMode = "일반"  // 현재 활성 모드
     @Volatile private var findTarget  = ""        // 찾기 모드에서 탐색할 물체 이름
     private var sttStartTime = 0L                 // STT 시작 시각 (지연 측정용)
     @Volatile private var waitingBusNumber: String = ""  // 버스 대기 모드에서 기다리는 버스 번호
@@ -564,7 +570,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         // 방향이 바뀌었을 때만 UI 업데이트 (매 프레임 업데이트는 불필요)
         if (cameraOrientation != prev) {
             val label = mapOf("front" to "정면", "back" to "뒤", "left" to "왼쪽", "right" to "오른쪽")
-            runOnUiThread { tvMode.text = "모드: $currentMode  |  방향: ${label[cameraOrientation]}" }
+            runOnUiThread { tvMode.text = "모드: ${displayMode(currentMode)}  |  방향: ${label[cameraOrientation]}" }
         }
     }
 
@@ -604,7 +610,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 )
                 if (autoListenEnabled && retryable) {
                     runOnUiThread {
-                        tvMode.text = "🎤 [$currentMode] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
+                        tvMode.text = "🎤 [${displayMode(currentMode)}] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
                         btnStt.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF059669.toInt())
                     }
                     handler.postDelayed({ scheduleAutoListen() }, 800)
@@ -654,7 +660,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         // FPS 정보 유지하면서 듣는 중 표시
         sttStartTime = System.currentTimeMillis()
         Log.d("VG_STT", "STT started — mode=$currentMode")
-        tvMode.text = "🎤 [$currentMode] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
+        tvMode.text = "🎤 [${displayMode(currentMode)}] 듣는 중...${if (lastFpsText.isNotEmpty()) "  $lastFpsText" else ""}"
         btnStt.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFDC2626.toInt())
         speechRecognizer.startListening(intent)
     }
@@ -665,13 +671,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         val sttElapsedMs = if (sttStartTime > 0L) System.currentTimeMillis() - sttStartTime else -1L
         val mode = classifyKeyword(text)
         Log.d("VG_STT", "STT result: \"$text\" → mode=$mode | elapsed=${sttElapsedMs}ms")
-        runOnUiThread { tvMode.text = "모드: $mode  |  방향: 정면" }
+        runOnUiThread { tvMode.text = "모드: ${displayMode(mode)}  |  방향: 정면" }
 
         // 자동 시작 응답 처리
         if (awaitingStartConfirm) {
             awaitingStartConfirm = false
             if (text.contains("네") || text.contains("예") || text.contains("응")) {
                 requestPermissions()
+            } else if (mode != "unknown") {
+                requestPermissions()
+                handler.postDelayed({ handleSttResult(text) }, 1500L)
             } else {
                 speak("알겠어요. 분석 시작 버튼을 누르시면 시작돼요.")
             }
@@ -680,14 +689,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
         when (mode) {
             "들고있는것" -> {
-                speak("확인할게요.")
+                holdDisplayMode("들고있는것")
+                tvStatus.text = "확인 중..."
                 captureAndProcessAsHeld()
             }
             // ── 핵심 버그 수정: 질문 모드 즉시 캡처 ──────────────────────────
             // 기존 문제: "지금 뭐 있어?" → else 분기 → "장애물 모드." 말하고 끝
             // 수정: 즉시 이미지 캡처 → 서버에 mode="질문" 전송 → tracker 상태 포함 응답
             "질문" -> {
-                speak("확인할게요.")
+                holdDisplayMode("질문")
+                tvStatus.text = "확인 중..."
                 captureAndProcessAsQuestion()
             }
             // ── 장애물 모드: 즉시 캡처 ───────────────────────────────────────
@@ -697,13 +708,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }
             // ── 찾기 모드 (확인 의도 통합) ────────────────────────────────────
             // target 있음 → "X 찾기 모드." 안내 후 주기적 캡처
-            // target 없음 (이거 뭐야 등) → "확인할게요." 후 즉시 캡처
+            // target 없음 (이거 뭐야 등) → 안내음을 끼우지 않고 즉시 캡처
             "찾기" -> {
                 findTarget  = SentenceBuilder.extractFindTarget(text)
                 currentMode = "찾기"
                 SentenceBuilder.clearStableClocks()
                 if (findTarget.isEmpty()) {
-                    speak("확인할게요.")
+                    tvStatus.text = "확인 중..."
                     captureAndProcess()
                 } else {
                     speakBuiltIn("${findTarget} 찾기 모드.")
@@ -1036,7 +1047,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-                .setTargetResolution(android.util.Size(320, 320))
+                .setTargetResolution(android.util.Size(640, 480))
                 .build()
                 .also { analysis ->
                     analysis.setAnalyzer(cameraExecutor) { imageProxy ->
@@ -1135,7 +1146,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             checkRevisit()
 
             val now = System.currentTimeMillis()
-            if (now - lastStreamFrameTime < INTERVAL_MS) return
+            val immediateMode = pendingImmediateMode
+            val forceImmediate = immediateMode != null
+            if (!forceImmediate && now - lastStreamFrameTime < INTERVAL_MS) return
             val route = if (shouldUseOnDeviceDetector()) "on_device" else "unavailable"
             val maxInFlight = MAX_ON_DEVICE_IN_FLIGHT
             if (inFlightCount.getAndIncrement() >= maxInFlight) {
@@ -1147,11 +1160,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 return
             }
             acquiredInFlight = true
+            if (forceImmediate) pendingImmediateMode = null
             lastStreamFrameTime = now
 
             val requestId = nextRequestId()
-            Log.d("VG_FLOW", "request_id=$requestId route=$route mode=$currentMode stream=${imageProxy.width}x${imageProxy.height} format=${imageProxy.format} rotation=${imageProxy.imageInfo.rotationDegrees}")
-            if (route == "on_device") processOnDevice(imageProxy, requestId, tFrameArrival = now)
+            val modeForFrame = immediateMode ?: currentMode
+            Log.d("VG_FLOW", "request_id=$requestId route=$route mode=$modeForFrame stream=${imageProxy.width}x${imageProxy.height} format=${imageProxy.format} rotation=${imageProxy.imageInfo.rotationDegrees}")
+            if (route == "on_device") processOnDevice(imageProxy, requestId, immediateMode, tFrameArrival = now)
             else {
                 handleFail()
             }
@@ -1164,6 +1179,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     private fun captureAndProcess() {
+        if (requestImmediateStreamFrame(currentMode)) return
         // 일회성 STT 캡처: stream 요청이 진행 중이면 스킵 (중복 방지)
         if (inFlightCount.get() > 0) {
             Log.d("VG_FLOW", "capture skipped: inFlight=${inFlightCount.get()}")
@@ -1225,6 +1241,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
      * 온디바이스로 탐지한 뒤 JSON을 서버에 전송하고, 서버가 없으면 로컬 안내를 사용한다.
      */
     private fun captureAndProcessAsQuestion() {
+        if (requestImmediateStreamFrame("질문")) return
         val file = File.createTempFile("vg_q_", ".jpg", cacheDir)
         imageCapture?.takePicture(
             ImageCapture.OutputFileOptions.Builder(file).build(),
@@ -1246,6 +1263,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
      * 서버에 mode="들고있는것" 전송 → 가장 가까운 물건 기준 응답을 받음.
      */
     private fun captureAndProcessAsHeld() {
+        if (requestImmediateStreamFrame("들고있는것")) return
         val file = File.createTempFile("vg_h_", ".jpg", cacheDir)
         imageCapture?.takePicture(
             ImageCapture.OutputFileOptions.Builder(file).build(),
@@ -1261,6 +1279,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     speak("사진을 찍지 못했어요.")
                 }
             })
+    }
+
+    private fun requestImmediateStreamFrame(mode: String): Boolean {
+        if (!isAnalyzing.get() || imageAnalysis == null || !shouldUseOnDeviceDetector()) return false
+        pendingImmediateMode = mode
+        lastStreamFrameTime = 0L
+        Log.d("VG_FLOW", "request immediate stream frame mode=$mode")
+        return true
+    }
+
+    private fun displayMode(mode: String): String = when (mode) {
+        "들고있는것" -> "물건 확인"
+        "질문" -> "주변 확인"
+        "일반" -> "일반 안내"
+        else -> mode
+    }
+
+    private fun holdDisplayMode(mode: String, durationMs: Long = 2500L) {
+        temporaryDisplayMode = mode
+        temporaryDisplayModeUntil = System.currentTimeMillis() + durationMs
+    }
+
+    private fun visibleDisplayMode(mode: String): String {
+        val temporary = temporaryDisplayMode
+        return if (temporary != null && System.currentTimeMillis() < temporaryDisplayModeUntil) {
+            displayMode(temporary)
+        } else {
+            temporaryDisplayMode = null
+            displayMode(mode)
+        }
     }
 
     // ── 온디바이스 추론 ─────────────────────────────────────────────────
@@ -1354,7 +1402,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     val fps = calcFps()
                     val spark = buildSparkline()
                     lastFpsText = "${fps}fps $spark | 📱 ${inferMs}ms"
-                    tvMode.text = "[$effectiveMode] $lastFpsText"
+                    tvMode.text = "[${visibleDisplayMode(effectiveMode)}] $lastFpsText"
                     if (debugVisible) {
                         val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
                         tv.text = "경로   : ${detector.executionProvider}\n" +
@@ -1439,9 +1487,27 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 }
 
                 Log.d("VG_DETECT", "생성된 문장: \"$sentence\"")
-                Log.d("VG_DETECT", "음성=${voiceDetections.size}개 | beep=$shouldBeep | mode=$currentMode")
+                Log.d("VG_DETECT", "음성=${voiceDetections.size}개 | beep=$shouldBeep | mode=$effectiveMode")
 
                 when {
+                    effectiveMode == "들고있는것" -> {
+                        Log.d("VG_DETECT", "→ 물건 확인 응답")
+                        performVibrationFeedback(stableMvpFrame.vibrationPattern)
+                        sendDetectionJsonToServer(
+                            voted,
+                            effectiveMode,
+                            requestId,
+                            imgW,
+                            imgH,
+                            preprocessMs,
+                            inferMs,
+                            dedupMs,
+                            totalMs,
+                            sentence,
+                            "critical",
+                            forceSpeak = true
+                        )
+                    }
                     voiceDetections.isNotEmpty() -> {
                         markClassesSpoken(voiceDetections)
                         val mode = when {
@@ -1488,10 +1554,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         fallbackSentence: String,
         fallbackAlertMode: String,
         forceUpload: Boolean = true,
+        forceSpeak: Boolean = false,
     ) {
         val serverUrl = getSavedServerUrl().trimEnd('/')
         if (serverUrl.isEmpty() || !isNetworkAvailable()) {
-            handleSuccess(fallbackSentence, fallbackAlertMode)
+            handleSuccess(fallbackSentence, fallbackAlertMode, forceSpeak)
             return
         }
 
@@ -1499,7 +1566,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             val serverDetections = compactForServer(detections)
             if (!forceUpload && !shouldUploadDetectionJson(serverDetections, mode)) {
                 Log.d("VG_LINK", "request_id=$requestId skip unchanged detection upload objects=${serverDetections.size}")
-                handleSuccess(fallbackSentence, fallbackAlertMode)
+                handleSuccess(fallbackSentence, fallbackAlertMode, forceSpeak)
                 return
             }
             if (forceUpload) {
@@ -1507,7 +1574,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 lastDetectionUploadTime = System.currentTimeMillis()
             }
 
-            handleSuccess(fallbackSentence, fallbackAlertMode)
+            handleSuccess(fallbackSentence, fallbackAlertMode, forceSpeak)
             Thread {
                 uploadDetectionJson(
                     serverUrl = serverUrl,
@@ -1525,7 +1592,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             }.start()
         } catch (e: Exception) {
             Log.e("VG_LINK", "request_id=$requestId detection JSON scheduling failed", e)
-            handleSuccess(fallbackSentence, fallbackAlertMode)
+            handleSuccess(fallbackSentence, fallbackAlertMode, forceSpeak)
         }
     }
 
@@ -1717,11 +1784,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         Log.d("VG_FLOW", "request_id=$requestId finish without side effects reason=$reason")
     }
 
-    private fun handleSuccess(sentence: String, alertMode: String = "critical") {
+    private fun handleSuccess(sentence: String, alertMode: String = "critical", forceSpeak: Boolean = false) {
         consecutiveFails.set(0)
         lastSuccessTime = System.currentTimeMillis()
         releaseInFlight()
-        if (!isAnalyzing.get()) return  // 분석 중지 후 in-flight 요청 결과 무시
+        if (!isAnalyzing.get() && !forceSpeak) return  // 분석 중지 후 in-flight 요청 결과 무시
+        Log.d("VG_TTS", "handleSuccess alert=$alertMode force=$forceSpeak analyzing=${isAnalyzing.get()} sentence=$sentence")
 
         // 질문 응답 직후 periodic TTS 억제 — critical은 항상 통과
         val effectiveMode = if (alertMode != "critical" &&
@@ -1739,14 +1807,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             when (effectiveMode) {
                 "critical" -> {
                     val now = System.currentTimeMillis()
-                    if (sentence != lastSentence || now - lastCriticalTime > 8000L) {
+                    if (forceSpeak || sentence != lastSentence || now - lastCriticalTime > 8000L) {
                         val isVehicleDanger = VoicePolicy.voteBypassKo().any { sentence.contains(it) }
-                        if (!isVehicleDanger && isSpeaking()) return@runOnUiThread
+                        if (!forceSpeak && !isVehicleDanger && isSpeaking()) return@runOnUiThread
                         lastSentence     = sentence
                         lastCriticalTime = now
                         pendingStatusText = sentence
                         tts.setSpeechRate(1.0f)
-                        if (isVehicleDanger) {
+                        if (forceSpeak || isVehicleDanger) {
                             speakBuiltIn(sentence, immediate = true)
                         } else {
                             speak(sentence)
@@ -1833,11 +1901,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     private fun speakBuiltIn(text: String, immediate: Boolean = false) {
-        if (!immediate && !ttsBusy.compareAndSet(false, true)) return  // 이미 재생 중 → 버림
+        if (!immediate && !ttsBusy.compareAndSet(false, true)) {
+            Log.d("VG_TTS", "drop busy immediate=false text=$text")
+            return
+        }
         if (immediate) ttsBusy.set(true)  // 차량 긴급 — 강제 획득
         val params = Bundle()
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
-        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, "vg")
+        val utteranceId = "vg-${System.currentTimeMillis()}"
+        Log.d("VG_TTS", "speak immediate=$immediate id=$utteranceId text=$text")
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId)
     }
 
     private fun isSpeaking(): Boolean = ttsBusy.get()
@@ -1877,6 +1950,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             // TTS 종료 후 700ms 침묵 — 말 끝나자마자 다음 말 시작 방지
             tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                 override fun onStart(uid: String?) {
+                    Log.d("VG_TTS", "start id=$uid")
                     val text = pendingStatusText
                     if (text.isNotEmpty()) {
                         pendingStatusText = ""
@@ -1884,6 +1958,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     }
                 }
                 override fun onDone(uid: String?) {
+                    Log.d("VG_TTS", "done id=$uid")
                     speakCooldownUntil = System.currentTimeMillis() + 700L
                     handler.postDelayed({
                         ttsBusy.set(false)
@@ -1898,6 +1973,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 }
                 @Deprecated("Deprecated in Java")
                 override fun onError(uid: String?) {
+                    Log.w("VG_TTS", "error id=$uid")
                     ttsBusy.set(false)
                     if (awaitingStartConfirm && !isListening) {
                         handler.postDelayed({ startListening() }, 600L)
@@ -1913,7 +1989,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         speakBuiltIn(
             "보이스가이드예요. " +
             "'찾기', '장애물' 같은 음성 명령도 사용할 수 있어요." +
-            "시작 버튼을 누르거나 '네'라고 말하면 장애물 안내를 시작해요."
+            "시작 버튼을 누르거나 '네'라고 말하면 일반 안내를 시작해요."
         )
     }
 

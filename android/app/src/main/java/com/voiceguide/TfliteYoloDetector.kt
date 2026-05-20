@@ -22,8 +22,8 @@ class TfliteYoloDetector(context: Context) {
     private val outputCols: Int
     // true: raw YOLO output [84, N] / false: end-to-end NMS output [N, 6]
     private val isRawOutput: Boolean
-    private val confThreshold = 0.30f
-    private val iouThreshold  = 0.45f
+    private val confThreshold = 0.25f
+    private val iouThreshold  = 0.70f
     private var outputShapeLogged = false
     private val inputBuffer: ByteBuffer
     private val outputBuffer: Array<Array<FloatArray>>
@@ -427,7 +427,12 @@ class TfliteYoloDetector(context: Context) {
             if (skip[i]) continue
             keep.add(sorted[i])
             for (j in i + 1 until sorted.size) {
-                if (!skip[j] && iou(sorted[i], sorted[j]) > iouThreshold) skip[j] = true
+                if (!skip[j] &&
+                    sorted[i].classKo == sorted[j].classKo &&
+                    iou(sorted[i], sorted[j]) > iouThreshold
+                ) {
+                    skip[j] = true
+                }
             }
         }
         return keep
