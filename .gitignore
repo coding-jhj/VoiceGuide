@@ -49,7 +49,7 @@ data/test_images/**/*.PNG
 datasets/
 
 # 학습 실행 결과 (로컬 전용)
-runs/
+runs/detect/runs/train/roboflow_v1_warmup
 flagged/
 
 # TTS 캐시 (자동 재생성)
