@@ -68,7 +68,7 @@ def _direction_from_bbox(raw: dict, bbox: list[float]) -> str:
     return "4시"
 
 
-def _distance_from_bbox(raw: dict, bbox: list[float]) -> float:
+def _distance_from_bbox(raw: dict, bbox: list[float], class_ko: str = "") -> float:
     if raw.get("distance_m") is not None:
         return round(_float_value(raw.get("distance_m"), 99.0), 1)
     if raw.get("dist_m") is not None:
@@ -76,7 +76,9 @@ def _distance_from_bbox(raw: dict, bbox: list[float]) -> float:
 
     area = max(0.0001, bbox[2] * bbox[3]) if len(bbox) >= 4 else 0.01
     try:
-        calib = float(get_policy().get("on_device", {}).get("bbox_calib_area", 0.12))
+        on_device = get_policy().get("on_device", {})
+        by_class = on_device.get("bbox_calib_area_by_class", {})
+        calib = float(by_class.get(class_ko, on_device.get("bbox_calib_area", 0.12)))
     except Exception:
         calib = 0.12
     return round(min(15.0, max(0.1, (calib / area) ** 0.5)), 1)
@@ -123,7 +125,7 @@ def normalize_detection_objects(raw_objects: list[dict]) -> list[dict]:
         bbox = _bbox_from_raw(raw)
         is_vehicle = bool(raw.get("is_vehicle", class_ko in vehicle_ko))
         is_animal = bool(raw.get("is_animal", class_ko in animal_ko))
-        distance_m = _distance_from_bbox(raw, bbox)
+        distance_m = _distance_from_bbox(raw, bbox, class_ko)
         risk_score = _risk_from_object(raw, bbox, distance_m)
 
         obj = {

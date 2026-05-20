@@ -320,6 +320,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         private const val SILENCE_WARN_MS  = 6000L         // 6초 무응답 시 Watchdog 경고
         private const val FAIL_WARN_COUNT  = 3             // 연속 3회 실패 시 경고
         private const val GPS_SEND_INTERVAL_MS = 3000L     // 대시보드 위치 갱신 최소 간격
+        private const val ENABLE_ANDROID_GPS_UPLOAD = false // 데모·포트폴리오 기본값: 실제 사용자 위치 전송 금지
         private const val MVP_UPDATE_INTERVAL_MS = 750L    // vote/dedup/MVP/TTS/JSON 갱신 주기
         private const val SERVER_UPLOAD_INTERVAL_MS = 250L // 서버 JSON 최소 전송 간격
         private const val SERVER_FORCE_SEND_FRAMES = 5     // 변화가 없어도 N프레임마다 대시보드 갱신
@@ -865,6 +866,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     /** 분석 시작 시 GPS 위치 업데이트 시작 */
     private fun startGpsUpdates() {
+        if (!ENABLE_ANDROID_GPS_UPLOAD) {
+            Log.d("VG_GPS", "Android GPS upload disabled; use tools/simulator.py for demo route")
+            return
+        }
         requestLocationPermission {
             try {
                 val lm = getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
@@ -954,6 +959,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     }
 
     private fun sendGpsHeartbeat(source: String) {
+        if (!ENABLE_ANDROID_GPS_UPLOAD) {
+            Log.d("VG_GPS", "skip heartbeat source=$source disabled")
+            return
+        }
         if (!isAnalyzing.get()) return
         if (!hasValidLocation()) {
             Log.d("VG_GPS", "skip heartbeat source=$source empty location lat=$currentLat lng=$currentLng")
@@ -1208,7 +1217,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         isNetworkAvailable() && getConfiguredServerUrl().isNotBlank()
 
     private fun hasValidLocation(): Boolean =
-        currentLat != 0.0 || currentLng != 0.0
+        ENABLE_ANDROID_GPS_UPLOAD && (currentLat != 0.0 || currentLng != 0.0)
 
     /**
      * 질문 모드 전용 즉시 캡처.
@@ -1395,19 +1404,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                 if (voted.isEmpty()) {
                     Log.d("VG_DETECT", "→ 장애물 없음")
                     imageFile?.delete()
-                    sendDetectionJsonToServer(
-                        detections = voted,
-                        mode = effectiveMode,
-                        requestId = requestId,
-                        imgW = imgW,
-                        imgH = imgH,
-                        decodeMs = preprocessMs,
-                        inferMs = inferMs,
-                        dedupMs = dedupMs,
-                        totalMs = totalMs,
-                        fallbackSentence = "주변에 장애물이 없어요.",
-                        fallbackAlertMode = "silent",
-                    )
+                    handleSuccess("주변에 장애물이 없어요.", "silent")
                     return@Runnable
                 }
 
