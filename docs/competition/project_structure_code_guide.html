@@ -1,0 +1,1335 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoiceGuide 프로젝트 구조 및 코드 이해서</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d9e0ea;
+      --blue: #2563eb;
+      --green: #047857;
+      --red: #b91c1c;
+      --amber: #b45309;
+      --slate: #334155;
+      --code-bg: #111827;
+      --code-ink: #e5e7eb;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+      line-height: 1.72;
+    }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .layout {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 28px 20px;
+      border-right: 1px solid var(--line);
+      background: #eef3f8;
+    }
+    nav h1 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    nav p {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    nav ol {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+    nav li { margin: 6px 0; }
+    main {
+      width: min(1160px, 100%);
+      margin: 0 auto;
+      padding: 42px 34px 80px;
+    }
+    .hero {
+      padding: 36px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 26px;
+    }
+    .hero h2 {
+      margin: 0 0 12px;
+      font-size: 34px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+    .hero .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+    section {
+      margin: 22px 0;
+      padding: 30px 32px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    h2 {
+      margin: 0 0 16px;
+      font-size: 26px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+    h3 {
+      margin: 28px 0 10px;
+      font-size: 20px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+    h4 {
+      margin: 22px 0 8px;
+      font-size: 17px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+    p { margin: 10px 0; }
+    ul, ol { padding-left: 24px; }
+    li { margin: 6px 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .triple {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .mini {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+    }
+    .mini h4 { margin-top: 0; }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e8eef8;
+      color: var(--slate);
+      font-size: 12px;
+      font-weight: 700;
+      vertical-align: 1px;
+    }
+    .ok { color: var(--green); font-weight: 700; }
+    .warn { color: var(--amber); font-weight: 700; }
+    .risk { color: var(--red); font-weight: 700; }
+    .note {
+      padding: 14px 16px;
+      border-left: 4px solid var(--blue);
+      background: #eff6ff;
+      border-radius: 6px;
+      color: #1e3a8a;
+    }
+    .warning {
+      padding: 14px 16px;
+      border-left: 4px solid var(--amber);
+      background: #fffbeb;
+      border-radius: 6px;
+      color: #78350f;
+    }
+    code {
+      font-family: Consolas, "D2Coding", monospace;
+      font-size: 0.94em;
+      background: #eef2f7;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    pre {
+      margin: 12px 0 18px;
+      padding: 16px;
+      overflow: auto;
+      background: var(--code-bg);
+      color: var(--code-ink);
+      border-radius: 8px;
+      font-family: Consolas, "D2Coding", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      white-space: pre;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      text-align: left;
+    }
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+      padding: 12px 14px;
+    }
+    .step strong {
+      display: inline-block;
+      min-width: 90px;
+      color: var(--blue);
+    }
+    .toc-note {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+      nav {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      main { padding: 24px 16px 56px; }
+      .hero, section { padding: 22px 18px; }
+      .grid, .triple { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav>
+      <h1>VoiceGuide 이해서</h1>
+      <p>프로젝트 구조, 개념, 코드 흐름, 공모전 설명 포인트를 한 번에 보는 문서</p>
+      <ol>
+        <li><a href="#summary">프로젝트 한 줄 요약</a></li>
+        <li><a href="#big-picture">전체 구조</a></li>
+        <li><a href="#folder-map">폴더별 역할</a></li>
+        <li><a href="#core-flow">핵심 실행 흐름</a></li>
+        <li><a href="#android">Android 앱 구조</a></li>
+        <li><a href="#yolo">YOLO/TFLite 추론</a></li>
+        <li><a href="#pipeline">위험도·추적·진동 파이프라인</a></li>
+        <li><a href="#voice">음성 명령·TTS</a></li>
+        <li><a href="#server">FastAPI 서버</a></li>
+        <li><a href="#db">DB와 대시보드</a></li>
+        <li><a href="#policy">정책 파일과 SSOT</a></li>
+        <li><a href="#tests">테스트와 검증</a></li>
+        <li><a href="#contest">공모전 설명 전략</a></li>
+        <li><a href="#study">팀 공부 순서</a></li>
+        <li><a href="#appendix">핵심 코드 빠른 색인</a></li>
+      </ol>
+      <div class="toc-note">
+        기준 날짜: 2026-05-20<br />
+        기준 커밋: main 최신 상태
+      </div>
+    </nav>
+
+    <main>
+      <div class="hero">
+        <h2>VoiceGuide 프로젝트 구조 및 코드 이해서</h2>
+        <p class="sub">
+          이 문서는 “시각장애인용 지능형 웨어러블 가이드 서비스”를 강사님, 심사위원, 팀원이 모두 이해할 수 있게
+          Android 앱, YOLO 추론, 위험도 판단, 음성 안내, 서버, DB, 테스트를 하나의 흐름으로 설명합니다.
+        </p>
+      </div>
+
+      <section id="summary">
+        <h2>1. 프로젝트 한 줄 요약</h2>
+        <p>
+          VoiceGuide는 스마트폰 카메라로 주변 물체를 실시간 인식하고, 위험한 물체는 음성·진동으로 즉시 알려주며,
+          필요하면 서버에 탐지 결과와 GPS를 보내 대시보드에서 이동 기록과 위험 구간을 확인할 수 있게 하는 보행 보조 앱입니다.
+        </p>
+        <div class="grid">
+          <div class="mini">
+            <h4>사용자 관점</h4>
+            <p>앱을 켜고 걸으면 주변 장애물, 차량, 사람, 생활 물체를 음성으로 안내받습니다. “이거 뭐야”, “의자 찾아줘” 같은 명령도 처리합니다.</p>
+          </div>
+          <div class="mini">
+            <h4>기술 관점</h4>
+            <p>Android에서 CameraX 프레임을 받아 TFLite YOLO 모델로 온디바이스 추론하고, 자체 파이프라인이 위험도·거리·진동 패턴을 계산합니다.</p>
+          </div>
+          <div class="mini">
+            <h4>서버 관점</h4>
+            <p>서버는 이미 탐지된 JSON을 받아 정규화, 추적, 저장, 대시보드 브로드캐스트를 담당합니다. 서버가 이미지 추론을 대신하지 않습니다.</p>
+          </div>
+          <div class="mini">
+            <h4>공모전 관점</h4>
+            <p>핵심 차별점은 “실시간성”, “경고 피로도 감소”, “물건 확인 기능”, “온디바이스 추론”, “설명 가능한 위험도 판단”입니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="big-picture">
+        <h2>2. 전체 구조</h2>
+        <p>
+          프로젝트는 크게 Android 앱과 Python 서버로 나뉩니다. Android 앱은 실제 사용자 경험을 담당하고,
+          Python 서버는 운영 기록, 대시보드, 정책 동기화, 검증용 API를 담당합니다.
+        </p>
+        <div class="flow">
+          <div class="step"><strong>1단계</strong> CameraX가 카메라 프레임을 가져옵니다.</div>
+          <div class="step"><strong>2단계</strong> <code>TfliteYoloDetector</code>가 프레임을 YOLO 입력 크기에 맞춰 전처리하고 TFLite 추론을 수행합니다.</div>
+          <div class="step"><strong>3단계</strong> 탐지 결과는 <code>Detection</code> 데이터 구조로 변환됩니다.</div>
+          <div class="step"><strong>4단계</strong> <code>MvpPipeline</code>이 IoU 추적, EMA smoothing, 거리 추정, 위험도, 진동 패턴을 계산합니다.</div>
+          <div class="step"><strong>5단계</strong> <code>SentenceBuilder</code>가 TTS로 읽을 한국어 문장을 만듭니다.</div>
+          <div class="step"><strong>6단계</strong> <code>MainActivity</code>가 화면, TTS, 진동, 서버 업로드, GPS를 제어합니다.</div>
+          <div class="step"><strong>7단계</strong> 서버는 JSON을 받아 DB에 저장하고 대시보드에 SSE로 전달합니다.</div>
+        </div>
+        <pre><code>[Android]
+CameraX
+  -> TfliteYoloDetector
+  -> Detection list
+  -> MvpPipeline
+  -> SentenceBuilder
+  -> TTS / vibration / bounding box overlay
+  -> POST /detect 또는 /detect_json
+
+[FastAPI Server]
+routes.py
+  -> normalize objects
+  -> SessionTracker
+  -> NLG sentence functions
+  -> db.py
+  -> dashboard.html + SSE events</code></pre>
+      </section>
+
+      <section id="folder-map">
+        <h2>3. 폴더별 역할</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>경로</th>
+              <th>역할</th>
+              <th>공모전 설명 포인트</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>android/app/src/main/java/com/voiceguide</code></td>
+              <td>Android 앱의 핵심 Kotlin 코드입니다. 카메라, YOLO, 음성, 진동, GPS, 서버 통신이 들어 있습니다.</td>
+              <td>사용자에게 직접 보이는 실제 MVP입니다.</td>
+            </tr>
+            <tr>
+              <td><code>android/app/src/main/assets</code></td>
+              <td>TFLite 모델과 기본 정책 JSON이 들어 있습니다.</td>
+              <td>서버 없이도 온디바이스 추론이 가능하다는 증거입니다.</td>
+            </tr>
+            <tr>
+              <td><code>src/api</code></td>
+              <td>FastAPI 서버 라우터, DB, 이벤트 스트림, 세션 추적기가 있습니다.</td>
+              <td>실시간 대시보드와 운영 데이터 축적 구조를 설명할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td><code>src/nlg</code></td>
+              <td>탐지 결과를 한국어 안내 문장으로 바꾸는 서버 측 문장 생성 로직입니다.</td>
+              <td>단순 탐지가 아니라 사용자 행동으로 이어지는 안내를 만든다는 점이 중요합니다.</td>
+            </tr>
+            <tr>
+              <td><code>src/config/policy.json</code></td>
+              <td>위험 물체 분류, 거리 표현, 경고 기준, 물건 확인 기준을 관리합니다.</td>
+              <td>하드코딩을 줄이고 정책 기반으로 개선 가능하다는 점을 보여줍니다.</td>
+            </tr>
+            <tr>
+              <td><code>tests</code></td>
+              <td>API, 문장 생성, 정책, 시뮬레이션 테스트가 있습니다.</td>
+              <td>기능이 감으로 돌아가는 것이 아니라 자동 검증된다는 점을 말할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td><code>tools</code></td>
+              <td>모델 export, 성능 리포트, 서버 연결 진단, 시뮬레이터 도구가 있습니다.</td>
+              <td>공모전 리허설과 검증 자료 생산에 쓰는 폴더입니다.</td>
+            </tr>
+            <tr>
+              <td><code>docs/competition</code></td>
+              <td>공모전 준비 문서, 성능 리포트, 이 구조 설명 문서가 들어갑니다.</td>
+              <td>제출 전 팀 내부 검토 자료와 발표 자료의 근거가 됩니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>현재 프로젝트 트리 요약</h3>
+        <pre><code>VoiceGuide/
+  android/
+    app/src/main/
+      assets/
+        yolo11n_320.tflite
+        yolo26n_float32.tflite
+        policy_default.json
+      java/com/voiceguide/
+        MainActivity.kt
+        TfliteYoloDetector.kt
+        MvpPipeline.kt
+        SentenceBuilder.kt
+        VoicePolicy.kt
+        VoiceGuideConstants.kt
+        Detection.kt
+        BoundingBoxOverlay.kt
+  src/
+    api/
+      main.py
+      routes.py
+      tracker.py
+      db.py
+      events.py
+    nlg/
+      sentence.py
+      templates.py
+    config/
+      policy.py
+      policy.json
+  templates/
+    dashboard.html
+  tests/
+  tools/
+  docs/
+    competition/
+    architecture/
+    contest_package/</code></pre>
+      </section>
+
+      <section id="core-flow">
+        <h2>4. 핵심 실행 흐름</h2>
+        <h3>일반 장애물 안내 흐름</h3>
+        <ol>
+          <li>사용자가 분석 시작 버튼을 누르거나 음성으로 시작합니다.</li>
+          <li><code>MainActivity.startCamera()</code>가 Preview, ImageCapture, ImageAnalysis를 바인딩합니다.</li>
+          <li><code>analyzeStreamFrame()</code>이 실시간 프레임을 받아 <code>processOnDevice()</code>로 넘깁니다.</li>
+          <li><code>TfliteYoloDetector.detect()</code>가 YOLO 추론을 수행합니다.</li>
+          <li>탐지 결과는 vote, duplicate removal, MVP pipeline을 거칩니다.</li>
+          <li>가장 중요한 객체만 문장화하고, TTS·진동으로 안내합니다.</li>
+          <li>필요한 프레임만 서버에 JSON으로 업로드합니다.</li>
+        </ol>
+
+        <h3>“이거 뭐야” 물건 확인 흐름</h3>
+        <ol>
+          <li>STT 결과가 <code>들고있는것</code> 모드로 분류됩니다.</li>
+          <li>앱은 사진 저장 흐름 대신 다음 ImageAnalysis 스트림 프레임을 즉시 사용합니다.</li>
+          <li>YOLO 결과 중 화면에서 가장 크게 잡힌 물체를 우선 선택합니다.</li>
+          <li><code>SentenceBuilder.buildHeld()</code>가 “손에 들고 있는 건 컵이에요” 같은 답변을 만듭니다.</li>
+          <li><code>forceSpeak</code>로 즉답 안내가 TTS busy 상태에 묻히지 않게 처리합니다.</li>
+        </ol>
+
+        <h3>찾기 모드 흐름</h3>
+        <ol>
+          <li>사용자가 “의자 찾아줘”처럼 말하면 <code>extractFindTarget()</code>가 찾을 대상을 뽑습니다.</li>
+          <li>탐지 목록에서 대상과 부분 일치하는 물체를 찾습니다.</li>
+          <li>찾으면 위치와 거리를 말하고, 못 찾으면 다른 방향을 보여달라고 안내합니다.</li>
+          <li>대상보다 더 가까운 위험물이 있으면 함께 경고합니다.</li>
+        </ol>
+
+        <div class="note">
+          공모전 발표에서는 “YOLO를 돌린다”보다 “YOLO 결과를 사용자 행동으로 바꾸는 후처리 파이프라인이 있다”는 점을 강조해야 합니다.
+          탐지 모델 자체보다 제품 완성도를 보여주는 부분이기 때문입니다.
+        </div>
+      </section>
+
+      <section id="android">
+        <h2>5. Android 앱 구조</h2>
+        <p>
+          Android 앱에서 가장 큰 파일은 <code>MainActivity.kt</code>입니다. 이 파일은 단순 화면 코드가 아니라 카메라, STT, TTS, 진동,
+          GPS, 서버 통신, 온디바이스 추론을 모두 연결하는 앱의 중앙 제어 장치입니다.
+        </p>
+
+        <h3>MainActivity.kt 역할 분해</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>영역</th>
+              <th>주요 함수</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>초기화</td>
+              <td><code>onCreate</code>, <code>tryInitTfliteDetector</code>, <code>refreshPolicyFromServerAsync</code></td>
+              <td>화면, TTS, STT, YOLO 모델, 서버 정책을 준비합니다.</td>
+            </tr>
+            <tr>
+              <td>카메라</td>
+              <td><code>startCamera</code>, <code>analyzeStreamFrame</code>, <code>captureAndProcess</code></td>
+              <td>CameraX Preview와 ImageAnalysis를 구성하고 프레임을 분석합니다.</td>
+            </tr>
+            <tr>
+              <td>음성 명령</td>
+              <td><code>initSpeechRecognizer</code>, <code>startListening</code>, <code>handleSttResult</code>, <code>classifyKeyword</code></td>
+              <td>사용자 음성을 받아 모드를 바꿉니다.</td>
+            </tr>
+            <tr>
+              <td>탐지 후처리</td>
+              <td><code>voteOnly</code>, <code>removeDuplicates</code>, <code>shouldRunMvpUpdate</code></td>
+              <td>흔들리는 탐지를 안정화하고 중복 박스를 줄입니다.</td>
+            </tr>
+            <tr>
+              <td>서버 연동</td>
+              <td><code>sendDetectionJsonToServer</code>, <code>uploadDetectionJson</code>, <code>sendGpsHeartbeat</code></td>
+              <td>탐지 결과와 GPS를 서버로 보냅니다.</td>
+            </tr>
+            <tr>
+              <td>안내 출력</td>
+              <td><code>handleSuccess</code>, <code>speak</code>, <code>speakBuiltIn</code>, <code>performVibrationFeedback</code></td>
+              <td>TTS와 진동을 제어하고 경고 피로도를 줄입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>실제 코드 핵심 1: 프레임 분석 루프</h3>
+        <p>
+          앱은 매 프레임을 무조건 서버로 보내지 않습니다. 먼저 온디바이스에서 YOLO 추론을 수행하고, 앱이 필요한 판단을 한 뒤,
+          서버에는 정리된 JSON만 보냅니다. 이 구조 덕분에 네트워크가 불안정해도 기본 안내가 가능합니다.
+        </p>
+        <pre><code>private fun analyzeStreamFrame(imageProxy: ImageProxy) {
+    // ImageAnalysis 프레임을 받아 온디바이스 추론으로 넘기는 흐름
+    // 실제 프로젝트에서는 in-flight, FPS, 즉시 분석 모드, frame close 처리를 함께 관리한다.
+}</code></pre>
+
+        <h3>실제 코드 핵심 2: 시작 음성 명령 레이스 방지</h3>
+        <p>
+          최근 수정된 중요한 부분입니다. 앱 시작 안내 중 사용자가 “이거 뭐야”라고 말하면, 카메라 바인딩이 끝나기 전에 명령이 처리되어
+          기본 장애물 안내처럼 보일 수 있었습니다. 그래서 시작 중 들어온 명령은 <code>pendingStartupCommand</code>에 보관하고,
+          분석 시작 후 다시 처리하게 했습니다.
+        </p>
+        <pre><code>@Volatile private var pendingStartupCommand: String? = null
+
+// 시작 확인 중 일반 명령이 들어오면 즉시 처리하지 않고 보관
+pendingStartupCommand = text
+requestPermissions()
+
+// startAnalysis 이후 카메라가 준비된 다음 실제 명령 처리
+val startupCommand = pendingStartupCommand
+if (startupCommand != null) {
+    pendingStartupCommand = null
+    handler.postDelayed({ handleSttResult(startupCommand) }, 300L)
+} else {
+    scheduleAutoListen()
+}</code></pre>
+
+        <h3>Android 앱에서 중요한 상태값</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>상태값</th>
+              <th>의미</th>
+              <th>왜 필요한가</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>isAnalyzing</code></td>
+              <td>현재 분석 루프가 켜져 있는지</td>
+              <td>중복 시작과 불필요한 프레임 처리를 막습니다.</td>
+            </tr>
+            <tr>
+              <td><code>inFlightCount</code></td>
+              <td>처리 중인 분석/서버 요청 수</td>
+              <td>프레임이 밀려 FPS가 떨어지는 것을 막습니다.</td>
+            </tr>
+            <tr>
+              <td><code>ttsBusy</code></td>
+              <td>TTS가 말하는 중인지</td>
+              <td>음성이 겹치거나 중간에 잘리는 문제를 줄입니다.</td>
+            </tr>
+            <tr>
+              <td><code>pendingImmediateMode</code></td>
+              <td>다음 스트림 프레임을 특정 모드로 즉시 처리할지</td>
+              <td>“이거 뭐야” 같은 즉답 기능의 FPS 저하를 줄입니다.</td>
+            </tr>
+            <tr>
+              <td><code>detectionHistory</code></td>
+              <td>최근 프레임의 탐지 클래스 기록</td>
+              <td>한두 프레임 튀는 오탐을 줄입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="yolo">
+        <h2>6. YOLO/TFLite 추론 구조</h2>
+        <p>
+          <code>TfliteYoloDetector.kt</code>는 모델 로딩, 프레임 전처리, TFLite 실행, 후처리를 담당합니다. 여기서 중요한 점은
+          “모델을 호출한다”가 아니라 “카메라 프레임 좌표와 YOLO 입력 좌표를 정확히 맞추고, 다시 화면 좌표로 되돌린다”입니다.
+        </p>
+
+        <h3>모델 선택</h3>
+        <p>
+          앱은 assets에 있는 모델 중 사용 가능한 모델을 선택합니다. 현재 구조는 <code>yolo11n_320.tflite</code>를 우선 사용하고,
+          필요 시 <code>yolo26n_float32.tflite</code>를 fallback으로 사용할 수 있게 되어 있습니다.
+        </p>
+        <pre><code>modelName = listOf("yolo11n_320.tflite", "yolo26n_float32.tflite").firstOrNull { name ->
+    try { context.assets.open(name).close(); true }
+    catch (_: Exception) { false }
+} ?: throw IllegalStateException("TFLite model file is missing")</code></pre>
+
+        <h3>전처리 개념: Letterbox</h3>
+        <p>
+          카메라 화면은 640x480, 1280x720처럼 가로세로 비율이 다양하지만 YOLO 모델은 정사각형 입력을 기대합니다.
+          그래서 이미지를 찌그러뜨리지 않고 비율을 유지한 채 축소하고, 남는 공간은 padding으로 채웁니다. 이것을 letterbox라고 부릅니다.
+        </p>
+        <pre><code>val scale = minOf(inputSize.toFloat() / origW, inputSize.toFloat() / origH)
+val scaledW = (origW * scale + 0.5f).toInt()
+val scaledH = (origH * scale + 0.5f).toInt()
+val padX = (inputSize - scaledW) / 2
+val padY = (inputSize - scaledH) / 2</code></pre>
+
+        <h3>왜 바운딩 박스가 틀어질 수 있는가</h3>
+        <p>
+          바운딩 박스 정확도는 모델 성능만의 문제가 아닙니다. 다음 중 하나라도 어긋나면 박스가 이상하게 보입니다.
+        </p>
+        <ul>
+          <li>카메라 회전값을 반영하지 않음</li>
+          <li>letterbox padding을 빼지 않고 좌표를 복원함</li>
+          <li>PreviewView가 화면을 crop하는 방식과 overlay가 그리는 방식이 다름</li>
+          <li>모델 출력 형식이 raw YOLO인지 end-to-end NMS인지 구분하지 않음</li>
+          <li>NMS IoU threshold가 너무 낮거나 높음</li>
+        </ul>
+        <p>
+          현재 코드는 회전, padding, raw output, end-to-end output, class-aware NMS를 고려합니다. 다만 실기기에서는 PreviewView의 실제 crop과
+          overlay 좌표가 맞는지 계속 확인해야 합니다.
+        </p>
+
+        <h3>후처리: raw output과 end-to-end output</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>출력 방식</th>
+              <th>코드</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Raw YOLO</td>
+              <td><code>postProcessRaw</code></td>
+              <td>출력 shape이 <code>[1, 84, N]</code>인 경우입니다. 클래스 점수 중 가장 높은 것을 고르고 NMS를 직접 수행합니다.</td>
+            </tr>
+            <tr>
+              <td>End-to-end NMS</td>
+              <td><code>postProcessEndToEnd</code></td>
+              <td>출력 row가 <code>[x1, y1, x2, y2, score, classId]</code> 형태인 경우입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>성능 포인트</h3>
+        <ul>
+          <li><code>ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST</code>로 밀린 프레임을 쌓지 않습니다.</li>
+          <li>RGBA 입력이면 YUV 변환보다 빠르게 처리할 수 있습니다.</li>
+          <li>GPU delegate가 가능하면 GPU를 쓰고, 실패하면 XNNPACK CPU로 fallback합니다.</li>
+          <li>Sampling plan을 캐싱해서 매 프레임 좌표 계산 비용을 줄입니다.</li>
+          <li>탐지 결과는 최대 8개만 유지해서 TTS와 서버 업로드가 무거워지지 않게 합니다.</li>
+        </ul>
+      </section>
+
+      <section id="pipeline">
+        <h2>7. 위험도·추적·진동 파이프라인</h2>
+        <p>
+          <code>MvpPipeline.kt</code>는 공모전에서 꼭 설명해야 하는 핵심입니다. YOLO는 “무엇이 어디에 있다”만 알려줍니다.
+          하지만 시각장애인 보행 보조 서비스는 “얼마나 위험한가”, “계속 같은 물체인가”, “음성으로 말해야 하는가, 진동만 줘야 하는가”를 판단해야 합니다.
+        </p>
+
+        <h3>IoU 추적</h3>
+        <p>
+          같은 클래스의 박스가 이전 프레임의 박스와 충분히 겹치면 같은 물체로 봅니다. 이때 사용하는 지표가 IoU입니다.
+          IoU는 두 박스가 겹친 면적을 두 박스의 합집합 면적으로 나눈 값입니다.
+        </p>
+        <pre><code>private const val IOU_MATCH_THRESHOLD = 0.25f
+
+if (tr.cls != detections[di].classKo) continue
+val score = iou(detections[di], tr)
+if (score >= IOU_MATCH_THRESHOLD) {
+    // 같은 물체 track으로 연결
+}</code></pre>
+
+        <h3>EMA smoothing</h3>
+        <p>
+          YOLO 박스는 실제로 가만히 있어도 프레임마다 조금씩 흔들립니다. 이 흔들림이 그대로 TTS에 반영되면 사용자는 계속 다른 안내를 듣게 됩니다.
+          EMA는 현재 값과 이전 값을 섞어서 부드럽게 만드는 방식입니다.
+        </p>
+        <pre><code>track.cx = EMA_ALPHA * det.cx + (1f - EMA_ALPHA) * track.cx
+track.cy = EMA_ALPHA * det.cy + (1f - EMA_ALPHA) * track.cy
+track.w = EMA_ALPHA * det.w + (1f - EMA_ALPHA) * track.w
+track.h = EMA_ALPHA * det.h + (1f - EMA_ALPHA) * track.h</code></pre>
+
+        <h3>위험도 계산</h3>
+        <p>
+          위험도는 단순 confidence가 아닙니다. confidence는 “모델이 이 물체를 얼마나 확신하는가”이고,
+          risk score는 “사용자에게 얼마나 위험한가”입니다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>요소</th>
+              <th>의미</th>
+              <th>예시</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>거리</td>
+              <td>가까울수록 위험</td>
+              <td>0.8m 이내는 강한 위험</td>
+            </tr>
+            <tr>
+              <td>중앙성</td>
+              <td>화면 중앙에 가까울수록 진행 방향 위험</td>
+              <td>정면 의자, 정면 차량</td>
+            </tr>
+            <tr>
+              <td>클래스 가중치</td>
+              <td>차량·동물·계단 등은 더 위험</td>
+              <td>버스, 자동차, 계단</td>
+            </tr>
+            <tr>
+              <td>박스 크기</td>
+              <td>화면에서 크게 보이면 가까울 가능성이 큼</td>
+              <td>큰 의자 박스, 가까운 사람</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>진동 패턴</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>패턴</th>
+              <th>상황</th>
+              <th>의도</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>NONE</code></td>
+              <td>생활 물체 또는 낮은 위험</td>
+              <td>불필요한 경고 피로도 감소</td>
+            </tr>
+            <tr>
+              <td><code>SHORT</code></td>
+              <td>주의 필요</td>
+              <td>가벼운 비음성 알림</td>
+            </tr>
+            <tr>
+              <td><code>DOUBLE</code></td>
+              <td>위험도 중간 이상</td>
+              <td>사용자가 즉시 주의하도록 함</td>
+            </tr>
+            <tr>
+              <td><code>URGENT</code></td>
+              <td>차량 또는 높은 위험</td>
+              <td>즉시 멈춤·회피 유도</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="voice">
+        <h2>8. 음성 명령·TTS 구조</h2>
+        <p>
+          이 앱은 화면을 보기 어려운 사용자를 대상으로 하므로 음성 UX가 핵심입니다. 음성 UX는 STT로 명령을 받고,
+          내부 모드를 바꾸고, TTS로 답을 주는 구조입니다.
+        </p>
+
+        <h3>대표 음성 모드</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>모드</th>
+              <th>사용자 발화 예</th>
+              <th>처리 방식</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>일반 안내</td>
+              <td>“시작”, “계속해줘”</td>
+              <td>주변 장애물을 주기적으로 안내합니다.</td>
+            </tr>
+            <tr>
+              <td>장애물</td>
+              <td>“앞에 뭐 있어”</td>
+              <td>현재 프레임을 기준으로 주변 물체를 설명합니다.</td>
+            </tr>
+            <tr>
+              <td>질문</td>
+              <td>“지금 뭐가 있어”</td>
+              <td>현재 tracker 상태와 탐지 결과를 종합해 답합니다.</td>
+            </tr>
+            <tr>
+              <td>찾기</td>
+              <td>“의자 찾아줘”</td>
+              <td>대상 물체의 위치를 말합니다.</td>
+            </tr>
+            <tr>
+              <td>물건 확인</td>
+              <td>“이거 뭐야”</td>
+              <td>다음 스트림 프레임을 즉시 분석해 가까운 물체를 답합니다.</td>
+            </tr>
+            <tr>
+              <td>중지</td>
+              <td>“멈춰”, “그만해”</td>
+              <td>분석 루프를 끕니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>SentenceBuilder.kt</h3>
+        <p>
+          Android 쪽 <code>SentenceBuilder</code>는 온디바이스 모드에서 바로 읽을 문장을 만듭니다.
+          화면 좌표를 8시~4시 방향으로 나누고, 거리 표현과 조사 처리를 붙여 자연스러운 한국어 문장을 생성합니다.
+        </p>
+        <pre><code>fun buildHeld(detections: List&lt;Detection&gt;): String {
+    if (detections.isEmpty()) return "손에 든 물건이나 바로 앞에 뭔가 없어 보여요."
+
+    val closest = detections.maxByOrNull { it.w * it.h }
+    // 가장 크게 보이는 물체를 손에 든 물체 후보로 판단한다.
+}</code></pre>
+
+        <h3>TTS 경고 피로도 감소</h3>
+        <p>
+          경고 피로도는 이 프로젝트에서 매우 중요한 문제입니다. 계속 “의자가 있어요, 의자가 있어요”라고 말하면 사용자가 앱을 신뢰하지 않게 됩니다.
+          그래서 프로젝트는 다음 방법으로 피로도를 줄입니다.
+        </p>
+        <ul>
+          <li>같은 클래스는 일정 시간 안에 반복 발화하지 않음</li>
+          <li>생활 물체는 위험도가 낮으면 진동을 주지 않음</li>
+          <li>위험하지 않은 먼 물체는 beep 또는 silent 처리</li>
+          <li>질문/물건 확인처럼 사용자가 명시적으로 물어본 경우만 즉답</li>
+          <li>TTS busy 상태에서 일반 안내는 drop하고, 물건 확인 답변은 force speak로 우선 처리</li>
+        </ul>
+      </section>
+
+      <section id="server">
+        <h2>9. FastAPI 서버 구조</h2>
+        <p>
+          서버는 YOLO 추론 서버가 아닙니다. Android가 보낸 탐지 JSON을 받아서 저장, 정규화, 대시보드 전송, 정책 제공을 수행합니다.
+          이 점을 명확히 말해야 합니다. 그래야 “모바일 실시간성”이라는 장점이 살아납니다.
+        </p>
+
+        <h3>main.py</h3>
+        <p>
+          <code>src/api/main.py</code>는 FastAPI 앱의 진입점입니다. 서버 시작 시 정책 파일을 로드하고 DB를 초기화하며,
+          CORS와 예외 핸들러를 등록합니다.
+        </p>
+        <pre><code>@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from src.config.policy import init_policy
+    init_policy()
+    db.init_db()
+    db.start_event_writer()
+    yield
+    db.stop_event_writer()</code></pre>
+
+        <h3>routes.py 주요 API</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>API</th>
+              <th>역할</th>
+              <th>앱/대시보드와의 관계</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GET /api/policy</code></td>
+              <td>정책 JSON 제공</td>
+              <td>Android가 서버 정책을 받아 앱 내 판단 기준을 맞춥니다.</td>
+            </tr>
+            <tr>
+              <td><code>POST /detect</code></td>
+              <td>온디바이스 탐지 JSON 수신</td>
+              <td>Android가 정리한 객체 목록을 서버에 보냅니다.</td>
+            </tr>
+            <tr>
+              <td><code>POST /detect_json</code></td>
+              <td>구형/호환 탐지 JSON 수신</td>
+              <td>테스트와 기존 클라이언트 호환에 사용됩니다.</td>
+            </tr>
+            <tr>
+              <td><code>POST /question</code></td>
+              <td>현재 tracker 상태 기반 질문 응답</td>
+              <td>“지금 뭐가 있어?” 같은 질문에 답합니다.</td>
+            </tr>
+            <tr>
+              <td><code>POST /gps</code></td>
+              <td>GPS 위치 저장</td>
+              <td>대시보드의 현재 위치와 이동 경로에 사용됩니다.</td>
+            </tr>
+            <tr>
+              <td><code>GET /status/{session_id}</code></td>
+              <td>현재 세션 상태 조회</td>
+              <td>대시보드가 현재 객체·GPS·트랙을 가져옵니다.</td>
+            </tr>
+            <tr>
+              <td><code>GET /events/{session_id}</code></td>
+              <td>SSE 실시간 이벤트 스트림</td>
+              <td>대시보드가 새 탐지 결과를 실시간으로 반영합니다.</td>
+            </tr>
+            <tr>
+              <td><code>GET /dashboard</code></td>
+              <td>웹 대시보드 HTML</td>
+              <td>시연/운영자가 상태를 확인하는 화면입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>서버의 정규화 과정</h3>
+        <p>
+          Android와 서버가 주고받는 데이터는 버전이 달라질 수 있습니다. 그래서 서버는 <code>class_ko</code>,
+          <code>bbox_norm_xywh</code>, <code>distance_m</code>, <code>risk_score</code> 같은 필드를 정규화합니다.
+        </p>
+        <pre><code>def _normalize_objects(raw_objects: list[dict]) -> list[dict]:
+    # class_ko / bbox / direction / distance / risk_score를 표준 형태로 맞춘다.
+    # Android에서 온 JSON과 테스트 JSON을 모두 받아들이기 위한 방어 코드다.
+}</code></pre>
+
+        <h3>SessionTracker</h3>
+        <p>
+          서버 측 tracker는 대시보드와 질문 응답을 위해 최근 객체 상태를 기억합니다.
+          Android의 <code>MvpPipeline</code>이 실시간 사용자 안내 중심이라면,
+          서버의 <code>SessionTracker</code>는 세션별 상태 관리와 대시보드 안정화를 위한 장치입니다.
+        </p>
+      </section>
+
+      <section id="db">
+        <h2>10. DB와 대시보드</h2>
+        <p>
+          <code>src/api/db.py</code>는 SQLite와 PostgreSQL/Supabase를 모두 지원합니다. 로컬에서는 SQLite를 쓰고,
+          운영 배포에서는 <code>DATABASE_URL</code>이 있으면 PostgreSQL 연결 풀을 사용합니다.
+        </p>
+
+        <h3>주요 테이블</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>테이블</th>
+              <th>저장 내용</th>
+              <th>활용</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>detection_events</code></td>
+              <td>한 번의 탐지 이벤트 전체 JSON</td>
+              <td>나중에 시연 로그와 오류 분석에 사용</td>
+            </tr>
+            <tr>
+              <td><code>detections</code></td>
+              <td>객체별 class, confidence, bbox, distance, risk</td>
+              <td>위험 구간 분석, 통계, 히스토리</td>
+            </tr>
+            <tr>
+              <td><code>gps_history</code></td>
+              <td>세션별 GPS 좌표</td>
+              <td>대시보드 지도와 이동 경로</td>
+            </tr>
+            <tr>
+              <td><code>gps_routes</code></td>
+              <td>저장된 GPS 경로</td>
+              <td>시연용 경로 재확인</td>
+            </tr>
+            <tr>
+              <td><code>performance_metrics</code></td>
+              <td>FPS, infer_ms, process_ms 등 성능 수치</td>
+              <td>공모전 성능 리포트 근거</td>
+            </tr>
+            <tr>
+              <td><code>alert_decisions</code></td>
+              <td>경고 판단 결과와 이유</td>
+              <td>왜 경고했는지 설명 가능성 확보</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>비동기 저장 구조</h3>
+        <p>
+          탐지 API가 매번 DB 저장을 끝까지 기다리면 응답 속도가 느려질 수 있습니다.
+          그래서 이벤트 writer queue를 사용해 API 응답과 DB 저장을 분리합니다.
+        </p>
+        <pre><code>db.start_event_writer()
+db.enqueue_detection_event(...)
+
+# API는 빠르게 응답하고,
+# writer thread가 뒤에서 detection_events / detections 등을 저장한다.</code></pre>
+
+        <h3>대시보드가 보여주는 것</h3>
+        <ul>
+          <li>현재 세션의 최신 탐지 객체</li>
+          <li>현재 GPS 위치</li>
+          <li>최근 이동 경로</li>
+          <li>24시간 탐지 히스토리</li>
+          <li>위험 구간 heatmap</li>
+          <li>세션별 요약 통계</li>
+        </ul>
+      </section>
+
+      <section id="policy">
+        <h2>11. 정책 파일과 SSOT</h2>
+        <p>
+          <code>src/config/policy.json</code>과 Android의 <code>policy_default.json</code>은 프로젝트의 판단 기준을 담고 있습니다.
+          여기서 SSOT는 Single Source of Truth, 즉 “판단 기준을 한 곳에서 관리한다”는 뜻입니다.
+        </p>
+
+        <h3>정책에 들어 있는 내용</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>classes.vehicle_ko</code></td>
+              <td>차량으로 취급할 클래스 목록입니다. 자동차, 버스, 트럭, 오토바이 등이 여기에 들어갑니다.</td>
+            </tr>
+            <tr>
+              <td><code>classes.critical_ko</code></td>
+              <td>거리와 무관하게 위험하게 볼 수 있는 클래스 목록입니다.</td>
+            </tr>
+            <tr>
+              <td><code>classes.everyday_ko</code></td>
+              <td>컵, 의자, 책 등 생활 물체입니다. 물건 확인에는 중요하지만 불필요한 긴급 경고는 줄여야 합니다.</td>
+            </tr>
+            <tr>
+              <td><code>alert_mode</code></td>
+              <td>차량, 동물, 일반 물체가 어느 거리 이내일 때 critical/beep가 되는지 정합니다.</td>
+            </tr>
+            <tr>
+              <td><code>distance_format</code></td>
+              <td>거리 표현을 “코앞”, “약 1.5미터”처럼 바꾸는 기준입니다.</td>
+            </tr>
+            <tr>
+              <td><code>on_device</code></td>
+              <td>Android 온디바이스 판단에 필요한 bbox 기반 거리 보정, 찾기/물건 확인 임계값이 들어 있습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>왜 정책 분리가 중요한가</h3>
+        <ul>
+          <li>위험 기준을 코드 수정 없이 조정할 수 있습니다.</li>
+          <li>Android와 서버가 같은 판단 기준을 공유할 수 있습니다.</li>
+          <li>공모전 피드백을 받았을 때 “어디를 조정해야 하는지” 설명하기 쉽습니다.</li>
+          <li>경고 피로도와 민감도를 실험하면서 개선할 수 있습니다.</li>
+        </ul>
+      </section>
+
+      <section id="tests">
+        <h2>12. 테스트와 검증</h2>
+        <p>
+          현재 기본 검증은 Python 단위 테스트와 Android debug 빌드입니다. 최근 수정으로 기본 pytest는 서버가 켜져 있지 않아도
+          실패하지 않게 통합 테스트를 분리했습니다.
+        </p>
+
+        <h3>기본 검증 명령</h3>
+        <pre><code>python -m pytest -q
+
+cd android
+.\gradlew.bat assembleDebug</code></pre>
+
+        <h3>최근 확인 결과</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>검증</th>
+              <th>결과</th>
+              <th>의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Python 테스트</td>
+              <td class="ok">32 passed, 9 deselected</td>
+              <td>서버 미실행 상태에서 단위 테스트가 정상 통과합니다.</td>
+            </tr>
+            <tr>
+              <td>Android debug 빌드</td>
+              <td class="ok">BUILD SUCCESSFUL</td>
+              <td>Kotlin 코드가 컴파일되고 APK가 생성됩니다.</td>
+            </tr>
+            <tr>
+              <td>통합 테스트</td>
+              <td class="warn">별도 실행</td>
+              <td>실제 서버가 켜져 있을 때 <code>tests/test_server.py</code>를 실행합니다.</td>
+            </tr>
+            <tr>
+              <td>실기기 테스트</td>
+              <td class="warn">사용자 수행 예정</td>
+              <td>실제 카메라, STT, TTS, 진동, 권한, 배터리 상태는 기기에서 확인해야 합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>테스트 파일별 역할</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>파일</th>
+              <th>역할</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>tests/test_api.py</code></td>
+              <td>FastAPI endpoint 응답 스키마, 정책 endpoint, detect JSON 흐름을 검증합니다.</td>
+            </tr>
+            <tr>
+              <td><code>tests/test_sentence.py</code></td>
+              <td>문장 생성, 찾기, 물건 확인 문장 로직을 검증합니다.</td>
+            </tr>
+            <tr>
+              <td><code>tests/test_policy.py</code></td>
+              <td>정책 JSON 구조와 로딩을 검증합니다.</td>
+            </tr>
+            <tr>
+              <td><code>tests/test_server.py</code></td>
+              <td>실제 uvicorn 서버를 켠 상태에서 HTTP 통합 테스트를 수행합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warning">
+          Android Studio에서 실기기 테스트를 할 때는 USB 디버깅 허용, SDK 라이선스, Android SDK Platform 34 권한 문제를 먼저 확인해야 합니다.
+          코드 오류가 아니어도 SDK 권한 문제로 빌드가 멈출 수 있습니다.
+        </div>
+      </section>
+
+      <section id="contest">
+        <h2>13. 공모전 설명 전략</h2>
+        <p>
+          공모전에서는 기능을 많이 나열하는 것보다, 문제 정의와 해결 방식이 명확해야 합니다.
+          이 프로젝트는 다음 네 가지 축으로 설명하는 것이 가장 좋습니다.
+        </p>
+
+        <h3>1. 시각장애인 보행 보조의 실제 문제</h3>
+        <ul>
+          <li>카메라가 물체를 인식해도 너무 자주 말하면 오히려 방해가 됩니다.</li>
+          <li>네트워크가 불안정하면 서버 추론 방식은 즉시성이 떨어집니다.</li>
+          <li>사용자는 “주변 전체 설명”뿐 아니라 “내가 손에 든 물건 확인”도 필요합니다.</li>
+          <li>위험한 물체와 단순 생활 물체를 구분해야 합니다.</li>
+        </ul>
+
+        <h3>2. VoiceGuide의 해결 방식</h3>
+        <ul>
+          <li>온디바이스 YOLO/TFLite로 기본 안내를 기기 안에서 처리합니다.</li>
+          <li>IoU tracking과 EMA smoothing으로 흔들림을 줄입니다.</li>
+          <li>risk score와 vibration pattern으로 경고를 단계화합니다.</li>
+          <li>STT 명령으로 일반 안내, 찾기, 질문, 물건 확인을 전환합니다.</li>
+          <li>서버와 대시보드로 운영 로그와 위치 기반 분석을 제공합니다.</li>
+        </ul>
+
+        <h3>3. 심사위원에게 보여줄 데모 순서</h3>
+        <ol>
+          <li>앱 실행 후 일반 안내 시작</li>
+          <li>의자나 사람을 카메라에 비추고 방향·거리 안내 확인</li>
+          <li>“이거 뭐야” 발화 후 물건 확인 답변 확인</li>
+          <li>“의자 찾아줘” 발화 후 찾기 모드 확인</li>
+          <li>대시보드에서 실시간 세션, GPS, 탐지 히스토리 확인</li>
+          <li>성능 리포트에서 FPS와 추론 시간 설명</li>
+        </ol>
+
+        <h3>4. 약점도 솔직하게 말하되 개선 방향을 제시</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>약점</th>
+              <th>현재 대응</th>
+              <th>추가 개선 방향</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>거리 추정은 단안 카메라 bbox 기반이라 완전 정확하지 않음</td>
+              <td>bbox 면적, 클래스별 보정값, clamp로 안정화</td>
+              <td>Depth API 또는 LiDAR/스테레오 센서 연계</td>
+            </tr>
+            <tr>
+              <td>YOLO 모델이 모든 물체를 완벽히 잡지는 못함</td>
+              <td>confidence, NMS, vote, tracking으로 안정화</td>
+              <td>공모전 시나리오 중심 데이터 fine-tuning</td>
+            </tr>
+            <tr>
+              <td>음성 안내가 많으면 피로해짐</td>
+              <td>cooldown, silent/beep/critical 단계화</td>
+              <td>사용자별 민감도 설정 추가</td>
+            </tr>
+            <tr>
+              <td>실기기마다 FPS 편차가 있음</td>
+              <td>stream frame 즉시 처리, keep latest, TFLite delegate 사용</td>
+              <td>기기별 프로파일링 및 입력 해상도 자동 조절</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="study">
+        <h2>14. 팀 공부 순서</h2>
+        <p>
+          프로젝트가 복잡하게 느껴지는 이유는 Android, AI 모델, 서버, DB, UX가 한 번에 섞여 있기 때문입니다.
+          팀은 아래 순서대로 공부하면 훨씬 덜 막힙니다.
+        </p>
+
+        <h3>1일차: 전체 흐름</h3>
+        <ul>
+          <li>이 문서의 1~4장을 먼저 읽습니다.</li>
+          <li><code>MainActivity.kt</code>에서 <code>startCamera</code>, <code>analyzeStreamFrame</code>, <code>processOnDeviceInternal</code>만 따라갑니다.</li>
+          <li>“프레임 하나가 들어와서 문장 하나가 나오는 흐름”을 말로 설명할 수 있으면 됩니다.</li>
+        </ul>
+
+        <h3>2일차: YOLO와 좌표</h3>
+        <ul>
+          <li><code>TfliteYoloDetector.kt</code>의 letterbox, postprocess, NMS를 봅니다.</li>
+          <li>bbox의 <code>cx, cy, w, h</code>가 모두 0~1 정규화 좌표라는 점을 이해합니다.</li>
+          <li>바운딩 박스가 왜 틀어질 수 있는지 설명할 수 있어야 합니다.</li>
+        </ul>
+
+        <h3>3일차: 위험도와 경고 피로도</h3>
+        <ul>
+          <li><code>MvpPipeline.kt</code>의 <code>computeRisk</code>, <code>patternFor</code>를 봅니다.</li>
+          <li><code>VoicePolicy.kt</code>와 <code>policy.json</code>이 어떤 기준을 제공하는지 봅니다.</li>
+          <li>“confidence와 risk score는 다르다”를 설명할 수 있어야 합니다.</li>
+        </ul>
+
+        <h3>4일차: 음성 UX</h3>
+        <ul>
+          <li><code>handleSttResult</code>, <code>classifyKeyword</code>, <code>SentenceBuilder.kt</code>를 봅니다.</li>
+          <li>“이거 뭐야”가 왜 일반 장애물 모드가 아니라 물건 확인 모드인지 설명합니다.</li>
+          <li>TTS가 끊기는 원인과 <code>ttsBusy</code>, <code>forceSpeak</code>의 역할을 이해합니다.</li>
+        </ul>
+
+        <h3>5일차: 서버와 대시보드</h3>
+        <ul>
+          <li><code>src/api/routes.py</code>에서 <code>/detect</code>, <code>/status</code>, <code>/events</code>를 봅니다.</li>
+          <li><code>src/api/db.py</code>에서 어떤 테이블에 무엇을 저장하는지 봅니다.</li>
+          <li>대시보드는 “실시간 운영/시연 증거”라는 관점으로 이해합니다.</li>
+        </ul>
+
+        <h3>6일차: 실기기 리허설</h3>
+        <ul>
+          <li>USB 디버깅, 권한, TTS 음량, 네트워크, 서버 URL을 확인합니다.</li>
+          <li>일반 안내, 물건 확인, 찾기, 중지, 재시작을 순서대로 시연합니다.</li>
+          <li>성능 로그를 보고 FPS와 infer_ms를 기록합니다.</li>
+        </ul>
+      </section>
+
+      <section id="appendix">
+        <h2>15. 핵심 코드 빠른 색인</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>파일</th>
+              <th>꼭 봐야 할 코드</th>
+              <th>한 줄 설명</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>MainActivity.kt</code></td>
+              <td><code>handleSttResult</code></td>
+              <td>음성 명령을 앱 모드로 바꾸는 중심 함수입니다.</td>
+            </tr>
+            <tr>
+              <td><code>MainActivity.kt</code></td>
+              <td><code>processOnDeviceInternal</code></td>
+              <td>YOLO 결과를 화면, TTS, 진동, 서버 업로드로 연결합니다.</td>
+            </tr>
+            <tr>
+              <td><code>MainActivity.kt</code></td>
+              <td><code>requestImmediateStreamFrame</code></td>
+              <td>물건 확인처럼 즉답이 필요한 모드에서 다음 스트림 프레임을 사용합니다.</td>
+            </tr>
+            <tr>
+              <td><code>TfliteYoloDetector.kt</code></td>
+              <td><code>detect</code>, <code>runModel</code>, <code>postProcessRaw</code>, <code>nms</code></td>
+              <td>TFLite YOLO 추론의 전처리, 실행, 후처리입니다.</td>
+            </tr>
+            <tr>
+              <td><code>MvpPipeline.kt</code></td>
+              <td><code>update</code>, <code>computeRisk</code>, <code>patternFor</code></td>
+              <td>추적, 위험도, 진동 패턴을 계산합니다.</td>
+            </tr>
+            <tr>
+              <td><code>SentenceBuilder.kt</code></td>
+              <td><code>build</code>, <code>buildFind</code>, <code>buildHeld</code></td>
+              <td>온디바이스 한국어 안내 문장을 만듭니다.</td>
+            </tr>
+            <tr>
+              <td><code>VoicePolicy.kt</code></td>
+              <td><code>applyFromServerJson</code>, <code>calcDistBboxM</code></td>
+              <td>서버 정책을 Android에 반영하고 bbox 기반 거리를 계산합니다.</td>
+            </tr>
+            <tr>
+              <td><code>routes.py</code></td>
+              <td><code>detect</code>, <code>detect_from_json</code>, <code>answer_question</code></td>
+              <td>Android가 보내는 탐지 JSON을 처리합니다.</td>
+            </tr>
+            <tr>
+              <td><code>tracker.py</code></td>
+              <td><code>SessionTracker.update</code></td>
+              <td>서버 쪽 세션별 객체 상태를 안정화합니다.</td>
+            </tr>
+            <tr>
+              <td><code>db.py</code></td>
+              <td><code>init_db</code>, <code>enqueue_detection_event</code>, <code>save_performance_metric</code></td>
+              <td>탐지 이벤트, 성능, GPS, 경고 판단을 저장합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>팀원이 반드시 설명할 수 있어야 하는 질문</h3>
+        <ol>
+          <li>왜 서버 추론이 아니라 온디바이스 추론인가?</li>
+          <li>YOLO confidence와 서비스 risk score는 어떻게 다른가?</li>
+          <li>바운딩 박스가 틀어지는 원인은 무엇이고, 이 프로젝트는 어떻게 보정하는가?</li>
+          <li>“이거 뭐야”는 일반 장애물 안내와 무엇이 다른가?</li>
+          <li>경고 피로도를 줄이기 위해 어떤 장치를 넣었는가?</li>
+          <li>서버와 대시보드는 사용자 앱의 필수 기능인가, 운영/검증 기능인가?</li>
+          <li>실기기에서 FPS가 떨어질 때 어디부터 확인해야 하는가?</li>
+        </ol>
+
+        <h3>실기기 FPS 문제 체크 순서</h3>
+        <ol>
+          <li>로그에서 <code>preprocess_ms</code>, <code>infer_ms</code>, <code>postprocess_ms</code>를 분리해서 봅니다.</li>
+          <li><code>infer_ms</code>가 크면 모델/delegate/입력 크기 문제입니다.</li>
+          <li><code>preprocess_ms</code>가 크면 YUV/RGBA 변환, 회전, resize 비용을 봅니다.</li>
+          <li>전체 FPS만 낮고 추론 시간은 괜찮으면 TTS, 서버 업로드, UI update, in-flight 누적을 봅니다.</li>
+          <li>물건 확인 모드만 느리면 사진 저장 흐름을 타는지, 스트림 프레임 즉시 처리 흐름을 타는지 확인합니다.</li>
+        </ol>
+
+        <div class="note">
+          이 문서는 코드 설명용입니다. 발표 자료로 바꿀 때는 여기서 “문제 정의 → 해결 구조 → 데모 → 성능 → 한계와 개선”만 뽑아 슬라이드로 만들면 됩니다.
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
