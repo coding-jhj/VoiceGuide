@@ -357,14 +357,15 @@ class TfliteYoloDetector(context: Context) {
         val numAnchors = rawOutput[0].size
         val candidates = mutableListOf<Detection>()
         for (i in 0 until numAnchors) {
-            var maxScore = confThreshold
+            var maxScore = 0f
             var classId = -1
             for (c in 4 until rawOutput.size) {
                 val s = rawOutput[c][i]
                 if (s > maxScore) { maxScore = s; classId = c - 4 }
             }
             if (classId < 0) continue
-            val name = COCO_KO[classId] ?: continue
+            val name = voiceGuideClassKo(classId) ?: continue
+            if (maxScore < confidenceThresholdFor(classId)) continue
 
             // coords are normalized [0,1] relative to inputSize
             val cx = rawOutput[0][i] * inputSize
@@ -400,8 +401,8 @@ class TfliteYoloDetector(context: Context) {
             var x2 = row[2]; var y2 = row[3]
             val score   = row[4]
             val classId = row[5].toInt()
-            if (score < confThreshold) continue
-            val name = COCO_KO[classId] ?: continue
+            if (score < confidenceThresholdFor(classId)) continue
+            val name = voiceGuideClassKo(classId) ?: continue
 
             if (maxOf(kotlin.math.abs(x1), kotlin.math.abs(y1),
                       kotlin.math.abs(x2), kotlin.math.abs(y2)) <= 2f) {
@@ -437,6 +438,13 @@ class TfliteYoloDetector(context: Context) {
         }
         return keep
     }
+
+    private fun confidenceThresholdFor(classId: Int): Float =
+        when (classId) {
+            80 -> 0.22f // stairs: keep recall, then stabilize with voting/tracking.
+            81 -> 0.18f // door: fine-tuned logits are often lower than COCO classes.
+            else -> confThreshold
+        }
 
     private fun iou(a: Detection, b: Detection): Float {
         val ax1 = a.cx - a.w / 2f; val ax2 = a.cx + a.w / 2f
