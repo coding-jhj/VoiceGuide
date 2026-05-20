@@ -660,7 +660,12 @@ async def save_location(body: dict | None = Body(default=None)):
     body = body or {}
     label, scope = location_api.location_from_body(body, _normalize_session_id)
     if not label:
-        raise HTTPException(status_code=400, detail="label is required")
+        return {
+            "saved": False,
+            "sentence": "저장할 장소 이름이 없어요.",
+            "label": label,
+            "wifi_ssid": scope,
+        }
     db.save_location(label, scope)
     location = {"label": label, "wifi_ssid": scope, "timestamp": ""}
     saved = db.get_locations(scope)
