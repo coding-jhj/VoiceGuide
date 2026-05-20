@@ -53,9 +53,8 @@ class TfliteYoloDetector(context: Context) {
         val outputShape = interpreter.getOutputTensor(0).shape()
         outputRows = outputShape.getOrNull(1) ?: 300
         outputCols = outputShape.getOrNull(2) ?: 6
-        // raw YOLO: outputRows = num_classes+4 (few), outputCols = num_anchors (many, e.g. 2100)
-        // end-to-end NMS: outputRows = num_detections (e.g. 300), outputCols = 6
-        isRawOutput = (outputRows < outputCols)
+        // Raw YOLO is [1, 4 + class_count, anchors]. Fine-tuned models may add classes.
+        isRawOutput = YoloOutputFormat.isRaw(outputRows, outputCols)
         inputBuffer = ByteBuffer.allocateDirect(4 * inputSize * inputSize * 3).order(ByteOrder.nativeOrder())
         outputBuffer = Array(1) { Array(outputRows) { FloatArray(outputCols) } }
         bitmapPixels = IntArray(inputSize * inputSize)

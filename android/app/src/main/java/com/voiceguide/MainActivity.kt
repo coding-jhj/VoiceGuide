@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     @Volatile private var temporaryDisplayModeUntil = 0L
     // newSingleThreadExecutor: 카메라 캡처를 UI 스레드와 분리 (UI 멈춤 방지)
     private val cameraExecutor = Executors.newSingleThreadExecutor()
+    private val perfLogExecutor = Executors.newSingleThreadExecutor()
     // Handler: 메인 스레드에서 지연 작업 예약 (1초 간격 루프, Watchdog)
     private val handler = Handler(Looper.getMainLooper())
     // AtomicBoolean: 여러 스레드가 동시에 접근해도 안전한 boolean
@@ -251,6 +252,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     private val fpsHistory = ArrayDeque<Float>(10)
     private val SPARK = arrayOf("▁","▂","▃","▄","▅","▆","▇","█")
     private var debugVisible = false   // 디버그 오버레이 표시 여부
+    private val perfLogFile: File by lazy {
+        File(getExternalFilesDir("perf") ?: File(filesDir, "perf"), "voiceguide_perf.csv")
+    }
 
     // ── HTTP 클라이언트 (서버 연동 — 선택 사항) ────────────────────────
     // connectTimeout: 서버 연결 최대 대기 5초
@@ -505,6 +509,45 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         }
     }
 
+    private fun recordPerfSample(
+        requestId: String,
+        detector: TfliteYoloDetector,
+        fps: Float,
+        preprocessMs: Long,
+        inferMs: Long,
+        postprocessMs: Long,
+        totalMs: Long,
+        endToEndMs: Long,
+        rawObjects: Int,
+        votedObjects: Int,
+        mode: String
+    ) {
+        if (!CSV_LOG_ENABLED) return
+        val sample = PerfSample(
+            timestampMs = System.currentTimeMillis(),
+            requestId = requestId,
+            route = "on_device",
+            model = detector.modelName,
+            provider = detector.executionProvider,
+            fps = fps,
+            preprocessMs = preprocessMs,
+            inferMs = inferMs,
+            postprocessMs = postprocessMs,
+            totalMs = totalMs,
+            endToEndMs = endToEndMs,
+            rawObjects = rawObjects,
+            votedObjects = votedObjects,
+            mode = mode
+        )
+        perfLogExecutor.execute {
+            try {
+                PerfCsvLogger.append(perfLogFile, sample)
+            } catch (e: Exception) {
+                Log.w("VG_PERF", "CSV logging failed: ${e.message}")
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         // 화면이 다시 보일 때마다 센서 리스너 등록
@@ -529,6 +572,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         speechRecognizer.destroy()
         tfliteDetector?.close()
         cameraExecutor.shutdown()     // 카메라 스레드 종료
+        perfLogExecutor.shutdown()
         handler.removeCallbacksAndMessages(null)  // 예약된 루프 전부 취소
         super.onDestroy()
     }
@@ -1412,6 +1456,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                     val spark = buildSparkline()
                     lastFpsText = "${fps}fps $spark | 📱 ${inferMs}ms"
                     tvMode.text = "[${visibleDisplayMode(effectiveMode)}] $lastFpsText"
+                    recordPerfSample(
+                        requestId = requestId,
+                        detector = detector,
+                        fps = currentFps,
+                        preprocessMs = preprocessMs,
+                        inferMs = inferMs,
+                        postprocessMs = dedupMs,
+                        totalMs = totalMs,
+                        endToEndMs = e2eMs,
+                        rawObjects = rawDetections.size,
+                        votedObjects = voted.size,
+                        mode = effectiveMode
+                    )
                     if (debugVisible) {
                         val tv = findViewById<android.widget.TextView>(R.id.tvDebug)
                         tv.text = "경로   : ${detector.executionProvider}\n" +
@@ -1422,7 +1479,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                                   "추론   : ${inferMs}ms\n" +
                                   "후처리 : ${dedupMs}ms\n" +
                                   "전체   : ${totalMs}ms\n" +
-                                  "탐지수 : raw=${rawDetections.size} → ${voted.size}"
+                                  "탐지수 : raw=${rawDetections.size} → ${voted.size}\n" +
+                                  "CSV    : ${perfLogFile.name}"
                     }
                 }
 
@@ -1932,12 +1990,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
             1000.0f / (now - lastFrameDoneTime)
         } else 0.0f
         lastFrameDoneTime = now
-        currentFps = instant
 
         // 최근 10프레임 이동평균 — 동시 요청으로 인한 순간 spike 완화
         if (fpsHistory.size >= 10) fpsHistory.removeFirst()
         fpsHistory.addLast(instant)
         val fps = fpsHistory.average().toFloat()
+        currentFps = fps
 
         val fpsStr = if (fps >= 10f) "%.0f".format(fps) else "%.1f".format(fps)
         return fpsStr
