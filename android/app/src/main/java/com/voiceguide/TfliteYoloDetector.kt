@@ -23,9 +23,6 @@ class TfliteYoloDetector(context: Context) {
     // true: raw YOLO output [84, N] / false: end-to-end NMS output [N, 6]
     private val isRawOutput: Boolean
     private val confThreshold = 0.25f
-    // Fine-tuned classes (stairs=80, door=81) were trained without COCO negatives →
-    // catastrophic forgetting causes false positives on COCO objects; raise threshold.
-    private val finetuneConfThreshold = 0.60f
     private val iouThreshold  = 0.70f
     private var outputShapeLogged = false
     private val inputBuffer: ByteBuffer
@@ -367,8 +364,6 @@ class TfliteYoloDetector(context: Context) {
                 if (s > maxScore) { maxScore = s; classId = c - 4 }
             }
             if (classId < 0) continue
-            // Classes 80/81 are fine-tuned without COCO negatives — require higher confidence
-            if (classId >= 80 && maxScore < finetuneConfThreshold) continue
             val name = COCO_KO[classId] ?: continue
 
             // coords are normalized [0,1] relative to inputSize
