@@ -23,6 +23,9 @@ class TfliteYoloDetector(context: Context) {
     // true: raw YOLO output [84, N] / false: end-to-end NMS output [N, 6]
     private val isRawOutput: Boolean
     private val confThreshold = 0.25f
+    // Fine-tuned classes (stairs=80, door=81) were trained without COCO negatives →
+    // catastrophic forgetting causes false positives on COCO objects; raise threshold.
+    private val finetuneConfThreshold = 0.60f
     private val iouThreshold  = 0.70f
     private var outputShapeLogged = false
     private val inputBuffer: ByteBuffer
@@ -50,14 +53,15 @@ class TfliteYoloDetector(context: Context) {
         val outputShape = interpreter.getOutputTensor(0).shape()
         outputRows = outputShape.getOrNull(1) ?: 300
         outputCols = outputShape.getOrNull(2) ?: 6
-        // outputRows==84 → raw YOLO [1,84,N]; otherwise end-to-end NMS [1,N,6]
-        isRawOutput = (outputRows == 84)
+        // raw YOLO: outputRows = num_classes+4 (few), outputCols = num_anchors (many, e.g. 2100)
+        // end-to-end NMS: outputRows = num_detections (e.g. 300), outputCols = 6
+        isRawOutput = (outputRows < outputCols)
         inputBuffer = ByteBuffer.allocateDirect(4 * inputSize * inputSize * 3).order(ByteOrder.nativeOrder())
         outputBuffer = Array(1) { Array(outputRows) { FloatArray(outputCols) } }
         bitmapPixels = IntArray(inputSize * inputSize)
         android.util.Log.d(
             "VG_PERF",
-            "YOLO input model=$modelName provider=$executionProvider size=${inputSize}x$inputSize shape=${inputShape.joinToString(prefix = "[", postfix = "]")}"
+            "YOLO model=$modelName size=${inputSize}x$inputSize output=[$outputRows,$outputCols] isRawOutput=$isRawOutput"
         )
     }
 
@@ -364,6 +368,8 @@ class TfliteYoloDetector(context: Context) {
                 if (s > maxScore) { maxScore = s; classId = c - 4 }
             }
             if (classId < 0) continue
+            // Classes 80/81 are fine-tuned without COCO negatives — require higher confidence
+            if (classId >= 80 && maxScore < finetuneConfThreshold) continue
             val name = COCO_KO[classId] ?: continue
 
             // coords are normalized [0,1] relative to inputSize
