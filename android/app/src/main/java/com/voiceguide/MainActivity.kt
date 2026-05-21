@@ -573,6 +573,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     override fun onDestroy() {
         // 앱 종료 시 모든 리소스 해제 (메모리 누수 방지)
         tts.shutdown()
+        toneGen?.release()
+        toneGen = null
         speechRecognizer.destroy()
         tfliteDetector?.close()
         cameraExecutor.shutdown()     // 카메라 스레드 종료
