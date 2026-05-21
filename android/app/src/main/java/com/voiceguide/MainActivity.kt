@@ -356,6 +356,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         VoicePolicy.init(applicationContext)
 
         tts = TextToSpeech(this, this)
+        toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
 
         tvStatus    = findViewById(R.id.tvStatus)
         tvDetected  = findViewById(R.id.tvDetected)
