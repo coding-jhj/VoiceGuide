@@ -30,6 +30,8 @@ datasets/*
 !datasets/pedestrian_hotspots/**
 !datasets/disabled_population/
 !datasets/disabled_population/**
+!datasets/disabled_gender_degree/
+!datasets/disabled_gender_degree/**
 runs/
 outputs/
 tmp/
