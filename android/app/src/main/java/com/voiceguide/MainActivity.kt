@@ -8,6 +8,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── UI 뷰 참조 ─────────────────────────────────────────────────────
     private lateinit var tts: TextToSpeech
+    private var toneGen: ToneGenerator? = null
     private lateinit var tvStatus: TextView      // 현재 안내 문장 표시
     private lateinit var tvDetected: TextView    // 탐지된 물체 목록 표시
     private lateinit var tvMode: TextView        // 현재 모드 + 카메라 방향 표시

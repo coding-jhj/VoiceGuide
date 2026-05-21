@@ -196,14 +196,8 @@ class MvpPipeline {
 
     // ── Risk / distance / vibration ──────────────────────────────────────────
 
-<<<<<<< HEAD
     private fun bboxDistanceM(det: Detection): Float =
         VoicePolicy.calcDistBboxM(det.classKo, det.w, det.h).toFloat().coerceIn(0.2f, 15f)
-=======
-    private fun bboxDistanceM(det: Detection): Float {
-        return VoicePolicy.calcDistBboxM(det.classKo, det.w, det.h).toFloat().coerceIn(0.2f, 15f)
-    }
->>>>>>> main
 
     private fun computeRisk(det: Detection, distanceM: Float): Float {
         val area = det.w * det.h
