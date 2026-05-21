@@ -1,0 +1,77 @@
+[
+  {
+    "disability_type": "지체",
+    "count": 1107111,
+    "share_pct": 42.19
+  },
+  {
+    "disability_type": "청각",
+    "count": 450514,
+    "share_pct": 17.17
+  },
+  {
+    "disability_type": "시각",
+    "count": 245198,
+    "share_pct": 9.34
+  },
+  {
+    "disability_type": "지적",
+    "count": 237533,
+    "share_pct": 9.05
+  },
+  {
+    "disability_type": "뇌병변",
+    "count": 231713,
+    "share_pct": 8.83
+  },
+  {
+    "disability_type": "신장",
+    "count": 115518,
+    "share_pct": 4.4
+  },
+  {
+    "disability_type": "정신",
+    "count": 102733,
+    "share_pct": 3.92
+  },
+  {
+    "disability_type": "자폐성",
+    "count": 52949,
+    "share_pct": 2.02
+  },
+  {
+    "disability_type": "언어",
+    "count": 21762,
+    "share_pct": 0.83
+  },
+  {
+    "disability_type": "장루.요루",
+    "count": 18107,
+    "share_pct": 0.69
+  },
+  {
+    "disability_type": "간",
+    "count": 16569,
+    "share_pct": 0.63
+  },
+  {
+    "disability_type": "호흡기",
+    "count": 10175,
+    "share_pct": 0.39
+  },
+  {
+    "disability_type": "뇌전증",
+    "count": 6695,
+    "share_pct": 0.26
+  },
+  {
+    "disability_type": "심장",
+    "count": 4674,
+    "share_pct": 0.18
+  },
+  {
+    "disability_type": "안면",
+    "count": 2774,
+    "share_pct": 0.11
+  }
+]

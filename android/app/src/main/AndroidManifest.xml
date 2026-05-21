@@ -12,10 +12,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- WiFi 상태: SSID 읽기 (공간 기억 / 장소 저장 기능) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- GPS: 정밀 위치 (하차 알림·대시보드 지도) -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- GPS: 대략 위치 (배터리 절약 모드) -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- SMS: SOS 보호자 긴급 문자 발송 -->
     <uses-permission android:name="android.permission.SEND_SMS" />
     <!-- 진동: 위험 경고·알림 피드백 -->

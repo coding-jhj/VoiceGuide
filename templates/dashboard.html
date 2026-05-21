@@ -221,6 +221,68 @@
     text-overflow: ellipsis;
   }
 
+  .disabled-context-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .disabled-context-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .disabled-context-value {
+    color: var(--accent2);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .disabled-context-date {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .disabled-context-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .disabled-context-row strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .disabled-region-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 9px;
+  }
+  .disabled-region-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 56px;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .disabled-region-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #171b2c;
+  }
+  .disabled-region-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent2);
+  }
+
   /* 탐지 물체 목록 */
   .objects-list {
     flex: 1;
@@ -440,6 +502,137 @@
     top: 16px; left: 16px;
     display: flex;
     gap: 8px;
+  }
+
+  .map-overlay.bottom-left {
+    left: 16px;
+    bottom: 16px;
+    width: 150px;
+    max-height: 44px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: default;
+    transition: width 0.18s ease, max-height 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .map-overlay.bottom-left:hover,
+  .map-overlay.bottom-left:focus-within,
+  .map-overlay.bottom-left.is-expanded {
+    width: min(360px, calc(100% - 32px));
+    max-height: 275px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+  }
+
+  .hotspot-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 18px;
+  }
+
+  .hotspot-panel-hint {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .map-overlay.bottom-left:hover .hotspot-panel-hint,
+  .map-overlay.bottom-left:focus-within .hotspot-panel-hint,
+  .map-overlay.bottom-left.is-expanded .hotspot-panel-hint {
+    display: none;
+  }
+
+  .hotspot-panel-body {
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: opacity 0.12s ease;
+  }
+
+  .map-overlay.bottom-left:hover .hotspot-panel-body,
+  .map-overlay.bottom-left:focus-within .hotspot-panel-body,
+  .map-overlay.bottom-left.is-expanded .hotspot-panel-body {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hotspot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .hotspot-legend .legend-item {
+    font-size: 10px;
+  }
+
+  .hotspot-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .hotspot-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 6px;
+    text-align: center;
+  }
+
+  .hotspot-stat strong {
+    display: block;
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .hotspot-stat span {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    margin-top: 4px;
+  }
+
+  .hotspot-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 3px;
+  }
+
+  .hotspot-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--danger);
+    border-radius: 8px;
+    padding: 8px 9px;
+    cursor: pointer;
+  }
+
+  .hotspot-item:hover {
+    border-color: var(--accent);
+  }
+
+  .hotspot-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hotspot-meta {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 10px;
   }
 
   .legend-item {
@@ -677,6 +870,31 @@
         </div>
       </div>
 
+      <div class="panel-section">
+        <div class="section-title">시각장애 등록 현황</div>
+        <div class="disabled-context-card" id="disabledContextCard">
+          <div class="disabled-context-main">
+            <div class="disabled-context-value" id="disabledVisualTotal">-</div>
+            <div class="disabled-context-date" id="disabledMonth">-</div>
+          </div>
+          <div class="disabled-context-row">
+            <span>전체 등록장애인 대비</span>
+            <strong id="disabledVisualShare">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심한 장애</span>
+            <strong id="disabledSevere">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심하지 않은 장애</span>
+            <strong id="disabledMild">-</strong>
+          </div>
+          <div class="disabled-region-bars" id="disabledRegionBars">
+            <div style="font-size:11px;color:var(--muted);">지역 통계 불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 통계 카드 -->
       <div class="panel-section">
         <div class="section-title">실시간 현황</div>
@@ -795,9 +1013,55 @@
       <div class="legend-item">
         <div class="legend-dot" style="background:#f4a261; opacity:0.8;"></div> 저장된 경로
       </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ff4d6d; opacity:0.85;"></div> 사고다발 고위험
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f4a261; opacity:0.85;"></div> 사고다발 주의
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#52b788; opacity:0.85;"></div> 사고다발 관심
+      </div>
     </div>
 
-    <div class="last-update" id="lastUpdate">—</div>
+    <div class="map-overlay bottom-left" id="hotspotPanel" tabindex="0" aria-label="보행자 사고다발구역 요약">
+      <div class="hotspot-panel-header">
+        <div class="section-title" style="margin-bottom:0;">사고다발구역</div>
+        <span class="hotspot-panel-hint">마우스 올리기</span>
+      </div>
+      <div class="hotspot-panel-body">
+        <div class="hotspot-summary-grid">
+          <div class="hotspot-stat">
+            <strong id="hotspotTotal">-</strong>
+            <span>전체 지점</span>
+          </div>
+          <div class="hotspot-stat">
+            <strong id="hotspotHigh">-</strong>
+            <span>고위험</span>
+          </div>
+          <div class="hotspot-stat">
+            <strong id="hotspotClusters">-</strong>
+            <span>클러스터</span>
+          </div>
+        </div>
+        <div class="hotspot-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#ff4d6d;"></div> 고위험
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#f4a261;"></div> 주의
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#52b788;"></div> 관심
+          </div>
+        </div>
+        <div class="hotspot-list" id="hotspotList">
+          <div class="hotspot-meta">사고다발구역 데이터를 불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="last-update" id="lastUpdate">-</div>
   </div>
 
   <div class="analysis-panel">
@@ -858,6 +1122,8 @@ let marker    = null;
 let trackLine = null;
 let routeLine = null;  // 저장된 경로 표시용 (주황색)
 let heatLayer = null;  // 위험 구간 히트맵 레이어
+let pedestrianHotspotLayer = null;  // 과거 보행자 사고다발구역 레이어
+let pedestrianHotspotFeatures = [];
 let mapCentered = false;
 const teamMarkers = {};  // session_id → Leaflet marker
 
@@ -907,6 +1173,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function formatCount(value) {
+  return Number(value ?? 0).toLocaleString('ko-KR');
 }
 
 // ── 아이콘 매핑 ───────────────────────────────────────
@@ -1664,6 +1934,58 @@ function renderDashboardSummary(data) {
   });
 }
 
+async function fetchDisabledPopulationContext() {
+  try {
+    const [summaryRes, regionsRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/disabled-population/summary`),
+      fetch(`${SERVER_BASE}/disabled-population/regions?limit=6`),
+    ]);
+    if (!summaryRes.ok || !regionsRes.ok) return;
+    const summary = await summaryRes.json();
+    const regions = await regionsRes.json();
+    renderDisabledPopulationContext(summary, regions.regions ?? []);
+  } catch (_) {
+    const box = document.getElementById('disabledRegionBars');
+    if (box) box.innerHTML = '<div style="font-size:11px;color:var(--muted);">등록 통계를 불러오지 못했습니다.</div>';
+  }
+}
+
+function renderDisabledPopulationContext(summary, regions) {
+  const latest = summary.latest ?? {};
+  const month = latest.month ?? summary.month?.latest ?? '';
+  const degree = latest.visual_by_degree ?? {};
+
+  document.getElementById('disabledVisualTotal').textContent = `${formatCount(latest.visual_disabled)}명`;
+  document.getElementById('disabledMonth').textContent = month
+    ? `${month.slice(0, 4)}.${month.slice(4)} 기준`
+    : '-';
+  document.getElementById('disabledVisualShare').textContent = `${latest.visual_share_pct ?? '-'}%`;
+  document.getElementById('disabledSevere').textContent = `${formatCount(degree['심한 장애'])}명`;
+  document.getElementById('disabledMild').textContent = `${formatCount(degree['심하지 않은 장애'])}명`;
+
+  const bars = document.getElementById('disabledRegionBars');
+  if (!bars) return;
+  const top = (regions || []).slice(0, 6);
+  if (top.length === 0) {
+    bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
+    return;
+  }
+  const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
+  bars.innerHTML = top.map(item => {
+    const label = item.sigungu === '소계' ? item.sido : item.sigungu;
+    const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
+    return `
+      <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
+        <span>${escapeHtml(label)}</span>
+        <div class="disabled-region-track">
+          <div class="disabled-region-fill" style="width:${width}%"></div>
+        </div>
+        <strong>${formatCount(item.visual_disabled)}</strong>
+      </div>
+    `;
+  }).join('');
+}
+
 /**
  * 서버의 /history/{sessionId} 를 호출해 24시간 내역을 가져온다.
  * 실패해도 조용히 무시 (내역은 부가 정보이므로 앱 동작에 영향 없음).
@@ -1747,6 +2069,7 @@ fetchHistory();
 setInterval(fetchHistory, HISTORY_POLL_MS);
 fetchDashboardSummary();
 setInterval(fetchDashboardSummary, SUMMARY_POLL_MS);
+fetchDisabledPopulationContext();
 
 // 세션 변경 시 내역도 즉시 갱신
 function refreshHistory() { fetchHistory(); }
@@ -1792,6 +2115,125 @@ async function fetchHeatmap(forceShow = false) {
   } catch (_) {}
 }
 
+// ── 과거 보행자 사고다발구역 레이어 ───────────────────────────────
+function hotspotColor(level) {
+  if (level === 'high') return '#ff4d6d';
+  if (level === 'medium') return '#f4a261';
+  return '#52b788';
+}
+
+function hotspotRadius(props) {
+  const score = Number(props.max_risk_score ?? 0);
+  return Math.max(7, Math.min(22, 7 + score / 7));
+}
+
+function hotspotPopup(props) {
+  const years = (props.source_years ?? []).join(', ');
+  return `
+    <div style="min-width:220px">
+      <b>${escapeHtml(props.display_name ?? '사고다발구역')}</b><br>
+      <span>등급: ${escapeHtml(props.risk_level_ko ?? props.risk_level ?? '-')}</span><br>
+      <span>최대 위험점수: ${Number(props.max_risk_score ?? 0).toFixed(1)}</span><br>
+      <span>누적 사고: ${props.accidents_total ?? 0}건 · 사망 ${props.deaths_total ?? 0}명 · 중상 ${props.serious_injuries_total ?? 0}명</span><br>
+      <span>반복 연도: ${escapeHtml(years || '-')}</span>
+    </div>
+  `;
+}
+
+function renderPedestrianHotspots(features) {
+  pedestrianHotspotFeatures = features || [];
+  if (pedestrianHotspotLayer) {
+    map.removeLayer(pedestrianHotspotLayer);
+    pedestrianHotspotLayer = null;
+  }
+  pedestrianHotspotLayer = L.geoJSON(
+    { type: 'FeatureCollection', features: pedestrianHotspotFeatures },
+    {
+      pointToLayer: (feature, latlng) => {
+        const props = feature.properties ?? {};
+        return L.circleMarker(latlng, {
+          radius: hotspotRadius(props),
+          color: '#ffffff',
+          weight: 1,
+          fillColor: hotspotColor(props.risk_level),
+          fillOpacity: 0.64,
+          opacity: 0.9,
+        });
+      },
+      onEachFeature: (feature, layer) => {
+        const props = feature.properties ?? {};
+        layer.bindPopup(hotspotPopup(props));
+        layer.on('click', () => {
+          const coords = feature.geometry?.coordinates ?? [];
+          if (coords.length >= 2) map.setView([coords[1], coords[0]], 16);
+        });
+      },
+    }
+  ).addTo(map);
+}
+
+function renderHotspotPanel(summary, features) {
+  document.getElementById('hotspotTotal').textContent = summary.record_count ?? '-';
+  document.getElementById('hotspotHigh').textContent = summary.risk_level_counts?.high ?? '-';
+  document.getElementById('hotspotClusters').textContent = summary.cluster_count ?? '-';
+
+  const list = document.getElementById('hotspotList');
+  const items = (features || []).slice(0, 8);
+  if (items.length === 0) {
+    list.innerHTML = '<div class="hotspot-meta">표시할 사고다발구역이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = items.map((feature, index) => {
+    const p = feature.properties ?? {};
+    const color = hotspotColor(p.risk_level);
+    return `
+      <div class="hotspot-item" style="border-left-color:${color}" onclick="focusPedestrianHotspot(${index})">
+        <div class="hotspot-name">${escapeHtml(p.display_name ?? p.representative_place_name ?? '사고다발구역')}</div>
+        <div class="hotspot-meta">
+          ${escapeHtml(p.risk_level_ko ?? p.risk_level ?? '-')} · 점수 ${Number(p.max_risk_score ?? 0).toFixed(1)}
+          · 사고 ${p.accidents_total ?? 0}건 · 반복 ${p.repeat_year_count ?? 0}년
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function focusPedestrianHotspot(index) {
+  const feature = pedestrianHotspotFeatures[index];
+  const coords = feature?.geometry?.coordinates ?? [];
+  if (coords.length < 2) return;
+  map.setView([coords[1], coords[0]], 16);
+}
+
+async function loadPedestrianHotspots() {
+  const list = document.getElementById('hotspotList');
+  try {
+    const [summaryRes, clusterRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/pedestrian-hotspots/summary`),
+      fetch(`${SERVER_BASE}/pedestrian-hotspots/clusters?risk_level=all&limit=1200`),
+    ]);
+    if (!summaryRes.ok || !clusterRes.ok) throw new Error('hotspot fetch failed');
+    const summary = await summaryRes.json();
+    const clusters = await clusterRes.json();
+    const features = clusters.features ?? [];
+    renderPedestrianHotspots(features);
+    renderHotspotPanel(summary, features);
+  } catch (e) {
+    if (list) list.innerHTML = '<div class="hotspot-meta">사고다발구역 데이터를 불러오지 못했습니다.</div>';
+  }
+}
+
+function bindHotspotPanelHover() {
+  const panel = document.getElementById('hotspotPanel');
+  if (!panel) return;
+  const expand = () => panel.classList.add('is-expanded');
+  const collapse = () => panel.classList.remove('is-expanded');
+  panel.addEventListener('mouseenter', expand);
+  panel.addEventListener('mouseleave', collapse);
+  panel.addEventListener('focus', expand);
+  panel.addEventListener('blur', collapse);
+}
+
 // ── 현재 경로 저장 ───────────────────────────────────
 async function saveCurrentRoute() {
   const sessionId = document.getElementById('sessionId').value.trim() || '__default__';
@@ -1823,6 +2265,8 @@ async function saveCurrentRoute() {
 // ── 시작 ─────────────────────────────────────────────
 connectEventStream();
 loadRouteList();
+bindHotspotPanelHover();
+loadPedestrianHotspots();
 </script>
 </body>
 </html>

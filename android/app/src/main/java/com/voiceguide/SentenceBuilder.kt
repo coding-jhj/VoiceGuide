@@ -172,7 +172,7 @@ object SentenceBuilder {
 
     fun formatDist(det: Detection): String =
         if (det.distanceM > 0f) VoicePolicy.formatDistMeters(det.distanceM.toDouble())
-        else VoicePolicy.formatDistBbox(det.w, det.h)
+        else VoicePolicy.formatDistBbox(det.classKo, det.w, det.h)
 
     fun formatDist(w: Float, h: Float): String = VoicePolicy.formatDistBbox(w, h)
 

@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>보행자 사고다발지 데이터 전처리 가이드</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --muted: #5e6b78;
+      --line: #dde4ec;
+      --bg: #f7f9fb;
+      --panel: #ffffff;
+      --danger: #d63b32;
+      --warn: #d48213;
+      --safe: #2f7d5f;
+      --navy: #20364f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.58;
+    }
+
+    header {
+      background: var(--navy);
+      color: white;
+      padding: 40px 28px 34px;
+    }
+
+    header .wrap,
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: 32px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    main {
+      padding: 26px 18px 42px;
+    }
+
+    section {
+      margin: 18px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .lead {
+      max-width: 840px;
+      color: #dbe7f2;
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 25px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .step {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .step b {
+      display: inline-block;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 9px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef3f8;
+      color: #28394d;
+      font-weight: 700;
+    }
+
+    code,
+    pre {
+      font-family: Consolas, "SFMono-Regular", monospace;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 12px 0 0;
+      padding: 14px;
+      border-radius: 8px;
+      background: #101820;
+      color: #edf6ff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .badge {
+      display: inline-block;
+      min-width: 64px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: white;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .high {
+      background: var(--danger);
+    }
+
+    .mid {
+      background: var(--warn);
+    }
+
+    .low {
+      background: var(--safe);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .map-mock {
+      position: relative;
+      min-height: 360px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(32, 54, 79, 0.05) 1px, transparent 1px),
+        linear-gradient(rgba(32, 54, 79, 0.05) 1px, transparent 1px),
+        #f1f5f8;
+      background-size: 40px 40px;
+    }
+
+    .marker {
+      position: absolute;
+      width: var(--size);
+      height: var(--size);
+      transform: translate(-50%, -50%);
+      border: 3px solid rgba(255, 255, 255, 0.88);
+      border-radius: 50%;
+      background: var(--color);
+      box-shadow: 0 8px 20px rgba(23, 32, 42, 0.22);
+    }
+
+    .marker::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 6px);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      padding: 3px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.95);
+      color: var(--ink);
+      font-size: 12px;
+      box-shadow: 0 2px 8px rgba(23, 32, 42, 0.12);
+    }
+
+    ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    @media (max-width: 860px) {
+      .grid,
+      .steps,
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        padding: 30px 18px 26px;
+      }
+
+      section {
+        padding: 18px;
+      }
+
+      h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>보행자 사고다발지 데이터 전처리 가이드</h1>
+      <p class="lead">
+        <code>19_24_pedstrians.csv</code>를 VoiceGuide 대시보드에서 “사고다발구역”처럼 보여주기 위한 정리 방식입니다.
+        핵심은 좌표/폴리곤을 지도 레이어로 살리고, 사고 심각도를 점수화해서 위험도 색상과 우선순위로 바꾸는 것입니다.
+      </p>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>데이터 요약</h2>
+      <div class="grid">
+        <div class="metric">
+          <span>총 사고다발지 레코드</span>
+          <strong>1,984</strong>
+        </div>
+        <div class="metric">
+          <span>전체 사고건수</span>
+          <strong>15,797</strong>
+        </div>
+        <div class="metric">
+          <span>전체 사상자수</span>
+          <strong>16,921</strong>
+        </div>
+        <div class="metric">
+          <span>사망 / 중상</span>
+          <strong>599 / 15,619</strong>
+        </div>
+      </div>
+      <p class="note">
+        원본 CSV는 CP949 계열 인코딩으로 읽어야 한글 컬럼명이 정상 처리됩니다. 브라우저/서버에서 바로 읽을 때는 UTF-8로 변환한 파일을 별도로 두는 편이 안전합니다.
+      </p>
+    </section>
+
+    <section>
+      <h2>대시보드용 전처리 흐름</h2>
+      <div class="steps">
+        <div class="step">
+          <b>1. 인코딩 통일</b>
+          <p>원본 CSV를 CP949로 읽고, 프로젝트 내부에서는 UTF-8 CSV 또는 JSON/GeoJSON으로 저장합니다.</p>
+        </div>
+        <div class="step">
+          <b>2. 컬럼 정리</b>
+          <p>공백이 있는 <code>지점코드</code>는 trim 처리하고, 숫자 컬럼은 정수/실수 타입으로 변환합니다.</p>
+        </div>
+        <div class="step">
+          <b>3. 지도 좌표 검증</b>
+          <p><code>경도</code>, <code>위도</code>가 비어 있거나 한국 범위를 벗어난 행은 별도 오류 목록으로 분리합니다.</p>
+        </div>
+        <div class="step">
+          <b>4. 위험도 점수 생성</b>
+          <p>사고건수만 쓰면 심각도가 묻히므로 사망/중상에 가중치를 둔 <code>risk_score</code>를 만듭니다.</p>
+        </div>
+        <div class="step">
+          <b>5. 위험 등급 부여</b>
+          <p>상위 20%는 고위험, 20~60%는 주의, 나머지는 관심 등급으로 나눠 지도 색상과 필터에 사용합니다.</p>
+        </div>
+        <div class="step">
+          <b>6. 지도 레이어 변환</b>
+          <p><code>다발지역폴리곤</code>은 GeoJSON으로 파싱해서 면 레이어, <code>경도/위도</code>는 중심점 마커로 사용합니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>추천 위험도 산식</h2>
+      <p>
+        사고다발구역 느낌을 내려면 “많이 발생한 곳”과 “피해가 큰 곳”이 동시에 올라와야 합니다.
+        아래 산식은 대시보드 초기 버전에서 쓰기 좋은 보수적인 기준입니다.
+      </p>
+      <pre><code>risk_score =
+  사고건수 * 1
+  + 사망자수 * 10
+  + 중상자수 * 4
+  + 경상자수 * 1
+  + 부상신고자수 * 0.5</code></pre>
+      <table>
+        <thead>
+          <tr>
+            <th>생성 컬럼</th>
+            <th>용도</th>
+            <th>예시</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>risk_score</code></td>
+            <td>위험순 정렬, 상위 사고다발구역 카드, 지도 마커 크기</td>
+            <td>서울 강북구 미아사거리역 부근: 110.0</td>
+          </tr>
+          <tr>
+            <td><code>risk_level</code></td>
+            <td>지도 색상, 필터, 음성 안내 우선순위</td>
+            <td><span class="badge high">고위험</span> <span class="badge mid">주의</span> <span class="badge low">관심</span></td>
+          </tr>
+          <tr>
+            <td><code>display_name</code></td>
+            <td>지도 팝업/목록 제목</td>
+            <td>미아동, 미아사거리역 4호선 부근</td>
+          </tr>
+          <tr>
+            <td><code>geojson</code></td>
+            <td>사고다발구역 폴리곤 표시</td>
+            <td>원본 <code>다발지역폴리곤</code> 문자열을 JSON 파싱</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>상위 위험지점 예시</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>순위</th>
+            <th>지점</th>
+            <th>사고</th>
+            <th>사망</th>
+            <th>중상</th>
+            <th>점수</th>
+            <th>등급</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>서울 강북구 미아동(미아사거리역 4호선 부근)</td>
+            <td>22</td>
+            <td>0</td>
+            <td>22</td>
+            <td>110.0</td>
+            <td><span class="badge high">고위험</span></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>부산 부산진구 부전동(새봄약국 부근)</td>
+            <td>17</td>
+            <td>0</td>
+            <td>21</td>
+            <td>103.0</td>
+            <td><span class="badge high">고위험</span></td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>전라남도 여수시 서교동(한재사거리 부근)</td>
+            <td>7</td>
+            <td>5</td>
+            <td>7</td>
+            <td>101.5</td>
+            <td><span class="badge high">고위험</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>전남 여수시 서교동(한재사거리 부근)</td>
+            <td>7</td>
+            <td>5</td>
+            <td>7</td>
+            <td>100.5</td>
+            <td><span class="badge high">고위험</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>전남 여수시 서교동(한재사거리 부근)</td>
+            <td>9</td>
+            <td>5</td>
+            <td>8</td>
+            <td>92.0</td>
+            <td><span class="badge high">고위험</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">
+        같은 장소가 여러 공표 회차에 반복될 수 있으므로, 최종 서비스에서는 좌표를 기준으로 가까운 지점을 묶어 “반복 위험구역”으로 보여주는 것이 좋습니다.
+      </p>
+    </section>
+
+    <section>
+      <h2>대시보드 표시 방식</h2>
+      <div class="dashboard">
+        <div class="map-mock" aria-label="사고다발구역 지도 예시">
+          <div class="marker" data-label="미아사거리" style="--size: 58px; --color: #d63b32; left: 57%; top: 23%;"></div>
+          <div class="marker" data-label="부전동" style="--size: 54px; --color: #d63b32; left: 76%; top: 66%;"></div>
+          <div class="marker" data-label="한재사거리" style="--size: 53px; --color: #d63b32; left: 38%; top: 76%;"></div>
+          <div class="marker" data-label="남포사거리" style="--size: 45px; --color: #d48213; left: 69%; top: 72%;"></div>
+          <div class="marker" data-label="영등포역" style="--size: 45px; --color: #d48213; left: 43%; top: 34%;"></div>
+        </div>
+        <div>
+          <h3>VoiceGuide에 붙일 때 추천 UI</h3>
+          <ul>
+            <li>지도에는 폴리곤 반경을 옅은 빨강/주황 면으로 표시하고, 중심점에는 점수 기반 마커를 둡니다.</li>
+            <li>현재 GPS 기준 100m, 300m, 500m 안의 위험구역을 계산해서 “근처 사고다발구역” 카드로 노출합니다.</li>
+            <li>음성 안내는 고위험 구역만 우선 적용하고, 반복 알림 방지를 위해 같은 구역은 일정 시간 동안 재알림을 막습니다.</li>
+            <li>실내 장애물 감지와 섞일 때는 “즉시 장애물”이 1순위, “지역 위험정보”는 2순위로 두면 UX가 안정적입니다.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>전처리 스크립트 예시</h2>
+      <p>최종 산출물은 <code>datasets/pedestrian_hotspots.geojson</code>처럼 프로젝트 안에 두고 서버나 앱에서 읽는 구조가 깔끔합니다.</p>
+      <pre><code>import csv
+import json
+
+source = "C:/Users/ghksw/Downloads/19_24_pedstrians.csv"
+features = []
+
+with open(source, encoding="cp949", newline="") as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        accidents = int(row["사고건수"])
+        deaths = int(row["사망자수"])
+        serious = int(row["중상자수"])
+        minor = int(row["경상자수"])
+        reported = int(row["부상신고자수"])
+
+        risk_score = (
+            accidents
+            + deaths * 10
+            + serious * 4
+            + minor
+            + reported * 0.5
+        )
+
+        polygon = json.loads(row["다발지역폴리곤"])
+        level = "high" if risk_score >= 80 else "medium" if risk_score >= 45 else "low"
+
+        features.append({
+            "type": "Feature",
+            "geometry": polygon,
+            "properties": {
+                "hotspot_id": row["사고다발지fid"],
+                "place_name": row["지점명"],
+                "district": row["시도시군구명"],
+                "accidents": accidents,
+                "casualties": int(row["사상자수"]),
+                "deaths": deaths,
+                "serious": serious,
+                "risk_score": risk_score,
+                "risk_level": level,
+                "center": [float(row["경도"]), float(row["위도"])]
+            }
+        })
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": features
+}
+
+with open("datasets/pedestrian_hotspots.geojson", "w", encoding="utf-8") as f:
+    json.dump(geojson, f, ensure_ascii=False)</code></pre>
+    </section>
+
+    <section>
+      <h2>프로젝트 적용 체크리스트</h2>
+      <ul>
+        <li><code>datasets/</code>에 원본 CSV와 전처리 GeoJSON을 함께 보관합니다.</li>
+        <li>서버 API는 현재 위치를 받아 반경 내 위험구역만 반환하도록 만듭니다.</li>
+        <li>대시보드는 전체 지도, 위험구역 Top 10, 지역별 사고건수, 위험등급 필터를 기본 구성으로 둡니다.</li>
+        <li>앱 안내 문구는 “사고다발구역입니다. 주변 보행에 주의하세요.”처럼 짧게 유지합니다.</li>
+        <li>개인 실시간 사고 예측처럼 보이지 않게, “과거 사고다발 통계 기반”이라는 표현을 문서와 UI에 남깁니다.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
