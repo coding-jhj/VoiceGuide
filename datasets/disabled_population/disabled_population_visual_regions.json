@@ -1,0 +1,1834 @@
+[
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "창원시",
+    "visual_disabled": 4481,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 1.8275
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "수원시",
+    "visual_disabled": 4373,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.7835
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "고양시",
+    "visual_disabled": 4001,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.6317
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "청주시",
+    "visual_disabled": 3712,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 1.5139
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "부천시",
+    "visual_disabled": 3502,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.4282
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "용인시",
+    "visual_disabled": 3441,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.4034
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "성남시",
+    "visual_disabled": 3389,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.3821
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "남양주시",
+    "visual_disabled": 3110,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.2684
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "화성시",
+    "visual_disabled": 3020,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.2317
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "전주시",
+    "visual_disabled": 2815,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 1.1481
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "천안시",
+    "visual_disabled": 2804,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 1.1436
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "안산시",
+    "visual_disabled": 2758,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 1.1248
+  },
+  {
+    "month": "202604",
+    "sido": "제주특별자치도",
+    "sigungu": "제주시",
+    "visual_disabled": 2697,
+    "visual_sido_total": 3895,
+    "visual_region_share_pct": 1.0999
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "강서구",
+    "visual_disabled": 2687,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 1.0958
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "달서구",
+    "visual_disabled": 2647,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 1.0795
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "노원구",
+    "visual_disabled": 2626,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 1.071
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "부평구",
+    "visual_disabled": 2552,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 1.0408
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "서구",
+    "visual_disabled": 2522,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 1.0286
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "포항시",
+    "visual_disabled": 2421,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.9874
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "남동구",
+    "visual_disabled": 2398,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.978
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "평택시",
+    "visual_disabled": 2356,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.9609
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "은평구",
+    "visual_disabled": 2260,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.9217
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "김해시",
+    "visual_disabled": 2220,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.9054
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "파주시",
+    "visual_disabled": 2201,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.8976
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "미추홀구",
+    "visual_disabled": 2200,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.8972
+  },
+  {
+    "month": "202604",
+    "sido": "광주광역시",
+    "sigungu": "북구",
+    "visual_disabled": 2193,
+    "visual_sido_total": 7000,
+    "visual_region_share_pct": 0.8944
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "의정부시",
+    "visual_disabled": 2192,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.894
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "중랑구",
+    "visual_disabled": 2130,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.8687
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "관악구",
+    "visual_disabled": 2125,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.8666
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "안양시",
+    "visual_disabled": 2074,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.8458
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "강동구",
+    "visual_disabled": 2064,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.8418
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "송파구",
+    "visual_disabled": 2044,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.8336
+  },
+  {
+    "month": "202604",
+    "sido": "대전광역시",
+    "sigungu": "서구",
+    "visual_disabled": 1970,
+    "visual_sido_total": 6758,
+    "visual_region_share_pct": 0.8034
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "시흥시",
+    "visual_disabled": 1961,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.7998
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "북구",
+    "visual_disabled": 1948,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.7945
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "동구",
+    "visual_disabled": 1894,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.7724
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "부산진구",
+    "visual_disabled": 1870,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.7626
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "강북구",
+    "visual_disabled": 1852,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.7553
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "구로구",
+    "visual_disabled": 1851,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.7549
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "성북구",
+    "visual_disabled": 1834,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.748
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "김포시",
+    "visual_disabled": 1830,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.7463
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "사하구",
+    "visual_disabled": 1793,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.7312
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "원주시",
+    "visual_disabled": 1790,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.73
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "여수시",
+    "visual_disabled": 1754,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.7153
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "익산시",
+    "visual_disabled": 1718,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.7007
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "해운대구",
+    "visual_disabled": 1692,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.6901
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "광주시",
+    "visual_disabled": 1690,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.6892
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "아산시",
+    "visual_disabled": 1664,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.6786
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "수성구",
+    "visual_disabled": 1649,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.6725
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "양천구",
+    "visual_disabled": 1641,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.6693
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "양산시",
+    "visual_disabled": 1641,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.6693
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "도봉구",
+    "visual_disabled": 1623,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.6619
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "강남구",
+    "visual_disabled": 1589,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.648
+  },
+  {
+    "month": "202604",
+    "sido": "광주광역시",
+    "sigungu": "광산구",
+    "visual_disabled": 1560,
+    "visual_sido_total": 7000,
+    "visual_region_share_pct": 0.6362
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "진주시",
+    "visual_disabled": 1546,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.6305
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "북구",
+    "visual_disabled": 1540,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.6281
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "경주시",
+    "visual_disabled": 1523,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.6211
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "구미시",
+    "visual_disabled": 1512,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.6166
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "영등포구",
+    "visual_disabled": 1488,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.6069
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "동대문구",
+    "visual_disabled": 1470,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.5995
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "군산시",
+    "visual_disabled": 1470,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.5995
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "춘천시",
+    "visual_disabled": 1455,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.5934
+  },
+  {
+    "month": "202604",
+    "sido": "광주광역시",
+    "sigungu": "서구",
+    "visual_disabled": 1448,
+    "visual_sido_total": 7000,
+    "visual_region_share_pct": 0.5905
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "동작구",
+    "visual_disabled": 1422,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.5799
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "순천시",
+    "visual_disabled": 1406,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.5734
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "마포구",
+    "visual_disabled": 1391,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.5673
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "계양구",
+    "visual_disabled": 1387,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.5657
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "목포시",
+    "visual_disabled": 1353,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.5518
+  },
+  {
+    "month": "202604",
+    "sido": "대전광역시",
+    "sigungu": "동구",
+    "visual_disabled": 1335,
+    "visual_sido_total": 6758,
+    "visual_region_share_pct": 0.5445
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "충주시",
+    "visual_disabled": 1330,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.5424
+  },
+  {
+    "month": "202604",
+    "sido": "울산광역시",
+    "sigungu": "남구",
+    "visual_disabled": 1329,
+    "visual_sido_total": 4747,
+    "visual_region_share_pct": 0.542
+  },
+  {
+    "month": "202604",
+    "sido": "대전광역시",
+    "sigungu": "중구",
+    "visual_disabled": 1324,
+    "visual_sido_total": 6758,
+    "visual_region_share_pct": 0.54
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "양주시",
+    "visual_disabled": 1318,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.5375
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "광진구",
+    "visual_disabled": 1296,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.5286
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "경산시",
+    "visual_disabled": 1276,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.5204
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "강릉시",
+    "visual_disabled": 1257,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.5126
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "서대문구",
+    "visual_disabled": 1252,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.5106
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "사상구",
+    "visual_disabled": 1243,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.5069
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "동래구",
+    "visual_disabled": 1239,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.5053
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "남구",
+    "visual_disabled": 1237,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.5045
+  },
+  {
+    "month": "202604",
+    "sido": "세종특별자치시",
+    "sigungu": "세종특별자치시",
+    "visual_disabled": 1227,
+    "visual_sido_total": 1227,
+    "visual_region_share_pct": 0.5004
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "광명시",
+    "visual_disabled": 1221,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.498
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "연수구",
+    "visual_disabled": 1216,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.4959
+  },
+  {
+    "month": "202604",
+    "sido": "광주광역시",
+    "sigungu": "남구",
+    "visual_disabled": 1201,
+    "visual_sido_total": 7000,
+    "visual_region_share_pct": 0.4898
+  },
+  {
+    "month": "202604",
+    "sido": "제주특별자치도",
+    "sigungu": "서귀포시",
+    "visual_disabled": 1198,
+    "visual_sido_total": 3895,
+    "visual_region_share_pct": 0.4886
+  },
+  {
+    "month": "202604",
+    "sido": "대전광역시",
+    "sigungu": "유성구",
+    "visual_disabled": 1188,
+    "visual_sido_total": 6758,
+    "visual_region_share_pct": 0.4845
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "금천구",
+    "visual_disabled": 1182,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.4821
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "서초구",
+    "visual_disabled": 1155,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.471
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "금정구",
+    "visual_disabled": 1135,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.4629
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "서구",
+    "visual_disabled": 1115,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.4547
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "하남시",
+    "visual_disabled": 1104,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.4502
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "연제구",
+    "visual_disabled": 1084,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.4421
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "성동구",
+    "visual_disabled": 1074,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.438
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "군포시",
+    "visual_disabled": 1074,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.438
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "안성시",
+    "visual_disabled": 1060,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.4323
+  },
+  {
+    "month": "202604",
+    "sido": "울산광역시",
+    "sigungu": "중구",
+    "visual_disabled": 1056,
+    "visual_sido_total": 4747,
+    "visual_region_share_pct": 0.4307
+  },
+  {
+    "month": "202604",
+    "sido": "울산광역시",
+    "sigungu": "울주군",
+    "visual_disabled": 1033,
+    "visual_sido_total": 4747,
+    "visual_region_share_pct": 0.4213
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "달성군",
+    "visual_disabled": 1018,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.4152
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "안동시",
+    "visual_disabled": 957,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.3903
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "거제시",
+    "visual_disabled": 946,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.3858
+  },
+  {
+    "month": "202604",
+    "sido": "대전광역시",
+    "sigungu": "대덕구",
+    "visual_disabled": 941,
+    "visual_sido_total": 6758,
+    "visual_region_share_pct": 0.3838
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "이천시",
+    "visual_disabled": 937,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3821
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "당진시",
+    "visual_disabled": 934,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.3809
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "포천시",
+    "visual_disabled": 923,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3764
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "오산시",
+    "visual_disabled": 914,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3728
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "서산시",
+    "visual_disabled": 904,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.3687
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "김천시",
+    "visual_disabled": 900,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.3671
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "남구",
+    "visual_disabled": 882,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.3597
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "영도구",
+    "visual_disabled": 849,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.3463
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "제천시",
+    "visual_disabled": 849,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.3463
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "수영구",
+    "visual_disabled": 840,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.3426
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "기장군",
+    "visual_disabled": 806,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.3287
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "구리시",
+    "visual_disabled": 801,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3267
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "통영시",
+    "visual_disabled": 786,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.3206
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "정읍시",
+    "visual_disabled": 784,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.3197
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "용산구",
+    "visual_disabled": 779,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.3177
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "논산시",
+    "visual_disabled": 765,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.312
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "중구",
+    "visual_disabled": 752,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.3067
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "밀양시",
+    "visual_disabled": 745,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.3038
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "양평군",
+    "visual_disabled": 742,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3026
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "여주시",
+    "visual_disabled": 741,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.3022
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "나주시",
+    "visual_disabled": 732,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.2985
+  },
+  {
+    "month": "202604",
+    "sido": "울산광역시",
+    "sigungu": "북구",
+    "visual_disabled": 721,
+    "visual_sido_total": 4747,
+    "visual_region_share_pct": 0.294
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "예산군",
+    "visual_disabled": 716,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.292
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "광양시",
+    "visual_disabled": 712,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.2904
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "공주시",
+    "visual_disabled": 679,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.2769
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "보령시",
+    "visual_disabled": 679,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.2769
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "영천시",
+    "visual_disabled": 679,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.2769
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "고흥군",
+    "visual_disabled": 678,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.2765
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "김제시",
+    "visual_disabled": 669,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.2728
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "서구",
+    "visual_disabled": 661,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.2696
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "사천시",
+    "visual_disabled": 651,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.2655
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "종로구",
+    "visual_disabled": 639,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.2606
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "홍성군",
+    "visual_disabled": 632,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.2578
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "영주시",
+    "visual_disabled": 623,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.2541
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "상주시",
+    "visual_disabled": 621,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.2533
+  },
+  {
+    "month": "202604",
+    "sido": "울산광역시",
+    "sigungu": "동구",
+    "visual_disabled": 608,
+    "visual_sido_total": 4747,
+    "visual_region_share_pct": 0.248
+  },
+  {
+    "month": "202604",
+    "sido": "서울특별시",
+    "sigungu": "중구",
+    "visual_disabled": 600,
+    "visual_sido_total": 40074,
+    "visual_region_share_pct": 0.2447
+  },
+  {
+    "month": "202604",
+    "sido": "광주광역시",
+    "sigungu": "동구",
+    "visual_disabled": 598,
+    "visual_sido_total": 7000,
+    "visual_region_share_pct": 0.2439
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "의왕시",
+    "visual_disabled": 586,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.239
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "해남군",
+    "visual_disabled": 578,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.2357
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "완주군",
+    "visual_disabled": 578,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.2357
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "남원시",
+    "visual_disabled": 576,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.2349
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "동구",
+    "visual_disabled": 564,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.23
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "동두천시",
+    "visual_disabled": 556,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.2268
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "칠곡군",
+    "visual_disabled": 542,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.221
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "무안군",
+    "visual_disabled": 533,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.2174
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "문경시",
+    "visual_disabled": 533,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.2174
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "음성군",
+    "visual_disabled": 531,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.2166
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "동해시",
+    "visual_disabled": 528,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.2153
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "강서구",
+    "visual_disabled": 527,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.2149
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "강화군",
+    "visual_disabled": 513,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.2092
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "속초시",
+    "visual_disabled": 496,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.2023
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "부여군",
+    "visual_disabled": 480,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.1958
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "홍천군",
+    "visual_disabled": 480,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.1958
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "고창군",
+    "visual_disabled": 457,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.1864
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "화순군",
+    "visual_disabled": 453,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1847
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "삼척시",
+    "visual_disabled": 453,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.1847
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "태안군",
+    "visual_disabled": 452,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.1843
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "중구",
+    "visual_disabled": 435,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.1774
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "의성군",
+    "visual_disabled": 432,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1762
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "진천군",
+    "visual_disabled": 431,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.1758
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "완도군",
+    "visual_disabled": 421,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1717
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "창녕군",
+    "visual_disabled": 415,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1693
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "서천군",
+    "visual_disabled": 412,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.168
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "가평군",
+    "visual_disabled": 411,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.1676
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "영암군",
+    "visual_disabled": 407,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.166
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "신안군",
+    "visual_disabled": 403,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1644
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "영광군",
+    "visual_disabled": 395,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1611
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "거창군",
+    "visual_disabled": 395,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1611
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "함안군",
+    "visual_disabled": 392,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1599
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "고성군",
+    "visual_disabled": 384,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1566
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "보성군",
+    "visual_disabled": 376,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1533
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "부안군",
+    "visual_disabled": 373,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.1521
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "동구",
+    "visual_disabled": 371,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.1513
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "장성군",
+    "visual_disabled": 371,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1513
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "옥천군",
+    "visual_disabled": 370,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.1509
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "예천군",
+    "visual_disabled": 368,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1501
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "남해군",
+    "visual_disabled": 367,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1497
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "울진군",
+    "visual_disabled": 365,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1489
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "하동군",
+    "visual_disabled": 365,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1489
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "영동군",
+    "visual_disabled": 364,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.1485
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "합천군",
+    "visual_disabled": 357,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1456
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "횡성군",
+    "visual_disabled": 348,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.1419
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "금산군",
+    "visual_disabled": 346,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.1411
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "영덕군",
+    "visual_disabled": 341,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1391
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "청도군",
+    "visual_disabled": 335,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1366
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "담양군",
+    "visual_disabled": 327,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1334
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "연천군",
+    "visual_disabled": 326,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.133
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "장흥군",
+    "visual_disabled": 305,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1244
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "함양군",
+    "visual_disabled": 293,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1195
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "성주군",
+    "visual_disabled": 284,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.1158
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "강진군",
+    "visual_disabled": 282,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.115
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "태백시",
+    "visual_disabled": 282,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.115
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "괴산군",
+    "visual_disabled": 281,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.1146
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "함평군",
+    "visual_disabled": 281,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1146
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "평창군",
+    "visual_disabled": 277,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.113
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "진도군",
+    "visual_disabled": 276,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.1126
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "산청군",
+    "visual_disabled": 271,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.1105
+  },
+  {
+    "month": "202604",
+    "sido": "부산광역시",
+    "sigungu": "중구",
+    "visual_disabled": 270,
+    "visual_sido_total": 17350,
+    "visual_region_share_pct": 0.1101
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "영월군",
+    "visual_disabled": 265,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.1081
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "보은군",
+    "visual_disabled": 264,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.1077
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "정선군",
+    "visual_disabled": 251,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.1024
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "곡성군",
+    "visual_disabled": 250,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.102
+  },
+  {
+    "month": "202604",
+    "sido": "경상남도",
+    "sigungu": "의령군",
+    "visual_disabled": 250,
+    "visual_sido_total": 16505,
+    "visual_region_share_pct": 0.102
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "철원군",
+    "visual_disabled": 244,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.0995
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "고령군",
+    "visual_disabled": 237,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.0967
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "청양군",
+    "visual_disabled": 236,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.0962
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "단양군",
+    "visual_disabled": 232,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.0946
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "청송군",
+    "visual_disabled": 231,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.0942
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "봉화군",
+    "visual_disabled": 231,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.0942
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "순창군",
+    "visual_disabled": 228,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.093
+  },
+  {
+    "month": "202604",
+    "sido": "충청북도",
+    "sigungu": "증평군",
+    "visual_disabled": 222,
+    "visual_sido_total": 8586,
+    "visual_region_share_pct": 0.0905
+  },
+  {
+    "month": "202604",
+    "sido": "전라남도",
+    "sigungu": "구례군",
+    "visual_disabled": 221,
+    "visual_sido_total": 12514,
+    "visual_region_share_pct": 0.0901
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "진안군",
+    "visual_disabled": 221,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.0901
+  },
+  {
+    "month": "202604",
+    "sido": "경기도",
+    "sigungu": "과천시",
+    "visual_disabled": 216,
+    "visual_sido_total": 54828,
+    "visual_region_share_pct": 0.0881
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "임실군",
+    "visual_disabled": 207,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.0844
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "고성군",
+    "visual_disabled": 202,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.0824
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "양양군",
+    "visual_disabled": 187,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.0763
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "무주군",
+    "visual_disabled": 182,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.0742
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "인제군",
+    "visual_disabled": 181,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.0738
+  },
+  {
+    "month": "202604",
+    "sido": "대구광역시",
+    "sigungu": "군위군",
+    "visual_disabled": 178,
+    "visual_sido_total": 11766,
+    "visual_region_share_pct": 0.0726
+  },
+  {
+    "month": "202604",
+    "sido": "전북특별자치도",
+    "sigungu": "장수군",
+    "visual_disabled": 173,
+    "visual_sido_total": 10451,
+    "visual_region_share_pct": 0.0706
+  },
+  {
+    "month": "202604",
+    "sido": "충청남도",
+    "sigungu": "계룡시",
+    "visual_disabled": 159,
+    "visual_sido_total": 11862,
+    "visual_region_share_pct": 0.0648
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "화천군",
+    "visual_disabled": 147,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.06
+  },
+  {
+    "month": "202604",
+    "sido": "인천광역시",
+    "sigungu": "옹진군",
+    "visual_disabled": 145,
+    "visual_sido_total": 14056,
+    "visual_region_share_pct": 0.0591
+  },
+  {
+    "month": "202604",
+    "sido": "강원특별자치도",
+    "sigungu": "양구군",
+    "visual_disabled": 143,
+    "visual_sido_total": 8986,
+    "visual_region_share_pct": 0.0583
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "영양군",
+    "visual_disabled": 128,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.0522
+  },
+  {
+    "month": "202604",
+    "sido": "경상북도",
+    "sigungu": "울릉군",
+    "visual_disabled": 54,
+    "visual_sido_total": 14593,
+    "visual_region_share_pct": 0.022
+  }
+]

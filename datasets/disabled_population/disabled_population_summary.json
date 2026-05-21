@@ -1,0 +1,120 @@
+{
+  "dataset": "disabled_population_202101_202604",
+  "source_dir": "C:\\Users\\ghksw\\Downloads\\장애인등록 장애정도별 장애유형별 장애인수(202101~202604)",
+  "source_file_count": 64,
+  "source_encoding": "cp949",
+  "output_encoding": "utf-8",
+  "row_count": 391583,
+  "month": {
+    "first": "202101",
+    "latest": "202604",
+    "count": 64
+  },
+  "latest": {
+    "month": "202604",
+    "total_disabled": 2624025,
+    "visual_disabled": 245198,
+    "visual_share_pct": 9.34,
+    "visual_change_from_first": -6952,
+    "visual_by_degree": {
+      "심한 장애": 43918,
+      "심하지 않은 장애": 201280
+    },
+    "top_visual_sido": [
+      {
+        "name": "경기도",
+        "count": 54828
+      },
+      {
+        "name": "서울특별시",
+        "count": 40074
+      },
+      {
+        "name": "부산광역시",
+        "count": 17350
+      },
+      {
+        "name": "경상남도",
+        "count": 16505
+      },
+      {
+        "name": "경상북도",
+        "count": 14593
+      },
+      {
+        "name": "인천광역시",
+        "count": 14056
+      },
+      {
+        "name": "전라남도",
+        "count": 12514
+      },
+      {
+        "name": "충청남도",
+        "count": 11862
+      },
+      {
+        "name": "대구광역시",
+        "count": 11766
+      },
+      {
+        "name": "전북특별자치도",
+        "count": 10451
+      }
+    ],
+    "top_disability_types": [
+      {
+        "name": "지체",
+        "count": 1107111
+      },
+      {
+        "name": "청각",
+        "count": 450514
+      },
+      {
+        "name": "시각",
+        "count": 245198
+      },
+      {
+        "name": "지적",
+        "count": 237533
+      },
+      {
+        "name": "뇌병변",
+        "count": 231713
+      },
+      {
+        "name": "신장",
+        "count": 115518
+      },
+      {
+        "name": "정신",
+        "count": 102733
+      },
+      {
+        "name": "자폐성",
+        "count": 52949
+      },
+      {
+        "name": "언어",
+        "count": 21762
+      },
+      {
+        "name": "장루.요루",
+        "count": 18107
+      }
+    ]
+  },
+  "dashboard_copy": {
+    "title": "시각장애 등록 현황",
+    "subtitle": "2026년 4월 기준",
+    "main_stat": "245,198명",
+    "supporting_stat": "전체 등록장애인의 9.34%",
+    "caution": "등록장애인 통계이며 실제 앱 사용자 수가 아닙니다."
+  },
+  "notes": [
+    "Use this dataset as demand and presentation context, not as real-time personal risk data.",
+    "Counts are aggregated by administrative region and disability type/degree.",
+    "Do not combine this data with personal user disability information."
+  ]
+}

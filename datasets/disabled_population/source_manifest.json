@@ -1,0 +1,389 @@
+{
+  "source_dir": "C:\\Users\\ghksw\\Downloads\\장애인등록 장애정도별 장애유형별 장애인수(202101~202604)",
+  "files": [
+    {
+      "file_name": "PDQCSV_22_20260515013650877.csv",
+      "encoding": "cp949",
+      "row_count": 5929,
+      "size_bytes": 269033
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013653188.csv",
+      "encoding": "cp949",
+      "row_count": 5928,
+      "size_bytes": 268996
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013655548.csv",
+      "encoding": "cp949",
+      "row_count": 5927,
+      "size_bytes": 268971
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013657925.csv",
+      "encoding": "cp949",
+      "row_count": 5938,
+      "size_bytes": 269495
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013700214.csv",
+      "encoding": "cp949",
+      "row_count": 5957,
+      "size_bytes": 270400
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013702509.csv",
+      "encoding": "cp949",
+      "row_count": 5976,
+      "size_bytes": 271305
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013704833.csv",
+      "encoding": "cp949",
+      "row_count": 5988,
+      "size_bytes": 271902
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013707218.csv",
+      "encoding": "cp949",
+      "row_count": 6003,
+      "size_bytes": 272647
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013709688.csv",
+      "encoding": "cp949",
+      "row_count": 6023,
+      "size_bytes": 273605
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013712081.csv",
+      "encoding": "cp949",
+      "row_count": 6038,
+      "size_bytes": 274333
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013714377.csv",
+      "encoding": "cp949",
+      "row_count": 6051,
+      "size_bytes": 274955
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013716677.csv",
+      "encoding": "cp949",
+      "row_count": 6057,
+      "size_bytes": 275216
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013718931.csv",
+      "encoding": "cp949",
+      "row_count": 6065,
+      "size_bytes": 275595
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013721240.csv",
+      "encoding": "cp949",
+      "row_count": 6072,
+      "size_bytes": 275932
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013723602.csv",
+      "encoding": "cp949",
+      "row_count": 6078,
+      "size_bytes": 276219
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013725972.csv",
+      "encoding": "cp949",
+      "row_count": 6089,
+      "size_bytes": 276722
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013728346.csv",
+      "encoding": "cp949",
+      "row_count": 6096,
+      "size_bytes": 277037
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013730713.csv",
+      "encoding": "cp949",
+      "row_count": 6101,
+      "size_bytes": 277295
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013733082.csv",
+      "encoding": "cp949",
+      "row_count": 6105,
+      "size_bytes": 277487
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013735448.csv",
+      "encoding": "cp949",
+      "row_count": 6112,
+      "size_bytes": 277792
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013737806.csv",
+      "encoding": "cp949",
+      "row_count": 6118,
+      "size_bytes": 278066
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013740113.csv",
+      "encoding": "cp949",
+      "row_count": 6120,
+      "size_bytes": 278169
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013742414.csv",
+      "encoding": "cp949",
+      "row_count": 6126,
+      "size_bytes": 278474
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013744714.csv",
+      "encoding": "cp949",
+      "row_count": 6132,
+      "size_bytes": 278763
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013746987.csv",
+      "encoding": "cp949",
+      "row_count": 6136,
+      "size_bytes": 278949
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013749287.csv",
+      "encoding": "cp949",
+      "row_count": 6137,
+      "size_bytes": 278975
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013751699.csv",
+      "encoding": "cp949",
+      "row_count": 6140,
+      "size_bytes": 279125
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013754087.csv",
+      "encoding": "cp949",
+      "row_count": 6142,
+      "size_bytes": 279246
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013756377.csv",
+      "encoding": "cp949",
+      "row_count": 6148,
+      "size_bytes": 279517
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013758750.csv",
+      "encoding": "cp949",
+      "row_count": 6151,
+      "size_bytes": 283393
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013801037.csv",
+      "encoding": "cp949",
+      "row_count": 6156,
+      "size_bytes": 283688
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013803325.csv",
+      "encoding": "cp949",
+      "row_count": 6155,
+      "size_bytes": 283691
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013805667.csv",
+      "encoding": "cp949",
+      "row_count": 6156,
+      "size_bytes": 283776
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013807977.csv",
+      "encoding": "cp949",
+      "row_count": 6158,
+      "size_bytes": 283886
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013810276.csv",
+      "encoding": "cp949",
+      "row_count": 6162,
+      "size_bytes": 284072
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013812600.csv",
+      "encoding": "cp949",
+      "row_count": 6163,
+      "size_bytes": 284113
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013814880.csv",
+      "encoding": "cp949",
+      "row_count": 6162,
+      "size_bytes": 286243
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013817188.csv",
+      "encoding": "cp949",
+      "row_count": 6164,
+      "size_bytes": 286330
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013819488.csv",
+      "encoding": "cp949",
+      "row_count": 6169,
+      "size_bytes": 286569
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013821808.csv",
+      "encoding": "cp949",
+      "row_count": 6169,
+      "size_bytes": 286573
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013824171.csv",
+      "encoding": "cp949",
+      "row_count": 6178,
+      "size_bytes": 286970
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013826551.csv",
+      "encoding": "cp949",
+      "row_count": 6173,
+      "size_bytes": 286734
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013828899.csv",
+      "encoding": "cp949",
+      "row_count": 6170,
+      "size_bytes": 286622
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013831260.csv",
+      "encoding": "cp949",
+      "row_count": 6174,
+      "size_bytes": 286816
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013833664.csv",
+      "encoding": "cp949",
+      "row_count": 6172,
+      "size_bytes": 286729
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013836043.csv",
+      "encoding": "cp949",
+      "row_count": 6167,
+      "size_bytes": 286526
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013838373.csv",
+      "encoding": "cp949",
+      "row_count": 6168,
+      "size_bytes": 286612
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013840716.csv",
+      "encoding": "cp949",
+      "row_count": 6172,
+      "size_bytes": 286815
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013843045.csv",
+      "encoding": "cp949",
+      "row_count": 6168,
+      "size_bytes": 286614
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013845419.csv",
+      "encoding": "cp949",
+      "row_count": 6176,
+      "size_bytes": 287040
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013847804.csv",
+      "encoding": "cp949",
+      "row_count": 6173,
+      "size_bytes": 286906
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013850157.csv",
+      "encoding": "cp949",
+      "row_count": 6172,
+      "size_bytes": 286875
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013852439.csv",
+      "encoding": "cp949",
+      "row_count": 6168,
+      "size_bytes": 286689
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013854756.csv",
+      "encoding": "cp949",
+      "row_count": 6164,
+      "size_bytes": 286497
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013857001.csv",
+      "encoding": "cp949",
+      "row_count": 6161,
+      "size_bytes": 286384
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013859244.csv",
+      "encoding": "cp949",
+      "row_count": 6162,
+      "size_bytes": 286468
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013901504.csv",
+      "encoding": "cp949",
+      "row_count": 6166,
+      "size_bytes": 286666
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013903765.csv",
+      "encoding": "cp949",
+      "row_count": 6169,
+      "size_bytes": 286819
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013906003.csv",
+      "encoding": "cp949",
+      "row_count": 6173,
+      "size_bytes": 287007
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013908268.csv",
+      "encoding": "cp949",
+      "row_count": 6174,
+      "size_bytes": 287052
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013910513.csv",
+      "encoding": "cp949",
+      "row_count": 6176,
+      "size_bytes": 287116
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013912749.csv",
+      "encoding": "cp949",
+      "row_count": 6158,
+      "size_bytes": 286296
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013914987.csv",
+      "encoding": "cp949",
+      "row_count": 6175,
+      "size_bytes": 287083
+    },
+    {
+      "file_name": "PDQCSV_22_20260515013917238.csv",
+      "encoding": "cp949",
+      "row_count": 6177,
+      "size_bytes": 287180
+    }
+  ]
+}

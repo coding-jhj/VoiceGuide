@@ -59,15 +59,20 @@ _ROOT_DIR = Path(__file__).resolve().parents[2]
 _PEDESTRIAN_HOTSPOT_DIR = _ROOT_DIR / "datasets" / "pedestrian_hotspots"
 _PEDESTRIAN_SUMMARY_PATH = _PEDESTRIAN_HOTSPOT_DIR / "pedestrian_hotspots_summary.json"
 _PEDESTRIAN_CLUSTERS_PATH = _PEDESTRIAN_HOTSPOT_DIR / "pedestrian_hotspot_clusters.geojson"
+_DISABLED_POPULATION_DIR = _ROOT_DIR / "datasets" / "disabled_population"
+_DISABLED_POPULATION_SUMMARY_PATH = _DISABLED_POPULATION_DIR / "disabled_population_summary.json"
+_DISABLED_POPULATION_REGIONS_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_regions.json"
+_DISABLED_POPULATION_TREND_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_trend.json"
+_DISABLED_POPULATION_BY_TYPE_PATH = _DISABLED_POPULATION_DIR / "disabled_population_by_type_latest.json"
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=8)
 def _load_json_artifact(path: str) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def _require_pedestrian_artifact(path: Path) -> dict:
+def _require_json_artifact(path: Path) -> dict:
     if not path.exists():
         raise HTTPException(
             status_code=404,
@@ -811,7 +816,7 @@ async def get_heatmap(session_id: str, hours: int = 24):
 @router.get("/pedestrian-hotspots/summary", dependencies=[Depends(_verify_api_key)])
 async def get_pedestrian_hotspot_summary():
     """Dashboard summary for preprocessed pedestrian accident hotspots."""
-    return _require_pedestrian_artifact(_PEDESTRIAN_SUMMARY_PATH)
+    return _require_json_artifact(_PEDESTRIAN_SUMMARY_PATH)
 
 
 @router.get("/pedestrian-hotspots/clusters", dependencies=[Depends(_verify_api_key)])
@@ -825,7 +830,7 @@ async def get_pedestrian_hotspot_clusters(risk_level: str = "high", limit: int =
     limit = max(1, min(limit, 2000))
     wanted = {item.strip() for item in risk_level.split(",") if item.strip()}
     include_all = not wanted or "all" in wanted
-    geojson = _require_pedestrian_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+    geojson = _require_json_artifact(_PEDESTRIAN_CLUSTERS_PATH)
     features = geojson.get("features", [])
     if not include_all:
         features = [
@@ -855,7 +860,7 @@ async def get_nearby_pedestrian_hotspots(
     """Return nearby pedestrian accident hotspot clusters for GPS-based warnings."""
     radius_m = max(10.0, min(radius_m, 2000.0))
     limit = max(1, min(limit, 50))
-    geojson = _require_pedestrian_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+    geojson = _require_json_artifact(_PEDESTRIAN_CLUSTERS_PATH)
     nearby = []
     for feature in geojson.get("features", []):
         props = dict(feature.get("properties", {}))
@@ -877,6 +882,39 @@ async def get_nearby_pedestrian_hotspots(
         "count": len(nearby[:limit]),
         "radius_m": radius_m,
     }
+
+
+@router.get("/disabled-population/summary", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_population_summary():
+    """Latest registered disabled population summary for dashboard context."""
+    return _require_json_artifact(_DISABLED_POPULATION_SUMMARY_PATH)
+
+
+@router.get("/disabled-population/regions", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_population_regions(limit: int = 20, sido: str = ""):
+    """Return latest visual disability counts by administrative region."""
+    limit = max(1, min(limit, 300))
+    regions = _require_json_artifact(_DISABLED_POPULATION_REGIONS_PATH)
+    if sido:
+        regions = [row for row in regions if row.get("sido") == sido]
+    return {
+        "regions": regions[:limit],
+        "count": len(regions[:limit]),
+        "limit": limit,
+        "sido": sido,
+    }
+
+
+@router.get("/disabled-population/trend", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_population_trend():
+    """Return monthly visual disability trend data."""
+    return {"trend": _require_json_artifact(_DISABLED_POPULATION_TREND_PATH)}
+
+
+@router.get("/disabled-population/types", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_population_types():
+    """Return latest registered disabled population by disability type."""
+    return {"types": _require_json_artifact(_DISABLED_POPULATION_BY_TYPE_PATH)}
 
 
 @router.get("/dashboard", dependencies=[Depends(_verify_api_key)])

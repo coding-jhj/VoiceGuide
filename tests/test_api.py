@@ -429,6 +429,27 @@ def test_pedestrian_hotspot_dashboard_endpoints():
     assert nearby_body["features"][0]["properties"]["distance_m"] <= 300
 
 
+def test_disabled_population_dashboard_endpoints():
+    summary = client.get("/disabled-population/summary")
+    assert summary.status_code == 200
+    summary_body = summary.json()
+    assert summary_body["month"]["latest"] == "202604"
+    assert summary_body["latest"]["visual_disabled"] == 245198
+    assert summary_body["latest"]["visual_by_degree"]["심한 장애"] == 43918
+
+    regions = client.get("/disabled-population/regions", params={"limit": 3})
+    assert regions.status_code == 200
+    regions_body = regions.json()
+    assert regions_body["count"] == 3
+    assert regions_body["regions"][0]["visual_disabled"] >= regions_body["regions"][-1]["visual_disabled"]
+
+    trend = client.get("/disabled-population/trend")
+    assert trend.status_code == 200
+    trend_body = trend.json()
+    assert len(trend_body["trend"]) == 64
+    assert trend_body["trend"][-1]["month"] == "202604"
+
+
 def test_locations_route_saves_and_lists_by_session():
     session = f"test_locations_{uuid.uuid4().hex}"
     label = "테스트 출입구"

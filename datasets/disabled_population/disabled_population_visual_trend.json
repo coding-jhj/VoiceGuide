@@ -1,0 +1,450 @@
+[
+  {
+    "month": "202101",
+    "total_disabled": 2631874,
+    "visual_disabled": 252150,
+    "visual_severe": 47578,
+    "visual_mild": 204572
+  },
+  {
+    "month": "202102",
+    "total_disabled": 2631717,
+    "visual_disabled": 252036,
+    "visual_severe": 47462,
+    "visual_mild": 204574
+  },
+  {
+    "month": "202103",
+    "total_disabled": 2632796,
+    "visual_disabled": 251915,
+    "visual_severe": 47360,
+    "visual_mild": 204555
+  },
+  {
+    "month": "202104",
+    "total_disabled": 2634972,
+    "visual_disabled": 251929,
+    "visual_severe": 47303,
+    "visual_mild": 204626
+  },
+  {
+    "month": "202105",
+    "total_disabled": 2636563,
+    "visual_disabled": 251918,
+    "visual_severe": 47270,
+    "visual_mild": 204648
+  },
+  {
+    "month": "202106",
+    "total_disabled": 2638871,
+    "visual_disabled": 251858,
+    "visual_severe": 47174,
+    "visual_mild": 204684
+  },
+  {
+    "month": "202107",
+    "total_disabled": 2639881,
+    "visual_disabled": 251806,
+    "visual_severe": 47161,
+    "visual_mild": 204645
+  },
+  {
+    "month": "202108",
+    "total_disabled": 2640833,
+    "visual_disabled": 251772,
+    "visual_severe": 47093,
+    "visual_mild": 204679
+  },
+  {
+    "month": "202109",
+    "total_disabled": 2640927,
+    "visual_disabled": 251663,
+    "visual_severe": 47056,
+    "visual_mild": 204607
+  },
+  {
+    "month": "202110",
+    "total_disabled": 2641086,
+    "visual_disabled": 251555,
+    "visual_severe": 47016,
+    "visual_mild": 204539
+  },
+  {
+    "month": "202111",
+    "total_disabled": 2642484,
+    "visual_disabled": 251573,
+    "visual_severe": 46955,
+    "visual_mild": 204618
+  },
+  {
+    "month": "202112",
+    "total_disabled": 2642922,
+    "visual_disabled": 251489,
+    "visual_severe": 46900,
+    "visual_mild": 204589
+  },
+  {
+    "month": "202201",
+    "total_disabled": 2641678,
+    "visual_disabled": 251294,
+    "visual_severe": 46787,
+    "visual_mild": 204507
+  },
+  {
+    "month": "202202",
+    "total_disabled": 2640750,
+    "visual_disabled": 251110,
+    "visual_severe": 46679,
+    "visual_mild": 204431
+  },
+  {
+    "month": "202203",
+    "total_disabled": 2636672,
+    "visual_disabled": 250692,
+    "visual_severe": 46511,
+    "visual_mild": 204181
+  },
+  {
+    "month": "202204",
+    "total_disabled": 2631796,
+    "visual_disabled": 250271,
+    "visual_severe": 46332,
+    "visual_mild": 203939
+  },
+  {
+    "month": "202205",
+    "total_disabled": 2630758,
+    "visual_disabled": 250105,
+    "visual_severe": 46265,
+    "visual_mild": 203840
+  },
+  {
+    "month": "202206",
+    "total_disabled": 2632060,
+    "visual_disabled": 250023,
+    "visual_severe": 46225,
+    "visual_mild": 203798
+  },
+  {
+    "month": "202207",
+    "total_disabled": 2633122,
+    "visual_disabled": 250048,
+    "visual_severe": 46208,
+    "visual_mild": 203840
+  },
+  {
+    "month": "202208",
+    "total_disabled": 2633689,
+    "visual_disabled": 249876,
+    "visual_severe": 46100,
+    "visual_mild": 203776
+  },
+  {
+    "month": "202209",
+    "total_disabled": 2637498,
+    "visual_disabled": 250043,
+    "visual_severe": 46119,
+    "visual_mild": 203924
+  },
+  {
+    "month": "202210",
+    "total_disabled": 2638290,
+    "visual_disabled": 250105,
+    "visual_severe": 46126,
+    "visual_mild": 203979
+  },
+  {
+    "month": "202211",
+    "total_disabled": 2641773,
+    "visual_disabled": 250090,
+    "visual_severe": 46106,
+    "visual_mild": 203984
+  },
+  {
+    "month": "202212",
+    "total_disabled": 2643696,
+    "visual_disabled": 250064,
+    "visual_severe": 46062,
+    "visual_mild": 204002
+  },
+  {
+    "month": "202301",
+    "total_disabled": 2643503,
+    "visual_disabled": 249941,
+    "visual_severe": 45995,
+    "visual_mild": 203946
+  },
+  {
+    "month": "202302",
+    "total_disabled": 2641864,
+    "visual_disabled": 249810,
+    "visual_severe": 45941,
+    "visual_mild": 203869
+  },
+  {
+    "month": "202303",
+    "total_disabled": 2640598,
+    "visual_disabled": 249608,
+    "visual_severe": 45866,
+    "visual_mild": 203742
+  },
+  {
+    "month": "202304",
+    "total_disabled": 2641105,
+    "visual_disabled": 249486,
+    "visual_severe": 45808,
+    "visual_mild": 203678
+  },
+  {
+    "month": "202305",
+    "total_disabled": 2640888,
+    "visual_disabled": 249392,
+    "visual_severe": 45777,
+    "visual_mild": 203615
+  },
+  {
+    "month": "202306",
+    "total_disabled": 2639460,
+    "visual_disabled": 249190,
+    "visual_severe": 45740,
+    "visual_mild": 203450
+  },
+  {
+    "month": "202307",
+    "total_disabled": 2637512,
+    "visual_disabled": 248835,
+    "visual_severe": 45664,
+    "visual_mild": 203171
+  },
+  {
+    "month": "202308",
+    "total_disabled": 2636163,
+    "visual_disabled": 248615,
+    "visual_severe": 45614,
+    "visual_mild": 203001
+  },
+  {
+    "month": "202309",
+    "total_disabled": 2634986,
+    "visual_disabled": 248429,
+    "visual_severe": 45511,
+    "visual_mild": 202918
+  },
+  {
+    "month": "202310",
+    "total_disabled": 2633474,
+    "visual_disabled": 248209,
+    "visual_severe": 45427,
+    "visual_mild": 202782
+  },
+  {
+    "month": "202311",
+    "total_disabled": 2634377,
+    "visual_disabled": 248014,
+    "visual_severe": 45356,
+    "visual_mild": 202658
+  },
+  {
+    "month": "202312",
+    "total_disabled": 2633262,
+    "visual_disabled": 247821,
+    "visual_severe": 45308,
+    "visual_mild": 202513
+  },
+  {
+    "month": "202401",
+    "total_disabled": 2631678,
+    "visual_disabled": 247584,
+    "visual_severe": 45230,
+    "visual_mild": 202354
+  },
+  {
+    "month": "202402",
+    "total_disabled": 2630930,
+    "visual_disabled": 247399,
+    "visual_severe": 45156,
+    "visual_mild": 202243
+  },
+  {
+    "month": "202403",
+    "total_disabled": 2631169,
+    "visual_disabled": 247348,
+    "visual_severe": 45106,
+    "visual_mild": 202242
+  },
+  {
+    "month": "202404",
+    "total_disabled": 2631801,
+    "visual_disabled": 247216,
+    "visual_severe": 45066,
+    "visual_mild": 202150
+  },
+  {
+    "month": "202405",
+    "total_disabled": 2632698,
+    "visual_disabled": 247022,
+    "visual_severe": 45023,
+    "visual_mild": 201999
+  },
+  {
+    "month": "202406",
+    "total_disabled": 2634690,
+    "visual_disabled": 247174,
+    "visual_severe": 45039,
+    "visual_mild": 202135
+  },
+  {
+    "month": "202407",
+    "total_disabled": 2635764,
+    "visual_disabled": 246944,
+    "visual_severe": 44935,
+    "visual_mild": 202009
+  },
+  {
+    "month": "202408",
+    "total_disabled": 2634883,
+    "visual_disabled": 246763,
+    "visual_severe": 44836,
+    "visual_mild": 201927
+  },
+  {
+    "month": "202409",
+    "total_disabled": 2634210,
+    "visual_disabled": 246613,
+    "visual_severe": 44798,
+    "visual_mild": 201815
+  },
+  {
+    "month": "202410",
+    "total_disabled": 2632578,
+    "visual_disabled": 246392,
+    "visual_severe": 44688,
+    "visual_mild": 201704
+  },
+  {
+    "month": "202411",
+    "total_disabled": 2631965,
+    "visual_disabled": 246215,
+    "visual_severe": 44583,
+    "visual_mild": 201632
+  },
+  {
+    "month": "202412",
+    "total_disabled": 2631356,
+    "visual_disabled": 246182,
+    "visual_severe": 44518,
+    "visual_mild": 201664
+  },
+  {
+    "month": "202501",
+    "total_disabled": 2629055,
+    "visual_disabled": 245963,
+    "visual_severe": 44416,
+    "visual_mild": 201547
+  },
+  {
+    "month": "202502",
+    "total_disabled": 2624919,
+    "visual_disabled": 245617,
+    "visual_severe": 44271,
+    "visual_mild": 201346
+  },
+  {
+    "month": "202503",
+    "total_disabled": 2624846,
+    "visual_disabled": 245547,
+    "visual_severe": 44254,
+    "visual_mild": 201293
+  },
+  {
+    "month": "202504",
+    "total_disabled": 2625668,
+    "visual_disabled": 245581,
+    "visual_severe": 44237,
+    "visual_mild": 201344
+  },
+  {
+    "month": "202505",
+    "total_disabled": 2624018,
+    "visual_disabled": 245397,
+    "visual_severe": 44178,
+    "visual_mild": 201219
+  },
+  {
+    "month": "202506",
+    "total_disabled": 2626014,
+    "visual_disabled": 245451,
+    "visual_severe": 44167,
+    "visual_mild": 201284
+  },
+  {
+    "month": "202507",
+    "total_disabled": 2627617,
+    "visual_disabled": 245511,
+    "visual_severe": 44196,
+    "visual_mild": 201315
+  },
+  {
+    "month": "202508",
+    "total_disabled": 2628014,
+    "visual_disabled": 245473,
+    "visual_severe": 44183,
+    "visual_mild": 201290
+  },
+  {
+    "month": "202509",
+    "total_disabled": 2628845,
+    "visual_disabled": 245504,
+    "visual_severe": 44162,
+    "visual_mild": 201342
+  },
+  {
+    "month": "202510",
+    "total_disabled": 2628334,
+    "visual_disabled": 245483,
+    "visual_severe": 44160,
+    "visual_mild": 201323
+  },
+  {
+    "month": "202511",
+    "total_disabled": 2627465,
+    "visual_disabled": 245409,
+    "visual_severe": 44111,
+    "visual_mild": 201298
+  },
+  {
+    "month": "202512",
+    "total_disabled": 2627761,
+    "visual_disabled": 245361,
+    "visual_severe": 44083,
+    "visual_mild": 201278
+  },
+  {
+    "month": "202601",
+    "total_disabled": 2625276,
+    "visual_disabled": 245222,
+    "visual_severe": 44002,
+    "visual_mild": 201220
+  },
+  {
+    "month": "202602",
+    "total_disabled": 2590866,
+    "visual_disabled": 242133,
+    "visual_severe": 43514,
+    "visual_mild": 198619
+  },
+  {
+    "month": "202603",
+    "total_disabled": 2622872,
+    "visual_disabled": 245089,
+    "visual_severe": 43919,
+    "visual_mild": 201170
+  },
+  {
+    "month": "202604",
+    "total_disabled": 2624025,
+    "visual_disabled": 245198,
+    "visual_severe": 43918,
+    "visual_mild": 201280
+  }
+]

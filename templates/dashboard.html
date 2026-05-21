@@ -221,6 +221,68 @@
     text-overflow: ellipsis;
   }
 
+  .disabled-context-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .disabled-context-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .disabled-context-value {
+    color: var(--accent2);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .disabled-context-date {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .disabled-context-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .disabled-context-row strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .disabled-region-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 9px;
+  }
+  .disabled-region-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 56px;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .disabled-region-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #171b2c;
+  }
+  .disabled-region-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent2);
+  }
+
   /* 탐지 물체 목록 */
   .objects-list {
     flex: 1;
@@ -808,6 +870,31 @@
         </div>
       </div>
 
+      <div class="panel-section">
+        <div class="section-title">시각장애 등록 현황</div>
+        <div class="disabled-context-card" id="disabledContextCard">
+          <div class="disabled-context-main">
+            <div class="disabled-context-value" id="disabledVisualTotal">-</div>
+            <div class="disabled-context-date" id="disabledMonth">-</div>
+          </div>
+          <div class="disabled-context-row">
+            <span>전체 등록장애인 대비</span>
+            <strong id="disabledVisualShare">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심한 장애</span>
+            <strong id="disabledSevere">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심하지 않은 장애</span>
+            <strong id="disabledMild">-</strong>
+          </div>
+          <div class="disabled-region-bars" id="disabledRegionBars">
+            <div style="font-size:11px;color:var(--muted);">지역 통계 불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 통계 카드 -->
       <div class="panel-section">
         <div class="section-title">실시간 현황</div>
@@ -1086,6 +1173,10 @@ function escapeHtml(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function formatCount(value) {
+  return Number(value ?? 0).toLocaleString('ko-KR');
 }
 
 // ── 아이콘 매핑 ───────────────────────────────────────
@@ -1843,6 +1934,58 @@ function renderDashboardSummary(data) {
   });
 }
 
+async function fetchDisabledPopulationContext() {
+  try {
+    const [summaryRes, regionsRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/disabled-population/summary`),
+      fetch(`${SERVER_BASE}/disabled-population/regions?limit=6`),
+    ]);
+    if (!summaryRes.ok || !regionsRes.ok) return;
+    const summary = await summaryRes.json();
+    const regions = await regionsRes.json();
+    renderDisabledPopulationContext(summary, regions.regions ?? []);
+  } catch (_) {
+    const box = document.getElementById('disabledRegionBars');
+    if (box) box.innerHTML = '<div style="font-size:11px;color:var(--muted);">등록 통계를 불러오지 못했습니다.</div>';
+  }
+}
+
+function renderDisabledPopulationContext(summary, regions) {
+  const latest = summary.latest ?? {};
+  const month = latest.month ?? summary.month?.latest ?? '';
+  const degree = latest.visual_by_degree ?? {};
+
+  document.getElementById('disabledVisualTotal').textContent = `${formatCount(latest.visual_disabled)}명`;
+  document.getElementById('disabledMonth').textContent = month
+    ? `${month.slice(0, 4)}.${month.slice(4)} 기준`
+    : '-';
+  document.getElementById('disabledVisualShare').textContent = `${latest.visual_share_pct ?? '-'}%`;
+  document.getElementById('disabledSevere').textContent = `${formatCount(degree['심한 장애'])}명`;
+  document.getElementById('disabledMild').textContent = `${formatCount(degree['심하지 않은 장애'])}명`;
+
+  const bars = document.getElementById('disabledRegionBars');
+  if (!bars) return;
+  const top = (regions || []).slice(0, 6);
+  if (top.length === 0) {
+    bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
+    return;
+  }
+  const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
+  bars.innerHTML = top.map(item => {
+    const label = item.sigungu === '소계' ? item.sido : item.sigungu;
+    const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
+    return `
+      <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
+        <span>${escapeHtml(label)}</span>
+        <div class="disabled-region-track">
+          <div class="disabled-region-fill" style="width:${width}%"></div>
+        </div>
+        <strong>${formatCount(item.visual_disabled)}</strong>
+      </div>
+    `;
+  }).join('');
+}
+
 /**
  * 서버의 /history/{sessionId} 를 호출해 24시간 내역을 가져온다.
  * 실패해도 조용히 무시 (내역은 부가 정보이므로 앱 동작에 영향 없음).
@@ -1926,6 +2069,7 @@ fetchHistory();
 setInterval(fetchHistory, HISTORY_POLL_MS);
 fetchDashboardSummary();
 setInterval(fetchDashboardSummary, SUMMARY_POLL_MS);
+fetchDisabledPopulationContext();
 
 // 세션 변경 시 내역도 즉시 갱신
 function refreshHistory() { fetchHistory(); }
