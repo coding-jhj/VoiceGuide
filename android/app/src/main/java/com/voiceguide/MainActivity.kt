@@ -1884,11 +1884,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                         lastCriticalTime = now
                         pendingStatusText = sentence
                         tts.setSpeechRate(1.0f)
-                        if (forceSpeak || isVehicleDanger) {
-                            speakBuiltIn(sentence, immediate = true)
-                        } else {
-                            speak(sentence)
-                        }
+                        // 1) 비프음 즉시 (경고 피로 감소: 소리·진동으로 먼저 주의 환기)
+                        toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                        // 2) 500ms 후 TTS (분석 중지 시 재생 안 함)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (!isAnalyzing.get() && !forceSpeak) return@postDelayed
+                            if (forceSpeak || isVehicleDanger) speakBuiltIn(sentence, immediate = true)
+                            else speak(sentence)
+                        }, 500L)
                     }
                 }
                 "beep" -> {
