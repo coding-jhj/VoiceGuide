@@ -129,7 +129,7 @@ class MvpPipeline {
     }
 
     private fun bboxDistanceM(det: Detection): Float {
-        return VoicePolicy.calcDistBboxM(det.w, det.h).toFloat().coerceIn(0.2f, 15f)
+        return VoicePolicy.calcDistBboxM(det.classKo, det.w, det.h).toFloat().coerceIn(0.2f, 15f)
     }
 
     private fun computeRisk(det: Detection): Float {
