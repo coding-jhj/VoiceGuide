@@ -22,6 +22,8 @@ import hashlib
 import json
 import asyncio
 from collections import defaultdict
+from functools import lru_cache
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Body, Form, Header, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -52,6 +54,41 @@ from src.api.detections import normalize_detection_objects, normalize_legacy_det
 from src.api.tracker import get_tracker
 
 router = APIRouter()
+
+_ROOT_DIR = Path(__file__).resolve().parents[2]
+_PEDESTRIAN_HOTSPOT_DIR = _ROOT_DIR / "datasets" / "pedestrian_hotspots"
+_PEDESTRIAN_SUMMARY_PATH = _PEDESTRIAN_HOTSPOT_DIR / "pedestrian_hotspots_summary.json"
+_PEDESTRIAN_CLUSTERS_PATH = _PEDESTRIAN_HOTSPOT_DIR / "pedestrian_hotspot_clusters.geojson"
+
+
+@lru_cache(maxsize=4)
+def _load_json_artifact(path: str) -> dict:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _require_pedestrian_artifact(path: Path) -> dict:
+    if not path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Pedestrian hotspot artifact not found: {path}",
+        )
+    return _load_json_artifact(str(path))
+
+
+def _distance_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    import math
+
+    radius = 6_371_000.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 @router.get("/api/policy")
 async def get_voice_policy(
@@ -769,6 +806,77 @@ async def get_heatmap(session_id: str, hours: int = 24):
     req_session_id = _normalize_session_id(device_id=session_id)
     points = db.get_heatmap_data(req_session_id, hours=hours)
     return {"session_id": req_session_id, "hours": hours, "points": points}
+
+
+@router.get("/pedestrian-hotspots/summary", dependencies=[Depends(_verify_api_key)])
+async def get_pedestrian_hotspot_summary():
+    """Dashboard summary for preprocessed pedestrian accident hotspots."""
+    return _require_pedestrian_artifact(_PEDESTRIAN_SUMMARY_PATH)
+
+
+@router.get("/pedestrian-hotspots/clusters", dependencies=[Depends(_verify_api_key)])
+async def get_pedestrian_hotspot_clusters(risk_level: str = "high", limit: int = 300):
+    """Return clustered pedestrian accident hotspots as GeoJSON.
+
+    The dashboard uses clustered points instead of the full polygon dataset by
+    default so the map stays responsive while still showing repeated danger
+    areas. Pass risk_level=all to include every cluster.
+    """
+    limit = max(1, min(limit, 2000))
+    wanted = {item.strip() for item in risk_level.split(",") if item.strip()}
+    include_all = not wanted or "all" in wanted
+    geojson = _require_pedestrian_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+    features = geojson.get("features", [])
+    if not include_all:
+        features = [
+            feature for feature in features
+            if feature.get("properties", {}).get("risk_level") in wanted
+        ]
+    features = sorted(
+        features,
+        key=lambda feature: feature.get("properties", {}).get("max_risk_score", 0),
+        reverse=True,
+    )[:limit]
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+        "count": len(features),
+        "risk_level": risk_level,
+    }
+
+
+@router.get("/pedestrian-hotspots/nearby", dependencies=[Depends(_verify_api_key)])
+async def get_nearby_pedestrian_hotspots(
+    lat: float,
+    lng: float,
+    radius_m: float = 300.0,
+    limit: int = 10,
+):
+    """Return nearby pedestrian accident hotspot clusters for GPS-based warnings."""
+    radius_m = max(10.0, min(radius_m, 2000.0))
+    limit = max(1, min(limit, 50))
+    geojson = _require_pedestrian_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+    nearby = []
+    for feature in geojson.get("features", []):
+        props = dict(feature.get("properties", {}))
+        center_lat = float(props.get("center_lat", feature["geometry"]["coordinates"][1]))
+        center_lng = float(props.get("center_lng", feature["geometry"]["coordinates"][0]))
+        distance = _distance_m(lat, lng, center_lat, center_lng)
+        if distance <= radius_m:
+            props["distance_m"] = round(distance, 1)
+            nearby.append({**feature, "properties": props})
+    nearby.sort(
+        key=lambda feature: (
+            feature["properties"]["distance_m"],
+            -float(feature["properties"].get("max_risk_score", 0)),
+        )
+    )
+    return {
+        "type": "FeatureCollection",
+        "features": nearby[:limit],
+        "count": len(nearby[:limit]),
+        "radius_m": radius_m,
+    }
 
 
 @router.get("/dashboard", dependencies=[Depends(_verify_api_key)])

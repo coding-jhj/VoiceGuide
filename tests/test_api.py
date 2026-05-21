@@ -402,6 +402,33 @@ def test_dashboard_summary_groups_recent_events_by_session():
     assert sessions[session_id]["top_objects"][0]["class_ko"] == "자동차"
 
 
+def test_pedestrian_hotspot_dashboard_endpoints():
+    summary = client.get("/pedestrian-hotspots/summary")
+    assert summary.status_code == 200
+    summary_body = summary.json()
+    assert summary_body["record_count"] == 1984
+    assert summary_body["risk_level_counts"]["high"] > 0
+
+    clusters = client.get("/pedestrian-hotspots/clusters", params={"risk_level": "high", "limit": 5})
+    assert clusters.status_code == 200
+    clusters_body = clusters.json()
+    assert clusters_body["type"] == "FeatureCollection"
+    assert clusters_body["count"] == 5
+    first = clusters_body["features"][0]
+    assert first["geometry"]["type"] == "Point"
+    assert first["properties"]["risk_level"] == "high"
+    assert first["properties"]["max_risk_score"] >= clusters_body["features"][-1]["properties"]["max_risk_score"]
+
+    nearby = client.get(
+        "/pedestrian-hotspots/nearby",
+        params={"lat": 37.612888751869, "lng": 127.030288014848, "radius_m": 300},
+    )
+    assert nearby.status_code == 200
+    nearby_body = nearby.json()
+    assert nearby_body["count"] >= 1
+    assert nearby_body["features"][0]["properties"]["distance_m"] <= 300
+
+
 def test_locations_route_saves_and_lists_by_session():
     session = f"test_locations_{uuid.uuid4().hex}"
     label = "테스트 출입구"

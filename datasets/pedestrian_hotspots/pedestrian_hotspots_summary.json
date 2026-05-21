@@ -1,0 +1,478 @@
+{
+  "dataset": "pedestrian_hotspots_2019_2024",
+  "source_file": "C:\\Users\\ghksw\\Downloads\\19_24_pedstrians.csv",
+  "encoding_in": "cp949",
+  "encoding_out": "utf-8",
+  "cluster_radius_m": 120.0,
+  "record_count": 1984,
+  "cluster_count": 1072,
+  "totals": {
+    "accidents": 15797,
+    "casualties": 16921,
+    "deaths": 599,
+    "serious_injuries": 15619,
+    "minor_injuries": 626,
+    "reported_injuries": 77
+  },
+  "risk_level_counts": {
+    "high": 405,
+    "medium": 805,
+    "low": 774
+  },
+  "source_year_counts": {
+    "2022": 609,
+    "2023": 470,
+    "2024": 459,
+    "2025": 446
+  },
+  "top_hotspots": [
+    {
+      "rank": 1,
+      "display_name": "서울 강북구 미아동(미아사거리역 4호선 부근)",
+      "district": "서울 강북구1",
+      "accidents": 22,
+      "casualties": 22,
+      "deaths": 0,
+      "serious_injuries": 22,
+      "risk_score": 110.0,
+      "risk_level": "high",
+      "center_lng": 127.030288014848,
+      "center_lat": 37.612888751869
+    },
+    {
+      "rank": 2,
+      "display_name": "부산 부산진구 부전동(새봄약국 부근)",
+      "district": "부산 부산진구1",
+      "accidents": 17,
+      "casualties": 23,
+      "deaths": 0,
+      "serious_injuries": 21,
+      "risk_score": 103.0,
+      "risk_level": "high",
+      "center_lng": 129.058794371693,
+      "center_lat": 35.159153606742
+    },
+    {
+      "rank": 3,
+      "display_name": "전남 여수시 서교동(한재사거리 부근)",
+      "district": "전라남도 여수시2",
+      "accidents": 7,
+      "casualties": 29,
+      "deaths": 5,
+      "serious_injuries": 7,
+      "risk_score": 101.5,
+      "risk_level": "high",
+      "center_lng": 127.727951576105,
+      "center_lat": 34.742224645852
+    },
+    {
+      "rank": 4,
+      "display_name": "전남 여수시 서교동(한재사거리 부근)",
+      "district": "전남 여수시3",
+      "accidents": 7,
+      "casualties": 28,
+      "deaths": 5,
+      "serious_injuries": 7,
+      "risk_score": 100.5,
+      "risk_level": "high",
+      "center_lng": 127.728811362847,
+      "center_lat": 34.742484414058
+    },
+    {
+      "rank": 5,
+      "display_name": "전남 여수시 서교동(한재사거리 부근)",
+      "district": "전남 여수시1",
+      "accidents": 9,
+      "casualties": 14,
+      "deaths": 5,
+      "serious_injuries": 8,
+      "risk_score": 92.0,
+      "risk_level": "high",
+      "center_lng": 127.728725988346,
+      "center_lat": 34.742381192307
+    },
+    {
+      "rank": 6,
+      "display_name": "부산 중구 남포동5가(남포사거리 부근)",
+      "district": "부산 중구1",
+      "accidents": 17,
+      "casualties": 17,
+      "deaths": 1,
+      "serious_injuries": 16,
+      "risk_score": 91.0,
+      "risk_level": "high",
+      "center_lng": 129.02883901303,
+      "center_lat": 35.097300388601
+    },
+    {
+      "rank": 7,
+      "display_name": "서울 영등포구 영등포동4가(영등포역교차로 부근)",
+      "district": "서울 영등포구1",
+      "accidents": 17,
+      "casualties": 17,
+      "deaths": 1,
+      "serious_injuries": 16,
+      "risk_score": 91.0,
+      "risk_level": "high",
+      "center_lng": 126.906213121914,
+      "center_lat": 37.516585904757
+    },
+    {
+      "rank": 8,
+      "display_name": "부산 부산진구 부전동(부전대형약국 부근)",
+      "district": "부산 부산진구1",
+      "accidents": 15,
+      "casualties": 19,
+      "deaths": 0,
+      "serious_injuries": 19,
+      "risk_score": 91.0,
+      "risk_level": "high",
+      "center_lng": 129.058839307172,
+      "center_lat": 35.159056398122
+    },
+    {
+      "rank": 9,
+      "display_name": "부산 금정구 서동(굿모닝약국 부근)",
+      "district": "부산 금정구1",
+      "accidents": 18,
+      "casualties": 18,
+      "deaths": 0,
+      "serious_injuries": 18,
+      "risk_score": 90.0,
+      "risk_level": "high",
+      "center_lng": 129.105219994253,
+      "center_lat": 35.21458973222
+    },
+    {
+      "rank": 10,
+      "display_name": "부산 금정구 서동(서동메디컬약국 부근)",
+      "district": "부산 금정구1",
+      "accidents": 18,
+      "casualties": 18,
+      "deaths": 0,
+      "serious_injuries": 18,
+      "risk_score": 90.0,
+      "risk_level": "high",
+      "center_lng": 129.105219994253,
+      "center_lat": 35.21458973222
+    },
+    {
+      "rank": 11,
+      "display_name": "부산 중구 남포동5가(남포사거리 부근)",
+      "district": "부산 중구1",
+      "accidents": 16,
+      "casualties": 16,
+      "deaths": 1,
+      "serious_injuries": 15,
+      "risk_score": 86.0,
+      "risk_level": "high",
+      "center_lng": 129.028611253322,
+      "center_lat": 35.097673167988
+    },
+    {
+      "rank": 12,
+      "display_name": "서울 영등포구 영등포동(경인동물의료센터 부근)",
+      "district": "서울 영등포구3",
+      "accidents": 17,
+      "casualties": 18,
+      "deaths": 0,
+      "serious_injuries": 17,
+      "risk_score": 85.5,
+      "risk_level": "high",
+      "center_lng": 126.904496419224,
+      "center_lat": 37.515746246934
+    },
+    {
+      "rank": 13,
+      "display_name": "서울 용산구 한남동(옵티마찬미약국 부근)",
+      "district": "서울 용산구1",
+      "accidents": 13,
+      "casualties": 20,
+      "deaths": 0,
+      "serious_injuries": 17,
+      "risk_score": 84.0,
+      "risk_level": "high",
+      "center_lng": 127.006078471615,
+      "center_lat": 37.532774118339
+    },
+    {
+      "rank": 14,
+      "display_name": "서울 양천구 목동(대명교회 부근)",
+      "district": "서울 양천구6",
+      "accidents": 15,
+      "casualties": 15,
+      "deaths": 1,
+      "serious_injuries": 14,
+      "risk_score": 81.0,
+      "risk_level": "high",
+      "center_lng": 126.871276450618,
+      "center_lat": 37.547138862187
+    },
+    {
+      "rank": 15,
+      "display_name": "경북 포항시 북구 죽도동(죽도동맑은물작은도서관 부근)",
+      "district": "경북 포항시 북구1",
+      "accidents": 15,
+      "casualties": 15,
+      "deaths": 1,
+      "serious_injuries": 14,
+      "risk_score": 81.0,
+      "risk_level": "high",
+      "center_lng": 129.364948190497,
+      "center_lat": 36.034222602188
+    },
+    {
+      "rank": 16,
+      "display_name": "서울 영등포구 영등포동4가(영등포역교차로 부근)",
+      "district": "서울 영등포구1",
+      "accidents": 15,
+      "casualties": 15,
+      "deaths": 1,
+      "serious_injuries": 14,
+      "risk_score": 81.0,
+      "risk_level": "high",
+      "center_lng": 126.906288186299,
+      "center_lat": 37.516109467143
+    },
+    {
+      "rank": 17,
+      "display_name": "서울 동작구 사당동(시장약국 부근)",
+      "district": "서울 동작구1",
+      "accidents": 15,
+      "casualties": 15,
+      "deaths": 1,
+      "serious_injuries": 14,
+      "risk_score": 81.0,
+      "risk_level": "high",
+      "center_lng": 126.981379145543,
+      "center_lat": 37.488240920023
+    },
+    {
+      "rank": 18,
+      "display_name": "부산 동구 초량동(부산역 부산1호선 부근)",
+      "district": "부산 동구1",
+      "accidents": 15,
+      "casualties": 15,
+      "deaths": 1,
+      "serious_injuries": 14,
+      "risk_score": 81.0,
+      "risk_level": "high",
+      "center_lng": 129.039735747759,
+      "center_lat": 35.115290667236
+    },
+    {
+      "rank": 19,
+      "display_name": "부산 부산진구 부전동(스노우델리 부근)",
+      "district": "부산광역시 부산진구1",
+      "accidents": 15,
+      "casualties": 17,
+      "deaths": 0,
+      "serious_injuries": 16,
+      "risk_score": 80.0,
+      "risk_level": "high",
+      "center_lng": 129.059743660942,
+      "center_lat": 35.155137500396
+    },
+    {
+      "rank": 20,
+      "display_name": "서울 강북구 미아동(미아사거리역 4호선 부근)",
+      "district": "서울 강북구1",
+      "accidents": 16,
+      "casualties": 16,
+      "deaths": 0,
+      "serious_injuries": 16,
+      "risk_score": 80.0,
+      "risk_level": "high",
+      "center_lng": 127.030566064752,
+      "center_lat": 37.61300389636
+    }
+  ],
+  "top_districts_by_accidents": [
+    {
+      "district": "부산 부산진구",
+      "hotspot_count": 49,
+      "accidents": 454,
+      "casualties": 508,
+      "deaths": 5,
+      "serious_injuries": 475,
+      "max_risk_score": 103.0
+    },
+    {
+      "district": "서울 중랑구",
+      "hotspot_count": 37,
+      "accidents": 290,
+      "casualties": 307,
+      "deaths": 9,
+      "serious_injuries": 288,
+      "max_risk_score": 59.0
+    },
+    {
+      "district": "서울 동대문구",
+      "hotspot_count": 34,
+      "accidents": 289,
+      "casualties": 300,
+      "deaths": 13,
+      "serious_injuries": 281,
+      "max_risk_score": 69.0
+    },
+    {
+      "district": "부산 남구",
+      "hotspot_count": 26,
+      "accidents": 232,
+      "casualties": 236,
+      "deaths": 12,
+      "serious_injuries": 220,
+      "max_risk_score": 72.0
+    },
+    {
+      "district": "서울 강북구",
+      "hotspot_count": 22,
+      "accidents": 219,
+      "casualties": 231,
+      "deaths": 12,
+      "serious_injuries": 211,
+      "max_risk_score": 110.0
+    },
+    {
+      "district": "서울 관악구",
+      "hotspot_count": 25,
+      "accidents": 195,
+      "casualties": 212,
+      "deaths": 13,
+      "serious_injuries": 185,
+      "max_risk_score": 72.0
+    },
+    {
+      "district": "경기 수원시 팔달구",
+      "hotspot_count": 25,
+      "accidents": 194,
+      "casualties": 201,
+      "deaths": 5,
+      "serious_injuries": 191,
+      "max_risk_score": 61.0
+    },
+    {
+      "district": "서울 동작구",
+      "hotspot_count": 19,
+      "accidents": 181,
+      "casualties": 185,
+      "deaths": 6,
+      "serious_injuries": 178,
+      "max_risk_score": 81.0
+    },
+    {
+      "district": "경기 성남시 수정구",
+      "hotspot_count": 22,
+      "accidents": 174,
+      "casualties": 185,
+      "deaths": 2,
+      "serious_injuries": 178,
+      "max_risk_score": 60.0
+    },
+    {
+      "district": "부산광역시 부산진구",
+      "hotspot_count": 20,
+      "accidents": 173,
+      "casualties": 208,
+      "deaths": 2,
+      "serious_injuries": 180,
+      "max_risk_score": 80.0
+    },
+    {
+      "district": "서울 양천구",
+      "hotspot_count": 20,
+      "accidents": 172,
+      "casualties": 179,
+      "deaths": 4,
+      "serious_injuries": 171,
+      "max_risk_score": 81.0
+    },
+    {
+      "district": "부산 금정구",
+      "hotspot_count": 17,
+      "accidents": 167,
+      "casualties": 170,
+      "deaths": 1,
+      "serious_injuries": 167,
+      "max_risk_score": 90.0
+    },
+    {
+      "district": "부산 동구",
+      "hotspot_count": 19,
+      "accidents": 165,
+      "casualties": 177,
+      "deaths": 7,
+      "serious_injuries": 161,
+      "max_risk_score": 81.0
+    },
+    {
+      "district": "서울 종로구",
+      "hotspot_count": 19,
+      "accidents": 161,
+      "casualties": 173,
+      "deaths": 10,
+      "serious_injuries": 161,
+      "max_risk_score": 68.0
+    },
+    {
+      "district": "경기 평택시",
+      "hotspot_count": 20,
+      "accidents": 158,
+      "casualties": 163,
+      "deaths": 8,
+      "serious_injuries": 154,
+      "max_risk_score": 52.0
+    },
+    {
+      "district": "서울 송파구",
+      "hotspot_count": 18,
+      "accidents": 149,
+      "casualties": 164,
+      "deaths": 4,
+      "serious_injuries": 154,
+      "max_risk_score": 75.0
+    },
+    {
+      "district": "서울 은평구",
+      "hotspot_count": 18,
+      "accidents": 149,
+      "casualties": 161,
+      "deaths": 2,
+      "serious_injuries": 151,
+      "max_risk_score": 74.0
+    },
+    {
+      "district": "서울 서초구",
+      "hotspot_count": 17,
+      "accidents": 147,
+      "casualties": 156,
+      "deaths": 3,
+      "serious_injuries": 148,
+      "max_risk_score": 70.0
+    },
+    {
+      "district": "부산 사하구",
+      "hotspot_count": 19,
+      "accidents": 144,
+      "casualties": 152,
+      "deaths": 2,
+      "serious_injuries": 144,
+      "max_risk_score": 56.5
+    },
+    {
+      "district": "부산 중구",
+      "hotspot_count": 15,
+      "accidents": 140,
+      "casualties": 146,
+      "deaths": 4,
+      "serious_injuries": 137,
+      "max_risk_score": 91.0
+    }
+  ],
+  "notes": [
+    "risk_score = accidents + deaths*10 + serious_injuries*4 + minor_injuries + reported_injuries*0.5",
+    "risk_level is quantile-based: top 20 percent high, next 40 percent medium, remaining low.",
+    "cluster GeoJSON groups records within the configured radius to expose repeated nearby danger zones."
+  ],
+  "raw_copy": "C:\\VoiceGuide\\VoiceGuide\\datasets\\pedestrian_hotspots\\19_24_pedestrians_raw_cp949.csv"
+}

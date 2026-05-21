@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY src/ ./src/
 COPY templates/ ./templates/
+COPY datasets/pedestrian_hotspots/ ./datasets/pedestrian_hotspots/
 
 # Cloud Run injects PORT. This process only handles JSON/state/dashboard work;
 # YOLO inference runs on the Android client.

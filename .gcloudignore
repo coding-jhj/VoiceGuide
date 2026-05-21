@@ -19,15 +19,24 @@ build/
 
 android/
 train/
+remotion-video/
 tools/
 tests/
 docs/
 data/
 models/
-datasets/
+datasets/*
+!datasets/pedestrian_hotspots/
+!datasets/pedestrian_hotspots/**
 runs/
+outputs/
+tmp/
+perf_report/
+.claude/
+.ruff_cache/
 flagged/
 __tts_cache__/
+perf_log.txt
 
 *.pt
 *.pth
