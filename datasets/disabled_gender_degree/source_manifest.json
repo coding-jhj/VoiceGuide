@@ -1,0 +1,29 @@
+{
+  "source_dir": "C:\\Users\\ghksw\\Downloads\\장애인등록 장애정도별 성별 장애인수(202601~202604)",
+  "files": [
+    {
+      "file_name": "PDQCSV_23_20260515014522455.csv",
+      "encoding": "cp949",
+      "row_count": 919,
+      "size_bytes": 43696
+    },
+    {
+      "file_name": "PDQCSV_23_20260515014524702.csv",
+      "encoding": "cp949",
+      "row_count": 919,
+      "size_bytes": 43683
+    },
+    {
+      "file_name": "PDQCSV_23_20260515014526952.csv",
+      "encoding": "cp949",
+      "row_count": 919,
+      "size_bytes": 43696
+    },
+    {
+      "file_name": "PDQCSV_23_20260515014529279.csv",
+      "encoding": "cp949",
+      "row_count": 919,
+      "size_bytes": 43695
+    }
+  ]
+}

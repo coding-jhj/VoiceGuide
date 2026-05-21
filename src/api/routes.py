@@ -64,6 +64,10 @@ _DISABLED_POPULATION_SUMMARY_PATH = _DISABLED_POPULATION_DIR / "disabled_populat
 _DISABLED_POPULATION_REGIONS_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_regions.json"
 _DISABLED_POPULATION_TREND_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_trend.json"
 _DISABLED_POPULATION_BY_TYPE_PATH = _DISABLED_POPULATION_DIR / "disabled_population_by_type_latest.json"
+_DISABLED_GENDER_DEGREE_DIR = _ROOT_DIR / "datasets" / "disabled_gender_degree"
+_DISABLED_GENDER_DEGREE_SUMMARY_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_summary.json"
+_DISABLED_GENDER_DEGREE_REGIONS_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_regions.json"
+_DISABLED_GENDER_DEGREE_TREND_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_trend.json"
 _SIDO_ALIASES = {
     "서울": "서울특별시",
     "부산": "부산광역시",
@@ -137,6 +141,23 @@ def _find_disabled_region(sido: str, sigungu_candidates: list[str]) -> dict | No
     if not sido:
         return None
     regions = _require_json_artifact(_DISABLED_POPULATION_REGIONS_PATH)
+    sido_regions = [row for row in regions if row.get("sido") == sido]
+    for candidate in sigungu_candidates:
+        for row in sido_regions:
+            if row.get("sigungu") == candidate:
+                return row
+    for candidate in sigungu_candidates:
+        for row in sido_regions:
+            name = str(row.get("sigungu", ""))
+            if candidate and (candidate in name or name in candidate):
+                return row
+    return None
+
+
+def _find_gender_degree_region(sido: str, sigungu_candidates: list[str]) -> dict | None:
+    if not sido:
+        return None
+    regions = _require_json_artifact(_DISABLED_GENDER_DEGREE_REGIONS_PATH)
     sido_regions = [row for row in regions if row.get("sido") == sido]
     for candidate in sigungu_candidates:
         for row in sido_regions:
@@ -1014,6 +1035,78 @@ async def get_disabled_population_trend():
 async def get_disabled_population_types():
     """Return latest registered disabled population by disability type."""
     return {"types": _require_json_artifact(_DISABLED_POPULATION_BY_TYPE_PATH)}
+
+
+@router.get("/disabled-gender-degree/summary", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_gender_degree_summary():
+    """Latest disabled population summary by gender and disability degree."""
+    return _require_json_artifact(_DISABLED_GENDER_DEGREE_SUMMARY_PATH)
+
+
+@router.get("/disabled-gender-degree/regions", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_gender_degree_regions(limit: int = 20, sido: str = ""):
+    """Return latest disabled population by gender, degree, and administrative region."""
+    limit = max(1, min(limit, 300))
+    regions = _require_json_artifact(_DISABLED_GENDER_DEGREE_REGIONS_PATH)
+    if sido:
+        regions = [row for row in regions if row.get("sido") == sido]
+    return {
+        "regions": regions[:limit],
+        "count": len(regions[:limit]),
+        "limit": limit,
+        "sido": sido,
+    }
+
+
+@router.get("/disabled-gender-degree/nearby", dependencies=[Depends(_verify_api_key)])
+async def get_nearby_disabled_gender_degree_context(
+    lat: float,
+    lng: float,
+    radius_m: float = 3000.0,
+):
+    """Return gender and degree context for the city/district nearest the current GPS."""
+    radius_m = max(100.0, min(radius_m, 10000.0))
+    summary = _require_json_artifact(_DISABLED_GENDER_DEGREE_SUMMARY_PATH)
+    geojson = _require_json_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+
+    nearest: tuple[float, dict] | None = None
+    for feature in geojson.get("features", []):
+        props = dict(feature.get("properties", {}))
+        center_lat = float(props.get("center_lat", feature["geometry"]["coordinates"][1]))
+        center_lng = float(props.get("center_lng", feature["geometry"]["coordinates"][0]))
+        distance = _distance_m(lat, lng, center_lat, center_lng)
+        if distance > radius_m:
+            continue
+        if nearest is None or distance < nearest[0]:
+            nearest = (distance, props)
+
+    region = None
+    matched_hotspot = None
+    if nearest is not None:
+        distance, props = nearest
+        district = props.get("representative_district") or props.get("representative_place_name") or ""
+        sido, sigungu_candidates = _parse_hotspot_district(str(district))
+        region = _find_gender_degree_region(sido, sigungu_candidates)
+        matched_hotspot = {
+            "cluster_id": props.get("cluster_id"),
+            "display_name": props.get("display_name"),
+            "district": district,
+            "distance_m": round(distance, 1),
+        }
+
+    return {
+        "summary": summary,
+        "region": region,
+        "matched_hotspot": matched_hotspot,
+        "scope": "region" if region else "national",
+        "radius_m": radius_m,
+    }
+
+
+@router.get("/disabled-gender-degree/trend", dependencies=[Depends(_verify_api_key)])
+async def get_disabled_gender_degree_trend():
+    """Return monthly disabled population trend by gender and disability degree."""
+    return {"trend": _require_json_artifact(_DISABLED_GENDER_DEGREE_TREND_PATH)}
 
 
 @router.get("/dashboard", dependencies=[Depends(_verify_api_key)])

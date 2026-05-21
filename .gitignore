@@ -51,6 +51,8 @@ datasets/*
 !datasets/pedestrian_hotspots/**
 !datasets/disabled_population/
 !datasets/disabled_population/**
+!datasets/disabled_gender_degree/
+!datasets/disabled_gender_degree/**
 
 # 학습 실행 결과 (로컬 전용)
 runs/detect/runs/train/roboflow_v1_warmup

@@ -1,0 +1,34 @@
+[
+  {
+    "month": "202601",
+    "total_disabled": 2625276,
+    "male": 1523797,
+    "female": 1101479,
+    "severe": 962424,
+    "mild": 1662852
+  },
+  {
+    "month": "202602",
+    "total_disabled": 2590866,
+    "male": 1502620,
+    "female": 1088246,
+    "severe": 949792,
+    "mild": 1641074
+  },
+  {
+    "month": "202603",
+    "total_disabled": 2622872,
+    "male": 1522806,
+    "female": 1100066,
+    "severe": 961066,
+    "mild": 1661806
+  },
+  {
+    "month": "202604",
+    "total_disabled": 2624025,
+    "male": 1523612,
+    "female": 1100413,
+    "severe": 961628,
+    "mild": 1662397
+  }
+]

@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>장애정도별 성별 등록장애인 데이터 VoiceGuide 반영 계획</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --ink: #17202a;
+      --muted: #5d6b7a;
+      --panel: #ffffff;
+      --line: #dce4ee;
+      --navy: #1d314b;
+      --blue: #2f6fed;
+      --cyan: #2d9cbd;
+      --green: #23846f;
+      --amber: #c77a20;
+      --red: #d24a43;
+      --purple: #6556c7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: "Segoe UI", "Malgun Gothic", Arial, sans-serif;
+      line-height: 1.58;
+    }
+
+    header {
+      background: var(--navy);
+      color: #fff;
+      padding: 36px 24px 30px;
+    }
+
+    .wrap,
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 22px;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    main {
+      padding: 24px 18px 44px;
+    }
+
+    section {
+      margin: 18px 0;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    code {
+      padding: 2px 5px;
+      background: #eef3fa;
+      border-radius: 4px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.94em;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 16px;
+      background: #101827;
+      color: #e7edf7;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef3fa;
+      color: #23364d;
+    }
+
+    ul,
+    ol {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    li {
+      margin: 6px 0;
+    }
+
+    .lead {
+      max-width: 870px;
+      color: #dce8f5;
+      font-size: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      margin: 4px 5px 0 0;
+      border-radius: 999px;
+      background: #eaf0f8;
+      color: #31445c;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .card {
+      padding: 16px;
+      background: #f8fbff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .card strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--blue);
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .flow div {
+      min-height: 96px;
+      padding: 14px;
+      border-left: 4px solid var(--blue);
+      background: #f8fbff;
+      border-radius: 8px;
+    }
+
+    .mock {
+      display: grid;
+      grid-template-columns: 280px 1fr 260px;
+      gap: 10px;
+      padding: 12px;
+      background: #111625;
+      color: #d8e0f0;
+      border-radius: 10px;
+    }
+
+    .mock-panel {
+      min-height: 230px;
+      padding: 12px;
+      background: #1a2034;
+      border: 1px solid #2c3554;
+      border-radius: 8px;
+    }
+
+    .mock-map {
+      min-height: 230px;
+      padding: 12px;
+      background: linear-gradient(135deg, #253035, #1f2533);
+      border: 1px solid #3d465f;
+      border-radius: 8px;
+    }
+
+    .bar {
+      height: 8px;
+      margin: 8px 0;
+      overflow: hidden;
+      background: #2c3554;
+      border-radius: 999px;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: var(--cyan);
+    }
+
+    .callout {
+      border-left: 5px solid var(--amber);
+      background: #fff8eb;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .flow,
+      .mock {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>장애정도별 성별 등록장애인 데이터 반영 계획</h1>
+      <p class="lead">
+        <code>장애인등록 장애정도별 성별 장애인수(202601~202604)</code> CSV 4개를
+        VoiceGuide의 대시보드/심사자료/지역 안전 맥락에 반영하기 위한 전처리와 UI 적용 계획입니다.
+      </p>
+      <div>
+        <span class="pill">CSV 4개</span>
+        <span class="pill">2026.01~2026.04</span>
+        <span class="pill">시도·시군구</span>
+        <span class="pill">장애정도</span>
+        <span class="pill">성별</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. 이 데이터의 역할</h2>
+      <p>
+        기존에 반영한 장애유형별 데이터는 “시각장애 등록 현황”을 보여주는 데 적합합니다.
+        이번 성별 데이터는 특정 장애유형이 아니라 전체 등록장애인의 성별·장애정도 분포를 다루므로,
+        앱 사용자를 직접 추정하는 데이터가 아니라 <strong>지역 복지 수요와 접근성 배경을 설명하는 보조 지표</strong>로 쓰는 것이 안전합니다.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>기존 장애유형별 데이터</th>
+            <th>이번 장애정도별 성별 데이터</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>핵심 질문</td>
+            <td>시각장애인이 어느 지역에 얼마나 있는가?</td>
+            <td>전체 등록장애인의 성별·중증도 분포는 어떤가?</td>
+          </tr>
+          <tr>
+            <td>대시보드 사용</td>
+            <td>현재 위치 도시의 시각장애 등록 인원 표시</td>
+            <td>현재 위치 도시의 남/여, 심한/심하지 않은 장애 비중 보조 표시</td>
+          </tr>
+          <tr>
+            <td>심사자료 사용</td>
+            <td>VoiceGuide의 직접 대상자 규모 근거</td>
+            <td>장애인 이동안전 서비스의 사회적 필요성 보강 근거</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>2. 원본 데이터 확인 결과</h2>
+      <p>컬럼 구조는 다음과 같습니다.</p>
+      <pre><code>통계연월, 통계시도명, 통계시군구명, 장애정도, 성별, 등록장애인수</code></pre>
+      <div class="grid">
+        <div class="card">
+          <span class="muted">최신 기준월</span>
+          <strong>2026.04</strong>
+        </div>
+        <div class="card">
+          <span class="muted">최신월 전체 등록장애인</span>
+          <strong>2,624,025명</strong>
+        </div>
+        <div class="card">
+          <span class="muted">남자</span>
+          <strong>1,523,612명</strong>
+        </div>
+        <div class="card">
+          <span class="muted">여자</span>
+          <strong>1,100,413명</strong>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>장애정도</th>
+            <th>2026.04 등록장애인수</th>
+            <th>대시보드 해석</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>심한 장애</td>
+            <td>961,628명</td>
+            <td>보행지원·안전안내 필요도가 더 높은 집단의 규모를 설명하는 보조 지표</td>
+          </tr>
+          <tr>
+            <td>심하지 않은 장애</td>
+            <td>1,662,397명</td>
+            <td>접근성 서비스가 특정 중증 집단만이 아니라 넓은 장애인 이동권과 연결됨을 설명</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>3. 전처리 계획</h2>
+      <div class="flow">
+        <div>
+          <h3>1. CSV 통합</h3>
+          <p>4개 월별 CSV를 하나의 표준 CSV로 합칩니다.</p>
+        </div>
+        <div>
+          <h3>2. 인코딩 정리</h3>
+          <p>원본은 CP949로 읽고 프로젝트 산출물은 UTF-8로 저장합니다.</p>
+        </div>
+        <div>
+          <h3>3. 지역 키 생성</h3>
+          <p><code>sido</code>, <code>sigungu</code>, <code>region_key</code>를 만들어 기존 지역 매칭과 연결합니다.</p>
+        </div>
+        <div>
+          <h3>4. 최신월 집계</h3>
+          <p>지역별 남/여, 심한/심하지 않은 장애 수와 비율을 생성합니다.</p>
+        </div>
+        <div>
+          <h3>5. API 산출물</h3>
+          <p>대시보드가 빠르게 읽을 JSON 파일로 저장합니다.</p>
+        </div>
+      </div>
+
+      <h3>생성할 산출물</h3>
+      <pre><code>datasets/disabled_gender_degree/
+  disabled_gender_degree.csv
+  disabled_gender_degree_summary.json
+  disabled_gender_degree_regions.json
+  disabled_gender_degree_trend.json
+  source_manifest.json</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>파일</th>
+            <th>내용</th>
+            <th>사용처</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>disabled_gender_degree.csv</code></td>
+            <td>월/시도/시군구/장애정도/성별/인원 표준화 원천</td>
+            <td>검증, 재집계, 추후 분석</td>
+          </tr>
+          <tr>
+            <td><code>disabled_gender_degree_summary.json</code></td>
+            <td>최신월 전국 남녀·장애정도 요약</td>
+            <td>대시보드 우측 또는 문서용 KPI</td>
+          </tr>
+          <tr>
+            <td><code>disabled_gender_degree_regions.json</code></td>
+            <td>최신월 시군구별 남녀·장애정도 집계</td>
+            <td>현재 GPS 위치의 도시 보조 지표</td>
+          </tr>
+          <tr>
+            <td><code>disabled_gender_degree_trend.json</code></td>
+            <td>2026.01~2026.04 월별 변화</td>
+            <td>심사자료/추세 차트</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>4. API 반영 계획</h2>
+      <p>
+        기존 <code>/disabled-population/nearby</code>는 현재 위치 주변 사고다발구역을 기준으로 행정구역을 찾습니다.
+        같은 매칭 방식을 재사용해 성별·장애정도 데이터도 현재 도시 기준으로 조회하도록 붙입니다.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>API</th>
+            <th>반환 내용</th>
+            <th>대시보드 사용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>GET /disabled-gender-degree/summary</code></td>
+            <td>최신월 전국 남/여, 심한/심하지 않은 장애 요약</td>
+            <td>전국 기준 보조 카드</td>
+          </tr>
+          <tr>
+            <td><code>GET /disabled-gender-degree/regions?limit=20</code></td>
+            <td>시군구별 등록장애인 성별·장애정도 집계</td>
+            <td>상위 지역 목록, 내부 검증</td>
+          </tr>
+          <tr>
+            <td><code>GET /disabled-gender-degree/nearby?lat=&amp;lng=</code></td>
+            <td>현재 GPS와 가장 가까운 사고다발구역의 행정구 기준 성별·장애정도 분포</td>
+            <td>현재 위치 도시의 보조 통계</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>5. 대시보드 UI 적용안</h2>
+      <p>
+        현재 좌측 패널에는 이미 “시각장애 등록 현황”이 있으므로, 별도 큰 카드로 추가하면 실시간 탐지 내역을 다시 밀어낼 수 있습니다.
+        따라서 이번 데이터는 기존 카드 안에 <strong>접히는 보조 줄</strong> 또는 <strong>작은 토글 탭</strong>으로 넣는 것이 가장 안전합니다.
+      </p>
+      <div class="mock">
+        <div class="mock-panel">
+          <h3>좌측 현황 패널</h3>
+          <p class="muted">실시간 현황</p>
+          <p>위험 0 · 주의 0 · 안전 0</p>
+          <p class="muted">탐지된 물체</p>
+          <p>실시간 탐지 목록 유지</p>
+        </div>
+        <div class="mock-map">
+          <h3>지도</h3>
+          <p>사고다발구역 / 현재 위치 / 경로 표시</p>
+        </div>
+        <div class="mock-panel">
+          <h3>현재 도시 복지 맥락</h3>
+          <p>시각장애 등록: 1,852명</p>
+          <div class="bar"><span style="width: 58%"></span></div>
+          <p>전체 등록장애인: 7,420명</p>
+          <p>남자 57% · 여자 43%</p>
+          <p>심한 장애 36% · 심하지 않은 장애 64%</p>
+        </div>
+      </div>
+
+      <h3>권장 UI 문구</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>위치</th>
+            <th>문구</th>
+            <th>이유</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>카드 제목</td>
+            <td>현재 도시 등록장애인 현황</td>
+            <td>시각장애 전용 데이터와 전체 장애인 데이터를 구분</td>
+          </tr>
+          <tr>
+            <td>보조 설명</td>
+            <td>지역 통계 기준, 개인 정보와 무관</td>
+            <td>개인 장애 여부를 추정하지 않는다는 점을 명확히 함</td>
+          </tr>
+          <tr>
+            <td>지도 툴팁</td>
+            <td>이 지역 등록장애인 성별·장애정도 분포</td>
+            <td>사고다발구역과 복지 수요 맥락을 연결</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>6. 실제 구현 순서</h2>
+      <ol>
+        <li><code>tools/preprocess_disabled_gender_degree.py</code> 생성</li>
+        <li>원본 CSV 4개를 읽어 <code>datasets/disabled_gender_degree/</code>에 UTF-8 산출물 저장</li>
+        <li><code>src/api/routes.py</code>에 summary, regions, nearby API 추가</li>
+        <li><code>templates/dashboard.html</code>의 기존 시각장애 카드에 작은 성별·장애정도 보조 영역 추가</li>
+        <li><code>tests/test_api.py</code>에 최신월 총합, 성별 합계, GPS 지역 매칭 테스트 추가</li>
+        <li>로컬 테스트 통과 후 커밋/푸시, Cloud Run 재배포</li>
+      </ol>
+
+      <h3>예상 테스트</h3>
+      <pre><code>python -m pytest tests/test_api.py -q
+python tools/preprocess_disabled_gender_degree.py
+gcloud run deploy voiceguide --source . --region asia-northeast3 --allow-unauthenticated</code></pre>
+    </section>
+
+    <section class="callout">
+      <h2>7. 주의할 점</h2>
+      <ul>
+        <li>이 데이터는 전체 등록장애인 기준이며, 시각장애인 성별 분포가 아닙니다.</li>
+        <li>사용자의 성별, 장애정도, 장애 여부를 추정하거나 저장하는 용도로 쓰면 안 됩니다.</li>
+        <li>대시보드에서는 “현재 도시의 공공 통계”로만 표시하고, 개인 맞춤 판단처럼 보이는 문구는 피합니다.</li>
+        <li>실시간 탐지 UI를 밀어내지 않도록 기존 카드 내부의 접힘 영역이나 작은 보조 지표로만 반영합니다.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>최종 권장안</h2>
+      <p>
+        이번 CSV는 “시각장애인 수”를 대체하지 않고, 현재 위치 도시의 전체 등록장애인 성별·장애정도 분포를 보조로 보여주는 방식이 가장 적합합니다.
+        즉, VoiceGuide의 핵심 화면에서는 <strong>시각장애 등록 현황을 메인</strong>으로 유지하고,
+        이번 데이터는 <strong>지역 복지 수요/사회적 필요성/심사자료 보강</strong>에 활용하는 구조가 좋습니다.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

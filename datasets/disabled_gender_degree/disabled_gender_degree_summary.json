@@ -1,0 +1,93 @@
+{
+  "dataset": "disabled_gender_degree_202601_202604",
+  "source_dir": "C:\\Users\\ghksw\\Downloads\\장애인등록 장애정도별 성별 장애인수(202601~202604)",
+  "source_file_count": 4,
+  "source_encoding": "cp949",
+  "output_encoding": "utf-8",
+  "row_count": 3676,
+  "month": {
+    "first": "202601",
+    "latest": "202604",
+    "count": 4
+  },
+  "latest": {
+    "month": "202604",
+    "total_disabled": 2624025,
+    "by_gender": {
+      "남자": 1523612,
+      "여자": 1100413
+    },
+    "by_degree": {
+      "심한 장애": 961628,
+      "심하지 않은 장애": 1662397
+    },
+    "male_share_pct": 58.06,
+    "female_share_pct": 41.94,
+    "severe_share_pct": 36.65,
+    "mild_share_pct": 63.35,
+    "top_regions": [
+      {
+        "sido": "경상남도",
+        "sigungu": "창원시",
+        "total_disabled": 50236
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "수원시",
+        "total_disabled": 44681
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "고양시",
+        "total_disabled": 41948
+      },
+      {
+        "sido": "충청북도",
+        "sigungu": "청주시",
+        "total_disabled": 40298
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "용인시",
+        "total_disabled": 38156
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "부천시",
+        "total_disabled": 37362
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "성남시",
+        "total_disabled": 35485
+      },
+      {
+        "sido": "전북특별자치도",
+        "sigungu": "전주시",
+        "total_disabled": 33454
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "화성시",
+        "total_disabled": 33398
+      },
+      {
+        "sido": "경기도",
+        "sigungu": "남양주시",
+        "total_disabled": 33269
+      }
+    ]
+  },
+  "dashboard_copy": {
+    "title": "현재 도시 등록장애인 현황",
+    "subtitle": "2026.04 기준",
+    "main_stat": "2,624,025명",
+    "supporting_stat": "성별·장애정도별 전체 등록장애인 공공 통계",
+    "caution": "전체 등록장애인 통계이며 시각장애 전용 또는 개인 정보가 아닙니다."
+  },
+  "notes": [
+    "Use as regional welfare context, not as personal user inference.",
+    "This dataset is all registered disabled people by gender and degree.",
+    "Keep visual disability counts from disabled_population as the primary VoiceGuide target context."
+  ]
+}

@@ -285,6 +285,26 @@
     background: var(--accent2);
   }
 
+  .disabled-demographic-summary {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .disabled-demographic-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .disabled-demographic-row strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+
   /* 탐지 물체 목록 */
   .objects-list {
     flex: 1 1 96px;
@@ -894,6 +914,20 @@
           </div>
           <div class="disabled-region-bars" id="disabledRegionBars">
             <div style="font-size:11px;color:var(--muted);">지역 통계 불러오는 중...</div>
+          </div>
+          <div class="disabled-demographic-summary" id="disabledDemographicSummary">
+            <div class="disabled-demographic-row">
+              <span>전체 등록장애인</span>
+              <strong id="disabledGenderTotal">-</strong>
+            </div>
+            <div class="disabled-demographic-row">
+              <span>남/여</span>
+              <strong id="disabledGenderMix">-</strong>
+            </div>
+            <div class="disabled-demographic-row">
+              <span>심한/심하지 않은 장애</span>
+              <strong id="disabledDegreeMix">-</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -1939,58 +1973,6 @@ function renderDashboardSummary(data) {
   });
 }
 
-async function fetchDisabledPopulationContext() {
-  try {
-    const [summaryRes, regionsRes] = await Promise.all([
-      fetch(`${SERVER_BASE}/disabled-population/summary`),
-      fetch(`${SERVER_BASE}/disabled-population/regions?limit=6`),
-    ]);
-    if (!summaryRes.ok || !regionsRes.ok) return;
-    const summary = await summaryRes.json();
-    const regions = await regionsRes.json();
-    renderDisabledPopulationContext(summary, regions.regions ?? []);
-  } catch (_) {
-    const box = document.getElementById('disabledRegionBars');
-    if (box) box.innerHTML = '<div style="font-size:11px;color:var(--muted);">등록 통계를 불러오지 못했습니다.</div>';
-  }
-}
-
-function renderDisabledPopulationContext(summary, regions) {
-  const latest = summary.latest ?? {};
-  const month = latest.month ?? summary.month?.latest ?? '';
-  const degree = latest.visual_by_degree ?? {};
-
-  document.getElementById('disabledVisualTotal').textContent = `${formatCount(latest.visual_disabled)}명`;
-  document.getElementById('disabledMonth').textContent = month
-    ? `${month.slice(0, 4)}.${month.slice(4)} 기준`
-    : '-';
-  document.getElementById('disabledVisualShare').textContent = `${latest.visual_share_pct ?? '-'}%`;
-  document.getElementById('disabledSevere').textContent = `${formatCount(degree['심한 장애'])}명`;
-  document.getElementById('disabledMild').textContent = `${formatCount(degree['심하지 않은 장애'])}명`;
-
-  const bars = document.getElementById('disabledRegionBars');
-  if (!bars) return;
-  const top = (regions || []).slice(0, 6);
-  if (top.length === 0) {
-    bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
-    return;
-  }
-  const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
-  bars.innerHTML = top.map(item => {
-    const label = item.sigungu === '소계' ? item.sido : item.sigungu;
-    const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
-    return `
-      <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
-        <span>${escapeHtml(label)}</span>
-        <div class="disabled-region-track">
-          <div class="disabled-region-fill" style="width:${width}%"></div>
-        </div>
-        <strong>${formatCount(item.visual_disabled)}</strong>
-      </div>
-    `;
-  }).join('');
-}
-
 /**
  * 서버의 /history/{sessionId} 를 호출해 24시간 내역을 가져온다.
  * 실패해도 조용히 무시 (내역은 부가 정보이므로 앱 동작에 영향 없음).
@@ -2080,21 +2062,27 @@ async function fetchDisabledPopulationContext(lat = null, lng = null) {
 
   try {
     if (hasGps) {
-      const res = await fetch(`${SERVER_BASE}/disabled-population/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius_m=3000`);
-      if (!res.ok) throw new Error('disabled nearby failed');
-      const payload = await res.json();
-      renderDisabledPopulationContext(payload.summary, [], payload);
+      const [visualRes, genderRes] = await Promise.all([
+        fetch(`${SERVER_BASE}/disabled-population/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius_m=3000`),
+        fetch(`${SERVER_BASE}/disabled-gender-degree/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius_m=3000`),
+      ]);
+      if (!visualRes.ok) throw new Error('disabled nearby failed');
+      const visualPayload = await visualRes.json();
+      const genderPayload = genderRes.ok ? await genderRes.json() : null;
+      renderDisabledPopulationContext(visualPayload.summary, [], visualPayload, genderPayload);
       return;
     }
 
-    const [summaryRes, regionsRes] = await Promise.all([
+    const [summaryRes, regionsRes, genderRes] = await Promise.all([
       fetch(`${SERVER_BASE}/disabled-population/summary`),
       fetch(`${SERVER_BASE}/disabled-population/regions?limit=6`),
+      fetch(`${SERVER_BASE}/disabled-gender-degree/summary`),
     ]);
     if (!summaryRes.ok || !regionsRes.ok) throw new Error('disabled summary failed');
     const summary = await summaryRes.json();
     const regions = await regionsRes.json();
-    renderDisabledPopulationContext(summary, regions.regions ?? [], { scope: 'national' });
+    const genderSummary = genderRes.ok ? await genderRes.json() : null;
+    renderDisabledPopulationContext(summary, regions.regions ?? [], { scope: 'national' }, { summary: genderSummary, scope: 'national' });
   } catch (_) {
     _disabledContextKey = '';
     const box = document.getElementById('disabledRegionBars');
@@ -2110,7 +2098,7 @@ function setDisabledMetric(id, label, value) {
   el.textContent = value;
 }
 
-function renderDisabledPopulationContext(summary, regions, context = {}) {
+function renderDisabledPopulationContext(summary, regions, context = {}, genderContext = null) {
   const latest = summary.latest ?? {};
   const month = latest.month ?? summary.month?.latest ?? '';
   const degree = latest.visual_by_degree ?? {};
@@ -2137,48 +2125,83 @@ function renderDisabledPopulationContext(summary, regions, context = {}) {
   }
 
   const bars = document.getElementById('disabledRegionBars');
-  if (!bars) return;
-  if (isRegional) {
-    const national = Number(latest.visual_disabled || 0);
-    const width = national > 0 ? Math.max(5, Math.round(Number(region.visual_disabled || 0) / national * 100)) : 5;
-    bars.innerHTML = `
-      <div class="disabled-region-row" title="${escapeHtml(locationName)}">
-        <span>${escapeHtml(region.sigungu)}</span>
-        <div class="disabled-region-track">
-          <div class="disabled-region-fill" style="width:${width}%"></div>
+  if (bars) {
+    if (isRegional) {
+      const national = Number(latest.visual_disabled || 0);
+      const width = national > 0 ? Math.max(5, Math.round(Number(region.visual_disabled || 0) / national * 100)) : 5;
+      bars.innerHTML = `
+        <div class="disabled-region-row" title="${escapeHtml(locationName)}">
+          <span>${escapeHtml(region.sigungu)}</span>
+          <div class="disabled-region-track">
+            <div class="disabled-region-fill" style="width:${width}%"></div>
+          </div>
+          <strong>${formatCount(region.visual_disabled)}</strong>
         </div>
-        <strong>${formatCount(region.visual_disabled)}</strong>
-      </div>
-      <div class="disabled-region-row" title="전국 시각장애 등록 현황">
-        <span>전국</span>
-        <div class="disabled-region-track">
-          <div class="disabled-region-fill" style="width:100%"></div>
+        <div class="disabled-region-row" title="전국 시각장애 등록 현황">
+          <span>전국</span>
+          <div class="disabled-region-track">
+            <div class="disabled-region-fill" style="width:100%"></div>
+          </div>
+          <strong>${formatCount(latest.visual_disabled)}</strong>
         </div>
-        <strong>${formatCount(latest.visual_disabled)}</strong>
-      </div>
-    `;
+      `;
+    } else {
+      const top = (regions || []).slice(0, 6);
+      if (top.length === 0) {
+        bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
+      } else {
+        const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
+        bars.innerHTML = top.map(item => {
+          const label = item.sigungu === '소계' ? item.sido : item.sigungu;
+          const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
+          return `
+            <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
+              <span>${escapeHtml(label)}</span>
+              <div class="disabled-region-track">
+                <div class="disabled-region-fill" style="width:${width}%"></div>
+              </div>
+              <strong>${formatCount(item.visual_disabled)}</strong>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  renderDisabledGenderDegreeContext(genderContext);
+}
+
+function renderDisabledGenderDegreeContext(context) {
+  const latest = context?.summary?.latest ?? {};
+  const region = context?.region;
+  const isRegional = context?.scope === 'region' && region;
+  const source = isRegional ? region : latest;
+
+  const total = Number(source.total_disabled || 0);
+  const male = Number(isRegional ? source.male : latest.by_gender?.['남자']);
+  const female = Number(isRegional ? source.female : latest.by_gender?.['여자']);
+  const severe = Number(isRegional ? source.severe : latest.by_degree?.['심한 장애']);
+  const mild = Number(isRegional ? source.mild : latest.by_degree?.['심하지 않은 장애']);
+
+  const totalEl = document.getElementById('disabledGenderTotal');
+  const genderEl = document.getElementById('disabledGenderMix');
+  const degreeEl = document.getElementById('disabledDegreeMix');
+  if (!totalEl || !genderEl || !degreeEl) return;
+
+  if (!total) {
+    totalEl.textContent = '-';
+    genderEl.textContent = '-';
+    degreeEl.textContent = '-';
     return;
   }
 
-  const top = (regions || []).slice(0, 6);
-  if (top.length === 0) {
-    bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
-    return;
-  }
-  const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
-  bars.innerHTML = top.map(item => {
-    const label = item.sigungu === '소계' ? item.sido : item.sigungu;
-    const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
-    return `
-      <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
-        <span>${escapeHtml(label)}</span>
-        <div class="disabled-region-track">
-          <div class="disabled-region-fill" style="width:${width}%"></div>
-        </div>
-        <strong>${formatCount(item.visual_disabled)}</strong>
-      </div>
-    `;
-  }).join('');
+  const malePct = Math.round(male / total * 100);
+  const femalePct = Math.round(female / total * 100);
+  const severePct = Math.round(severe / total * 100);
+  const mildPct = Math.round(mild / total * 100);
+  totalEl.textContent = `${formatCount(total)}명`;
+  genderEl.textContent = `남 ${malePct}% · 여 ${femalePct}%`;
+  degreeEl.textContent = `심한 ${severePct}% · 심하지 않은 ${mildPct}%`;
 }
 
 fetchHistory();

@@ -462,6 +462,43 @@ def test_disabled_population_dashboard_endpoints():
     assert trend_body["trend"][-1]["month"] == "202604"
 
 
+def test_disabled_gender_degree_dashboard_endpoints():
+    summary = client.get("/disabled-gender-degree/summary")
+    assert summary.status_code == 200
+    summary_body = summary.json()
+    assert summary_body["month"]["latest"] == "202604"
+    assert summary_body["latest"]["total_disabled"] == 2624025
+    assert summary_body["latest"]["by_gender"]["남자"] == 1523612
+    assert summary_body["latest"]["by_gender"]["여자"] == 1100413
+    assert summary_body["latest"]["by_degree"]["심한 장애"] == 961628
+    assert summary_body["latest"]["by_degree"]["심하지 않은 장애"] == 1662397
+
+    regions = client.get("/disabled-gender-degree/regions", params={"limit": 3})
+    assert regions.status_code == 200
+    regions_body = regions.json()
+    assert regions_body["count"] == 3
+    assert regions_body["regions"][0]["total_disabled"] >= regions_body["regions"][-1]["total_disabled"]
+
+    nearby = client.get(
+        "/disabled-gender-degree/nearby",
+        params={"lat": 37.612888751869, "lng": 127.030288014848, "radius_m": 3000},
+    )
+    assert nearby.status_code == 200
+    nearby_body = nearby.json()
+    assert nearby_body["scope"] == "region"
+    assert nearby_body["region"]["sido"] == "서울특별시"
+    assert nearby_body["region"]["sigungu"] == "강북구"
+    assert nearby_body["region"]["total_disabled"] == 16567
+    assert nearby_body["region"]["male"] == 9291
+    assert nearby_body["region"]["female"] == 7276
+
+    trend = client.get("/disabled-gender-degree/trend")
+    assert trend.status_code == 200
+    trend_body = trend.json()
+    assert len(trend_body["trend"]) == 4
+    assert trend_body["trend"][-1]["month"] == "202604"
+
+
 def test_locations_route_saves_and_lists_by_session():
     session = f"test_locations_{uuid.uuid4().hex}"
     label = "테스트 출입구"
