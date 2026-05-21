@@ -443,6 +443,18 @@ def test_disabled_population_dashboard_endpoints():
     assert regions_body["count"] == 3
     assert regions_body["regions"][0]["visual_disabled"] >= regions_body["regions"][-1]["visual_disabled"]
 
+    nearby = client.get(
+        "/disabled-population/nearby",
+        params={"lat": 37.612888751869, "lng": 127.030288014848, "radius_m": 3000},
+    )
+    assert nearby.status_code == 200
+    nearby_body = nearby.json()
+    assert nearby_body["scope"] == "region"
+    assert nearby_body["region"]["sido"] == "서울특별시"
+    assert nearby_body["region"]["sigungu"] == "강북구"
+    assert nearby_body["region"]["visual_disabled"] == 1852
+    assert nearby_body["matched_hotspot"]["distance_m"] <= 3000
+
     trend = client.get("/disabled-population/trend")
     assert trend.status_code == 200
     trend_body = trend.json()

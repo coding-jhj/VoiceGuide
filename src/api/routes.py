@@ -64,6 +64,25 @@ _DISABLED_POPULATION_SUMMARY_PATH = _DISABLED_POPULATION_DIR / "disabled_populat
 _DISABLED_POPULATION_REGIONS_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_regions.json"
 _DISABLED_POPULATION_TREND_PATH = _DISABLED_POPULATION_DIR / "disabled_population_visual_trend.json"
 _DISABLED_POPULATION_BY_TYPE_PATH = _DISABLED_POPULATION_DIR / "disabled_population_by_type_latest.json"
+_SIDO_ALIASES = {
+    "서울": "서울특별시",
+    "부산": "부산광역시",
+    "대구": "대구광역시",
+    "인천": "인천광역시",
+    "광주": "광주광역시",
+    "대전": "대전광역시",
+    "울산": "울산광역시",
+    "세종": "세종특별자치시",
+    "경기": "경기도",
+    "강원": "강원특별자치도",
+    "충북": "충청북도",
+    "충남": "충청남도",
+    "전북": "전북특별자치도",
+    "전남": "전라남도",
+    "경북": "경상북도",
+    "경남": "경상남도",
+    "제주": "제주특별자치도",
+}
 
 
 @lru_cache(maxsize=8)
@@ -94,6 +113,41 @@ def _distance_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     )
     return 2 * radius * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _strip_district_suffix(value: str) -> str:
+    return value.rstrip("0123456789").strip()
+
+
+def _parse_hotspot_district(value: str) -> tuple[str, list[str]]:
+    clean = _strip_district_suffix(str(value or ""))
+    parts = clean.split()
+    if not parts:
+        return "", []
+    sido = _SIDO_ALIASES.get(parts[0], parts[0])
+    sigungu_candidates = []
+    if len(parts) >= 3:
+        sigungu_candidates.append(" ".join(parts[1:3]))
+    if len(parts) >= 2:
+        sigungu_candidates.append(parts[1])
+    return sido, list(dict.fromkeys(sigungu_candidates))
+
+
+def _find_disabled_region(sido: str, sigungu_candidates: list[str]) -> dict | None:
+    if not sido:
+        return None
+    regions = _require_json_artifact(_DISABLED_POPULATION_REGIONS_PATH)
+    sido_regions = [row for row in regions if row.get("sido") == sido]
+    for candidate in sigungu_candidates:
+        for row in sido_regions:
+            if row.get("sigungu") == candidate:
+                return row
+    for candidate in sigungu_candidates:
+        for row in sido_regions:
+            name = str(row.get("sigungu", ""))
+            if candidate and (candidate in name or name in candidate):
+                return row
+    return None
 
 @router.get("/api/policy")
 async def get_voice_policy(
@@ -902,6 +956,51 @@ async def get_disabled_population_regions(limit: int = 20, sido: str = ""):
         "count": len(regions[:limit]),
         "limit": limit,
         "sido": sido,
+    }
+
+
+@router.get("/disabled-population/nearby", dependencies=[Depends(_verify_api_key)])
+async def get_nearby_disabled_population_context(
+    lat: float,
+    lng: float,
+    radius_m: float = 3000.0,
+):
+    """Return visual disability context for the city/district nearest the current GPS."""
+    radius_m = max(100.0, min(radius_m, 10000.0))
+    summary = _require_json_artifact(_DISABLED_POPULATION_SUMMARY_PATH)
+    geojson = _require_json_artifact(_PEDESTRIAN_CLUSTERS_PATH)
+
+    nearest: tuple[float, dict] | None = None
+    for feature in geojson.get("features", []):
+        props = dict(feature.get("properties", {}))
+        center_lat = float(props.get("center_lat", feature["geometry"]["coordinates"][1]))
+        center_lng = float(props.get("center_lng", feature["geometry"]["coordinates"][0]))
+        distance = _distance_m(lat, lng, center_lat, center_lng)
+        if distance > radius_m:
+            continue
+        if nearest is None or distance < nearest[0]:
+            nearest = (distance, props)
+
+    region = None
+    matched_hotspot = None
+    if nearest is not None:
+        distance, props = nearest
+        district = props.get("representative_district") or props.get("representative_place_name") or ""
+        sido, sigungu_candidates = _parse_hotspot_district(str(district))
+        region = _find_disabled_region(sido, sigungu_candidates)
+        matched_hotspot = {
+            "cluster_id": props.get("cluster_id"),
+            "display_name": props.get("display_name"),
+            "district": district,
+            "distance_m": round(distance, 1),
+        }
+
+    return {
+        "summary": summary,
+        "region": region,
+        "matched_hotspot": matched_hotspot,
+        "scope": "region" if region else "national",
+        "radius_m": radius_m,
     }
 
 
