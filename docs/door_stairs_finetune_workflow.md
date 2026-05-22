@@ -41,7 +41,10 @@ If a real COCO object is present, label only that real object.
 ## Build Dataset
 
 ```bash
-python train/prepare_door_stairs_dataset.py
+python train/prepare_door_stairs_dataset.py \
+  --stairs-zip "C:/Users/ghksw/Downloads/Stairs Counting.v2i.yolov11.zip" \
+  --door-zip "C:/Users/ghksw/Downloads/door.v1i.yolov11.zip" \
+  --copy
 ```
 
 This creates:
@@ -53,6 +56,13 @@ datasets/voiceguide82/
   labels/train
   labels/val
   voiceguide82.yaml
+```
+
+Roboflow one-class labels are remapped automatically:
+
+```text
+stairs ZIP: 0 -> 80
+door ZIP:   0 -> 81
 ```
 
 Fallback full-image labels are only for bootstrapping. Correct door/stairs boxes by hand before final training.

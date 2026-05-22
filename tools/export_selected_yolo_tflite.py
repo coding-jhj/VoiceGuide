@@ -23,6 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export selected YOLO model for VoiceGuide Android")
     parser.add_argument("--source", default="yolo11n.pt", help="Ultralytics .pt model path or model name")
     parser.add_argument("--imgsz", type=int, default=320, help="TFLite input image size")
+    parser.add_argument("--opset", type=int, default=18, help="ONNX opset used by the TFLite export path")
     parser.add_argument(
         "--output-name",
         default="yolo11n_320.tflite",
@@ -36,7 +37,7 @@ def main() -> None:
     from ultralytics import YOLO
 
     model = YOLO(args.source)
-    exported = Path(model.export(format="tflite", imgsz=args.imgsz, half=False, int8=False, nms=False))
+    exported = Path(model.export(format="tflite", imgsz=args.imgsz, half=False, int8=False, nms=False, opset=args.opset))
 
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
     target = ASSET_DIR / args.output_name

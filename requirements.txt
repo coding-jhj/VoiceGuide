@@ -1,3 +1,31 @@
-# Development install entrypoint.
-# Server deployments should install requirements-server.txt directly.
--r requirements-dev.txt
+# VoiceGuide — 전체 개발 환경
+# Docker 서버 배포는 requirements-server.txt 사용 (Dockerfile 참조)
+
+# ── 서버 런타임 ────────────────────────────────────────────────────────────
+fastapi==0.115.5
+uvicorn==0.32.1
+python-multipart==0.0.12
+python-dotenv>=1.0.0
+psycopg[binary]>=3.1.0
+psycopg-pool>=3.1.0
+
+# ── 학습 및 도구 ──────────────────────────────────────────────────────────
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+Pillow>=10.0.0
+requests>=2.32.0
+httpx
+
+# ── ONNX 내보내기 ──────────────────────────────────────────────────────────
+onnx
+onnxscript
+
+# ── 데이터셋 수집 ──────────────────────────────────────────────────────────
+ddgs
+
+# ── 테스트 ────────────────────────────────────────────────────────────────
+pytest
+
+# ── 무거운 ML 의존성 (필요 시 수동 설치) ──────────────────────────────────
+#   pip install torch==2.4.1 torchvision==0.19.1
+#   pip install ultralytics==8.4.33

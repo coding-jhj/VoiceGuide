@@ -1,0 +1,35 @@
+{
+  "model": "android/app/src/main/assets/yolo11n_320_hardmine2.tflite",
+  "images": 78,
+  "classes": {
+    "stairs": 15,
+    "door": 5
+  },
+  "by_folder": {
+    "chair": {
+      "stairs": 1
+    },
+    "couch": {
+      "stairs": 1,
+      "door": 1
+    },
+    "dining_table": {
+      "door": 1,
+      "stairs": 5
+    },
+    "door": {
+      "door": 3,
+      "stairs": 1
+    },
+    "potted_plant": {
+      "stairs": 1
+    },
+    "stairs": {
+      "stairs": 6
+    }
+  },
+  "notes": [
+    "For hard-negative folders such as hanging clothes, person detections should be rare.",
+    "For door/stairs folders, check recall at a class-specific threshold before Android export."
+  ]
+}

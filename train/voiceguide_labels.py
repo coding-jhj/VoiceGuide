@@ -26,6 +26,8 @@ NEGATIVE_TAGS = [
     "clothes_on_chair",
     "empty_door_frame",
     "stair_railing_only",
+    "stair_like_floor",
+    "stair_like_floor_320",
 ]
 
 
