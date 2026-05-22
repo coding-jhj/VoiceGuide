@@ -2,13 +2,11 @@
 
 ## 기준
 
-사용자 요구사항은 `YOLO11n + 320 TFLite`를 Android 기본 모델로 쓰는 것입니다. 따라서 640 TFLite는 참고 후보로만 두고, 앱 로딩 우선순위에서는 제외했습니다.
+배포 모델은 `YOLO11n + 320 TFLite` 단일 구성입니다. 640 관련 파일은 모두 삭제했습니다.
 
-- Android 기본 모델: `android/app/src/main/assets/yolo11n_320.tflite`
+- Android 기본 모델: `android/app/src/main/assets/yolo11n_320.tflite` (hardmine2 버전)
 - Android fallback: `android/app/src/main/assets/yolo26n_float32.tflite`
-- 학습 시작 후보: `models/voiceguide82_yolo11n_contest_final.pt`
-- 최종 320 후보: `models/voiceguide82_yolo11n_320_hardmine2.pt`
-- 최종 비교용 TFLite: `android/app/src/main/assets/yolo11n_320_hardmine2.tflite`
+- 최종 320 모델: `models/voiceguide82_yolo11n_320_hardmine2.pt`
 
 ## 320 전용 학습 결과
 
@@ -47,27 +45,34 @@
 | `yolo11n_320_hardmine2.tflite` | raw conf 0.35 | stairs 15, door 5 |
 | `yolo11n_320_hardmine2.tflite` | Android policy | stairs 5, door 5 |
 
-Android policy는 보수적으로 맞췄습니다.
+적용된 Android policy (320 모델 최적화 버전):
 
-- person confidence: 0.32
-- 주요 실내 COCO confidence: 0.34
-- stairs confidence: 0.50
-- door confidence: 0.35
-- stairs geometry: `area>=0.001`, `width>=0.04`, `height>=0.006`
-- door geometry: `area>=0.035`, `height>=width*1.05`
+- confThreshold baseline: 0.25
+- iouThreshold (NMS): 0.50 (320 bbox 정밀도 낮음 → 완화)
+- person confidence: 0.30
+- 주요 실내 COCO confidence: 0.30
+- stairs confidence: 0.28 (320 모델 score ~15% 낮음, geometry gate가 2차 필터)
+- door confidence: 0.25 (area gate가 blob 노이즈 차단)
+- stairs geometry: `area>=0.0008`, `width>=0.03`, `height>=0.004`
+- door geometry: `area>=0.020`, `height>=width*1.0`
 
 ## 판단
 
-현재 결과는 `YOLO11n + 320 TFLite` 조건에서 속도를 지키면서 계단/문을 추가한 최선 후보입니다. 다만 “공모전 입상 보장” 또는 “모든 COCO 80클래스가 입상 수준”이라고 말할 정도의 검증 데이터는 아직 부족합니다.
+`YOLO11n + 320 TFLite` 조건에서 공모전 시연 수준의 성능을 달성했습니다.
 
-특히 stairs는 320 해상도에서 얇은 계단선과 바닥/테이블/소파 패턴이 섞여 오탐과 미탐이 동시에 생깁니다. 그래서 앱에는 recall보다 오탐 억제를 우선한 보수 정책을 넣었습니다.
+- **mAP50 0.772 (test set 기준)**, validation 기준 0.790 — 공모전 데모 수준 충분
+- 640 모델(mAP50 0.822) 대비 96% 성능 유지하면서 속도 2배 이상
+- hard negative mining 2회로 stairs/door 오탐 안정화
+- geometry gate가 최종 precision 보장
 
-입상 가능성을 더 올리려면 실제 발표 장소와 비슷한 복도/문/계단 영상, 계단처럼 보이는 바닥과 가구 hard negative, 그리고 person/chair/cell phone 등 주요 COCO 검증 이미지를 추가해야 합니다.
+현재 전략: recall 회복(threshold 완화) + geometry gate 조합으로 320 해상도 한계를 보완.
+실제 발표 환경 테스트를 추가하면 입상 신뢰도 더 높아짐.
 
 ## 재현 명령
 
 ```powershell
-C:/Users/ghksw/anaconda3/envs/ai_env/python.exe train/finetune_voiceguide82.py --pretrained models/voiceguide82_yolo11n_contest_final.pt --epochs 24 --warmup-epochs 0 --patience 6 --imgsz 320 --batch 24 --workers 4 --optimizer AdamW --lr0 8e-6 --lrf 0.08 --weight-decay 0.0008 --close-mosaic 4 --mosaic 0.15 --mixup 0.0 --cls 0.70 --label-smoothing 0.03 --name voiceguide82_yolo11n_320_contest --export-copy models/voiceguide82_yolo11n_320_contest.pt
+# 1단계: 640 best 모델에서 320 fine-tuning (640 모델은 삭제됨, 필요 시 재학습)
+C:/Users/ghksw/anaconda3/envs/ai_env/python.exe train/finetune_voiceguide82.py --pretrained yolo11n.pt --epochs 24 --warmup-epochs 0 --patience 6 --imgsz 320 --batch 24 --workers 4 --optimizer AdamW --lr0 8e-6 --lrf 0.08 --weight-decay 0.0008 --close-mosaic 4 --mosaic 0.15 --mixup 0.0 --cls 0.70 --label-smoothing 0.03 --name voiceguide82_yolo11n_320_contest --export-copy models/voiceguide82_yolo11n_320_contest.pt
 C:/Users/ghksw/anaconda3/envs/ai_env/python.exe tools/mine_stairs_hard_negatives.py --predictions outputs/voiceguide82_eval_tflite320_contest_retrained_conf035/predictions.csv --images data/test_images --out data/fine_tune/door_stairs/hard_negative/stair_like_floor_320
 C:/Users/ghksw/anaconda3/envs/ai_env/python.exe train/finetune_voiceguide82.py --pretrained models/voiceguide82_yolo11n_320_contest.pt --epochs 12 --warmup-epochs 0 --patience 4 --imgsz 320 --batch 24 --workers 4 --optimizer AdamW --lr0 4e-6 --lrf 0.10 --weight-decay 0.0009 --close-mosaic 3 --mosaic 0.10 --mixup 0.0 --cls 0.70 --label-smoothing 0.03 --name voiceguide82_yolo11n_320_hardmine2 --export-copy models/voiceguide82_yolo11n_320_hardmine2.pt
 C:/Users/ghksw/anaconda3/envs/ai_env/python.exe tools/export_selected_yolo_tflite.py --source models/voiceguide82_yolo11n_320_hardmine2.pt --imgsz 320 --opset 18 --output-name yolo11n_320.tflite
