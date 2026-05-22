@@ -22,8 +22,8 @@ class TfliteYoloDetector(context: Context) {
     private val outputCols: Int
     // true: raw YOLO output [84, N] / false: end-to-end NMS output [N, 6]
     private val isRawOutput: Boolean
-    private val confThreshold = 0.25f
-    private val iouThreshold  = 0.50f
+    private val confThreshold = 0.30f
+    private val iouThreshold  = 0.55f
     private var outputShapeLogged = false
     private val inputBuffer: ByteBuffer
     private val outputBuffer: Array<Array<FloatArray>>
@@ -443,10 +443,10 @@ class TfliteYoloDetector(context: Context) {
 
     private fun confidenceThresholdFor(classId: Int): Float =
         when (classId) {
-            0 -> 0.30f    // person: light filter for 320; EMA tracking handles flicker.
-            24, 26, 28, 56, 57, 58, 60, 63, 67 -> 0.30f // common indoor objects.
-            80 -> 0.28f   // stairs: 320 model scores run ~15% lower than 640; geometry gate is second layer.
-            81 -> 0.25f   // door: 320 model gives smaller bbox scores; area gate filters noise.
+            0 -> 0.32f
+            24, 26, 28, 56, 57, 58, 60, 63, 67 -> 0.34f
+            80 -> 0.50f
+            81 -> 0.35f
             else -> confThreshold
         }
 
@@ -454,8 +454,8 @@ class TfliteYoloDetector(context: Context) {
         val area = w * h
         return when (classId) {
             // 320 model bbox precision is lower → slightly relaxed area/size minimums.
-            80 -> area >= 0.0008f && w >= 0.03f && h >= 0.004f
-            81 -> area >= 0.020f && h >= w * 1.0f
+            80 -> area >= 0.001f && w >= 0.04f && h >= 0.006f
+            81 -> area >= 0.035f && h >= w * 1.05f
             else -> true
         }
     }

@@ -4,6 +4,8 @@
 # 생성된 산출물 / 임시 파일
 outputs/
 tmp/
+.pytest_tmp/
+calibration_image_sample_data_*.npy
 
 # API 키 / 환경 변수 — 실제 키가 담길 수 있는 파일은 모두 제외
 .env
@@ -57,6 +59,9 @@ datasets/*
 # 학습 실행 결과 (로컬 전용)
 runs/detect/runs/train/roboflow_v1_warmup
 flagged/
+data/fine_tune/
+runs/train/
+runs/detect/runs/train/
 
 # TTS 캐시 (자동 재생성)
 __tts_cache__/

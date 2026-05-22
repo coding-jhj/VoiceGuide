@@ -1,0 +1,35 @@
+{
+  "model": "android/app/src/main/assets/yolo11n_320_hardmine2.tflite",
+  "images": 78,
+  "policy": {
+    "person_conf": 0.32,
+    "common_indoor_conf": 0.34,
+    "stairs_conf": 0.5,
+    "door_conf": 0.35,
+    "stairs_geometry": "area>=0.001 and width>=0.04 and height>=0.006",
+    "door_geometry": "area>=0.035 and height>=width*1.05"
+  },
+  "classes": {
+    "stairs": 5,
+    "door": 5
+  },
+  "by_folder": {
+    "couch": {
+      "stairs": 1,
+      "door": 1
+    },
+    "dining_table": {
+      "door": 1,
+      "stairs": 1
+    },
+    "door": {
+      "door": 3
+    },
+    "potted_plant": {
+      "stairs": 1
+    },
+    "stairs": {
+      "stairs": 2
+    }
+  }
+}
