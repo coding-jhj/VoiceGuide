@@ -50,10 +50,22 @@
 | 🎯 | **82클래스 커스텀 모델** | COCO 80 + 계단 + 문 파인튜닝, hard negative mining |
 | 📳 | **4단계 진동 안내** | NONE → SHORT → DOUBLE → URGENT |
 | 🚨 | **위험 선행 알림** | 긴급 위험(critical) 감지 시 비프음과 진동으로 먼저 알리고 500ms 후 음성 안내 |
+| 🎙️ | **음성 명령 모드** | 장애물 · 찾기 · 주변 확인 · 물건 확인 모드를 STT로 전환 |
 | 🔊 | **한국어 TTS** | Android 내장, 화면 없이 상황별 안내 문장 발화 |
 | 📡 | **오프라인 보조 안내** | 서버 연결 없이도 Android 내장 TTS와 진동 피드백 동작 |
 | 🗺️ | **공공데이터 연동** | GPS 기반 보행자 사고다발구역 · 시각장애 인구 통계 |
 | 📊 | **실시간 대시보드** | 탐지 이력 · GPS 경로 · 위험 히트맵 |
+
+---
+
+## 🗣️ 앱 모드
+
+| 모드 | 음성 예시 | 동작 |
+|------|-----------|------|
+| **장애물** | “앞에 뭐 있어”, “주변 알려줘”, “길 어때” | 즉시 프레임을 분석해 위험도 상위 장애물을 안내 |
+| **찾기** | “의자 찾아줘”, “가방 어디 있어” | 찾는 물체의 방향과 거리를 안내하고, 더 가까운 위험물이 있으면 함께 경고 |
+| **주변 확인** | “지금 뭐가 있어”, “현재 상황 알려줘” | 현재 프레임과 최근 tracker 상태를 함께 요약 |
+| **물건 확인** | “손에 든 게 뭐야”, “바로 앞 뭐야” | 손에 들었거나 바로 가까운 물체를 우선 답변 |
 
 ---
 
@@ -99,9 +111,11 @@ VoiceGuide/
 │   │   ├── yolo11n_320.tflite       ← 온디바이스 모델
 │   │   └── policy_default.json      ← 오프라인 fallback 정책
 │   └── java/com/voiceguide/
+│       ├── MainActivity.kt          ← CameraX · STT/TTS · 모드 분기 · 서버 업로드
 │       ├── TfliteYoloDetector.kt    ← TFLite 추론 엔진
 │       ├── MvpPipeline.kt           ← 추적 · 위험도 · 진동
 │       ├── SentenceBuilder.kt       ← 한국어 TTS 문장 생성
+│       ├── VoiceGuideConstants.kt   ← COCO 한글 매핑 · 방향 · STT 키워드
 │       └── VoicePolicy.kt           ← 서버 정책 파싱 · 캐시
 │
 ├── ⚡ src/api/                       ← FastAPI 서버
@@ -127,8 +141,14 @@ VoiceGuide/
 
 | 메서드 | 엔드포인트 | 설명 |
 |--------|-----------|------|
-| `POST` | `/detect` | 탐지 JSON 수신 → DB + 대시보드 |
+| `POST` | `/detect` | 온디바이스 탐지 JSON 수신 → 문장 생성 · DB · 대시보드 |
+| `POST` | `/detect_json` | 구형 호환 탐지 JSON 수신, 물건 확인/찾기 문장 생성 |
+| `POST` | `/question` | 최근 tracker/DB 상태 기반 주변 확인 응답 |
+| `POST` | `/gps` | Android 위치 업데이트 |
 | `GET`  | `/api/policy` | Android 정책 동기화 (ETag 캐싱) |
+| `GET`  | `/events/{session_id}` | 대시보드 SSE 이벤트 스트림 |
+| `GET`  | `/history/{session_id}` | 세션별 탐지 이력 |
+| `GET`  | `/heatmap/{session_id}` | 세션별 위험 히트맵 |
 | `GET`  | `/pedestrian-hotspots/nearby` | GPS 기반 사고다발구역 |
 | `GET`  | `/disabled-population/nearby` | GPS 기반 시각장애 인구 |
 | `GET`  | `/dashboard` | 실시간 대시보드 |
