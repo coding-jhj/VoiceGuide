@@ -23,7 +23,7 @@ class TfliteYoloDetector(context: Context) {
     // true: raw YOLO output [84, N] / false: end-to-end NMS output [N, 6]
     private val isRawOutput: Boolean
     private val confThreshold = 0.25f
-    private val iouThreshold  = 0.70f
+    private val iouThreshold  = 0.50f
     private var outputShapeLogged = false
     private val inputBuffer: ByteBuffer
     private val outputBuffer: Array<Array<FloatArray>>
@@ -37,7 +37,7 @@ class TfliteYoloDetector(context: Context) {
         modelName = listOf("yolo11n_320.tflite", "yolo26n_float32.tflite").firstOrNull { name ->
             try { context.assets.open(name).close(); true }
             catch (_: Exception) { false }
-        } ?: throw IllegalStateException("TFLite 모델 파일이 없습니다. assets에 yolo26n_float32.tflite 또는 yolo11n_320.tflite가 필요합니다.")
+        } ?: throw IllegalStateException("TFLite 모델 파일이 없습니다. assets에 yolo11n_320.tflite 또는 yolo26n_float32.tflite가 필요합니다.")
         val modelBytes = context.assets.open(modelName).readBytes()
         modelBuffer = ByteBuffer.allocateDirect(modelBytes.size).order(ByteOrder.nativeOrder())
         modelBuffer.put(modelBytes)
@@ -382,6 +382,7 @@ class TfliteYoloDetector(context: Context) {
             val wD  = (x2 - x1) / scaledW
             val hD  = (y2 - y1) / scaledH
             if (cxD < 0f || cxD > 1f || cyD < 0f || cyD > 1f || wD <= 0f || hD <= 0f) continue
+            if (!passesContestGeometryGate(classId, wD, hD)) continue
 
             candidates.add(Detection(classKo = name, confidence = maxScore,
                                      cx = cxD, cy = cyD, w = wD, h = hD))
@@ -414,6 +415,7 @@ class TfliteYoloDetector(context: Context) {
             val w  = (x2 - x1) / scaledW
             val h  = (y2 - y1) / scaledH
             if (cx < 0f || cx > 1f || cy < 0f || cy > 1f || w <= 0f || h <= 0f) continue
+            if (!passesContestGeometryGate(classId, w, h)) continue
 
             candidates.add(Detection(classKo = name, confidence = score,
                                      cx = cx, cy = cy, w = w, h = h))
@@ -441,10 +443,22 @@ class TfliteYoloDetector(context: Context) {
 
     private fun confidenceThresholdFor(classId: Int): Float =
         when (classId) {
-            80 -> 0.22f // stairs: keep recall, then stabilize with voting/tracking.
-            81 -> 0.18f // door: fine-tuned logits are often lower than COCO classes.
+            0 -> 0.30f    // person: light filter for 320; EMA tracking handles flicker.
+            24, 26, 28, 56, 57, 58, 60, 63, 67 -> 0.30f // common indoor objects.
+            80 -> 0.28f   // stairs: 320 model scores run ~15% lower than 640; geometry gate is second layer.
+            81 -> 0.25f   // door: 320 model gives smaller bbox scores; area gate filters noise.
             else -> confThreshold
         }
+
+    private fun passesContestGeometryGate(classId: Int, w: Float, h: Float): Boolean {
+        val area = w * h
+        return when (classId) {
+            // 320 model bbox precision is lower → slightly relaxed area/size minimums.
+            80 -> area >= 0.0008f && w >= 0.03f && h >= 0.004f
+            81 -> area >= 0.020f && h >= w * 1.0f
+            else -> true
+        }
+    }
 
     private fun iou(a: Detection, b: Detection): Float {
         val ax1 = a.cx - a.w / 2f; val ax2 = a.cx + a.w / 2f
