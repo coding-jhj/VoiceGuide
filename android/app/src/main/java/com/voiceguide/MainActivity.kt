@@ -8,6 +8,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Handler
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
 
     // ── UI 뷰 참조 ─────────────────────────────────────────────────────
     private lateinit var tts: TextToSpeech
+    private var toneGen: ToneGenerator? = null
     private lateinit var tvStatus: TextView      // 현재 안내 문장 표시
     private lateinit var tvDetected: TextView    // 탐지된 물체 목록 표시
     private lateinit var tvMode: TextView        // 현재 모드 + 카메라 방향 표시
@@ -354,6 +356,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
         VoicePolicy.init(applicationContext)
 
         tts = TextToSpeech(this, this)
+        toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
 
         tvStatus    = findViewById(R.id.tvStatus)
         tvDetected  = findViewById(R.id.tvDetected)
@@ -570,6 +573,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
     override fun onDestroy() {
         // 앱 종료 시 모든 리소스 해제 (메모리 누수 방지)
         tts.shutdown()
+        toneGen?.release()
+        toneGen = null
         speechRecognizer.destroy()
         tfliteDetector?.close()
         cameraExecutor.shutdown()     // 카메라 스레드 종료
@@ -1879,11 +1884,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener, SensorEve
                         lastCriticalTime = now
                         pendingStatusText = sentence
                         tts.setSpeechRate(1.0f)
-                        if (forceSpeak || isVehicleDanger) {
-                            speakBuiltIn(sentence, immediate = true)
-                        } else {
-                            speak(sentence)
-                        }
+                        // 1) 비프음 즉시 (경고 피로 감소: 소리·진동으로 먼저 주의 환기)
+                        toneGen?.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                        // 2) 500ms 후 TTS (분석 중지 시 재생 안 함)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (!isAnalyzing.get() && !forceSpeak) return@postDelayed
+                            if (forceSpeak || isVehicleDanger) speakBuiltIn(sentence, immediate = true)
+                            else speak(sentence)
+                        }, 500L)
                     }
                 }
                 "beep" -> {

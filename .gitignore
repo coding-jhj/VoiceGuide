@@ -57,7 +57,7 @@ datasets/*
 !datasets/disabled_gender_degree/**
 
 # 학습 실행 결과 (로컬 전용)
-runs/detect/runs/train/roboflow_v1_warmup
+runs/
 flagged/
 data/fine_tune/
 runs/train/

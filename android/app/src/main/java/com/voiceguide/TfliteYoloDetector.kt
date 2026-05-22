@@ -57,7 +57,7 @@ class TfliteYoloDetector(context: Context) {
         bitmapPixels = IntArray(inputSize * inputSize)
         android.util.Log.d(
             "VG_PERF",
-            "YOLO input model=$modelName provider=$executionProvider size=${inputSize}x$inputSize shape=${inputShape.joinToString(prefix = "[", postfix = "]")}"
+            "YOLO model=$modelName size=${inputSize}x$inputSize output=[$outputRows,$outputCols] isRawOutput=$isRawOutput"
         )
     }
 
