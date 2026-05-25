@@ -1172,6 +1172,8 @@ async def get_voiceguide_final_crosswalks_geojson(limit: int = 1200):
 
 
 @router.get("/voiceguide-final/data-usage", dependencies=[Depends(_verify_api_key)])
+@router.get("/voiceguide-final/data-usage/", dependencies=[Depends(_verify_api_key)])
+@router.get("/voiceguide-final/data-usage.html", dependencies=[Depends(_verify_api_key)])
 async def get_voiceguide_final_data_usage():
     """Serve the refined final data usage explanation document."""
     from fastapi.responses import HTMLResponse
@@ -1180,7 +1182,13 @@ async def get_voiceguide_final_data_usage():
     if not path.exists():
         raise HTTPException(status_code=404, detail="final data usage HTML not found")
     with open(path, encoding="utf-8") as f:
-        return HTMLResponse(f.read())
+        return HTMLResponse(
+            f.read(),
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
 
 
 @router.get("/disabled-population/summary", dependencies=[Depends(_verify_api_key)])
@@ -1338,7 +1346,14 @@ async def dashboard():
     from fastapi.responses import HTMLResponse
     tpl_path = os.path.join(os.path.dirname(__file__), "../../templates/dashboard.html")
     if os.path.exists(tpl_path):
-        with open(tpl_path, encoding="utf-8") as f: return HTMLResponse(f.read())
+        with open(tpl_path, encoding="utf-8") as f:
+            return HTMLResponse(
+                f.read(),
+                headers={
+                    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                    "Pragma": "no-cache",
+                },
+            )
     return HTMLResponse("<h1>dashboard.html not found</h1>", status_code=404)
 
 @router.post("/spaces/snapshot", dependencies=[Depends(_verify_api_key)])

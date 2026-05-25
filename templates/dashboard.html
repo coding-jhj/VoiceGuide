@@ -891,6 +891,7 @@
   .facility-chip {
     display: inline-flex;
     align-items: center;
+    cursor: pointer;
     padding: 3px 7px;
     border-radius: 5px;
     border: 1px solid rgba(255,255,255,0.10);
@@ -898,6 +899,11 @@
     color: var(--muted);
     font-size: 11px;
     font-weight: 700;
+  }
+  .facility-chip:hover,
+  .improvement-item:hover,
+  .data-usage-link:hover {
+    filter: brightness(1.18);
   }
   .facility-chip.on { color: var(--safe); border-color: rgba(82,183,136,0.35); background: rgba(82,183,136,0.10); }
   .facility-chip.off { color: var(--warn); border-color: rgba(244,162,97,0.35); background: rgba(244,162,97,0.10); }
@@ -910,16 +916,42 @@
     border: 1px solid rgba(244,162,97,0.22);
     border-radius: 8px;
     background: rgba(244,162,97,0.06);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
     font-size: 12px;
+    cursor: pointer;
   }
   .improvement-item strong { color: var(--warn); font-family: monospace; }
   .data-usage-link {
     display: inline-flex;
     margin-top: 10px;
     color: var(--accent2);
+    background: transparent;
+    border: 0;
+    padding: 0;
+    font: inherit;
     font-size: 12px;
     font-weight: 800;
     text-decoration: none;
+    cursor: pointer;
+  }
+  .scenario-info-box {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 11px;
+    border-radius: 8px;
+    border: 1px solid rgba(72,191,227,0.22);
+    background: rgba(72,191,227,0.07);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  .scenario-info-box.is-visible { display: block; }
+  .scenario-info-box strong {
+    color: var(--accent2);
+    display: block;
+    margin-bottom: 3px;
   }
 </style>
 </head>
@@ -2110,11 +2142,29 @@ function facilityLabel(key) {
   })[key] || key;
 }
 
-function renderFacilityChips(facilities) {
+function facilityDescription(key, installed) {
+  const status = installed ? '확인됨' : '보강 필요';
+  return ({
+    pedestrian_light: `보행등 ${status}. 횡단 가능 신호 정보를 안내 근거로 쓸 수 있는지 판단합니다.`,
+    audio_signal: `음향신호기 ${status}. 시각장애인에게 횡단 신호를 소리로 전달하는 핵심 시설입니다.`,
+    push_button: `보행자작동신호기 ${status}. 사용자가 신호 요청을 할 수 있는지 확인합니다.`,
+    raised_crosswalk: `고원식 횡단보도 ${status}. 차량 감속과 보행자 보호 효과를 기대할 수 있습니다.`,
+    traffic_safety_detail: `교통안전시설 상세정보 ${status}. 데이터로 설명 가능한 안내인지 판단하는 근거입니다.`
+  })[key] || `${facilityLabel(key)} ${status}`;
+}
+
+function setScenarioInfo(title, body) {
+  const box = document.getElementById('scenarioInfoBox');
+  if (!box) return;
+  box.innerHTML = `<strong>${escapeHtml(title)}</strong>${escapeHtml(body)}`;
+  box.classList.add('is-visible');
+}
+
+function renderFacilityChips(facilities, routeId = '') {
   const installed = facilities?.installed || {};
   return `<div class="facility-chip-row">${
     Object.keys(installed).map(key =>
-      `<span class="facility-chip ${installed[key] ? 'on' : 'off'}">${facilityLabel(key)}</span>`
+      `<button type="button" class="facility-chip ${installed[key] ? 'on' : 'off'}" onclick="setScenarioInfo('${escapeHtml(routeId ? `${routeId} 경로 시설` : '시설 정보')}', '${escapeHtml(facilityDescription(key, installed[key]))}')">${facilityLabel(key)}</button>`
     ).join('')
   }</div>`;
 }
@@ -2184,6 +2234,120 @@ function renderFinalScenario(data) {
     <div class="improvement-list">${installCandidates}</div>
     <a class="data-usage-link" href="/voiceguide-final/data-usage" target="_blank" rel="noreferrer">데이터 활용 근거 보기</a>
   `;
+}
+
+function facilityDescription(key, installed) {
+  const status = installed ? '확인됨' : '보강 필요';
+  return ({
+    pedestrian_light: `보행등 ${status}. 횡단 가능 신호 정보를 안내 근거로 쓸 수 있는지 판단합니다.`,
+    audio_signal: `음향신호기 ${status}. 시각장애인에게 횡단 신호를 소리로 전달하는 핵심 시설입니다.`,
+    push_button: `보행자작동신호기 ${status}. 사용자가 신호 요청을 할 수 있는지 확인합니다.`,
+    raised_crosswalk: `고원식 횡단보도 ${status}. 차량 감속과 보행자 보호 효과를 기대할 수 있습니다.`,
+    traffic_safety_detail: `교통안전시설 상세정보 ${status}. 데이터로 설명 가능한 안내인지 판단하는 근거입니다.`
+  })[key] || `${facilityLabel(key)} ${status}`;
+}
+
+function setScenarioInfo(title, body) {
+  const box = document.getElementById('scenarioInfoBox');
+  if (!box) return;
+  box.innerHTML = `<strong>${escapeHtml(title)}</strong>${escapeHtml(body)}`;
+  box.classList.add('is-visible');
+}
+
+function renderFacilityChips(facilities, routeId = '') {
+  const installed = facilities?.installed || {};
+  return `<div class="facility-chip-row">${
+    Object.keys(installed).map(key => `
+      <button type="button"
+        class="facility-chip ${installed[key] ? 'on' : 'off'}"
+        data-info-title="${escapeHtml(routeId ? `${routeId} 경로 시설` : '시설 정보')}"
+        data-info-body="${escapeHtml(facilityDescription(key, installed[key]))}">
+        ${facilityLabel(key)}
+      </button>`
+    ).join('')
+  }</div>`;
+}
+
+function renderFinalScenario(data) {
+  const panel = document.getElementById('finalScenarioPanel');
+  if (!panel) return;
+  const routes = data.routes || [];
+  const selected = data.selected_route || {};
+  const meta = data.metadata || {};
+  const total = data.crosswalk_total || 1;
+  const tierCounts = data.tier_counts || {};
+  const candidates = data.improvement_candidates || [];
+  const startName = routes[0]?.start_name || '보라매역';
+  const destinationName = selected.destination_name || routes[0]?.destination_name || '서울시남부장애인종합복지관';
+
+  const routeCards = routes.map(route => {
+    const score = Number(route.accessibility_score || 0);
+    const pct = Math.max(8, Math.min(100, score / 8 * 100));
+    return `
+      <div class="scenario-route-card ${route.selected ? 'route-b' : 'route-a'}">
+        <div class="scenario-route-card-header">
+          <span class="scenario-route-label">${escapeHtml(route.route_id)} 경로</span>
+          <span class="scenario-route-badge ${route.selected ? 'badge-win' : 'badge-fail'}">${route.selected ? '선택' : '탈락'}</span>
+        </div>
+        <div class="scenario-crosswalk-id">${escapeHtml(route.main_crosswalk_id || '-')}</div>
+        <div class="scenario-distance">약 ${formatCount(route.approx_distance_m)}m${route.distance_delta_vs_shortest_m ? ` (+${formatCount(route.distance_delta_vs_shortest_m)}m)` : ''}</div>
+        <div class="scenario-score-bar"><div class="scenario-score-fill" style="width:${pct}%;background:${route.selected ? 'var(--safe)' : 'var(--danger)'};"></div></div>
+        <div class="scenario-score-label">접근성 ${score}점 · ${escapeHtml(route.recommendation_tier || '')}</div>
+        ${renderFacilityChips(route.facilities, route.route_id)}
+      </div>`;
+  }).join('');
+
+  const maxTier = Math.max(...Object.values(tierCounts).map(Number), 1);
+  const tierRows = ['preferred', 'recommended', 'basic', 'insufficient'].map(tier => {
+    const count = Number(tierCounts[tier] || 0);
+    const color = tier === 'preferred' ? 'var(--safe)' : tier === 'recommended' ? 'var(--accent2)' : tier === 'basic' ? 'var(--warn)' : 'var(--danger)';
+    return `
+      <div class="scenario-grade-row">
+        <span class="scenario-grade-label">${tier}</span>
+        <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:${Math.max(4, count / maxTier * 100)}%;background:${color};"></div></div>
+        <span class="scenario-grade-count">${formatCount(count)}</span>
+      </div>`;
+  }).join('');
+
+  const installCandidates = candidates.slice(0, 3).map(item => {
+    const missing = (item.missing || []).map(m => m.label).join(', ') || '추가 시설 검토';
+    return `
+      <button type="button"
+        class="improvement-item"
+        data-info-title="보강 제안 지점 ${escapeHtml(item.crosswalk_id || '')}"
+        data-info-body="${escapeHtml(`이 지점은 접근성 ${item.accessibility_score ?? '-'}점, ${item.tier || '미분류'} 등급입니다. 부족한 시설(${missing})을 보강하면 향후 안전 경로 후보가 될 수 있어 표시합니다.`)}">
+        <strong>${escapeHtml(item.crosswalk_id || '-')}</strong>
+        <span>${escapeHtml(missing)} 보강 제안</span>
+      </button>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="section-title">데모 경로 시나리오</div>
+    <div class="scenario-route-header">
+      <div class="scenario-route-place">
+        <span class="scenario-place-label">출발</span>
+        <span class="scenario-place-name">${escapeHtml(startName)}</span>
+      </div>
+      <div class="scenario-route-arrow">→</div>
+      <div class="scenario-route-place" style="text-align:right;">
+        <span class="scenario-place-label">목적지</span>
+        <span class="scenario-place-name">${escapeHtml(destinationName)}</span>
+      </div>
+    </div>
+    <div class="scenario-route-pair">${routeCards}</div>
+    <div class="scenario-tts">${escapeHtml(selected.selection_reason || meta.scenario || '보행지원시설 근거가 확인된 경로를 우선 안내합니다.')}</div>
+    <div id="scenarioInfoBox" class="scenario-info-box" aria-live="polite"></div>
+    <div class="scenario-grade-title">동작구 횡단보도 ${formatCount(total)}건 접근성 등급</div>
+    <div class="scenario-grades">${tierRows}</div>
+    <div class="scenario-grade-title" style="margin-top:12px;">보강 제안 지점</div>
+    <div class="scenario-info-box is-visible"><strong>왜 필요한가요?</strong>시설 후보는 새 시설을 이미 설치했다는 뜻이 아니라, 음향신호기·보행자작동신호기 같은 보강을 제안할 우선 검토 지점입니다.</div>
+    <div class="improvement-list">${installCandidates}</div>
+    <button type="button" class="data-usage-link" data-info-title="데이터 활용 근거" data-info-body="최종 데이터는 경로 비교 CSV, 시나리오 JSON, 횡단보도 접근성 CSV/GeoJSON, 데이터 활용 HTML을 함께 사용합니다. 전체 문서는 새 탭에서 열 수 있습니다." onclick="window.open('/voiceguide-final/data-usage.html', '_blank', 'noopener')">데이터 활용 근거 보기</button>
+  `;
+
+  panel.querySelectorAll('[data-info-title]').forEach(el => {
+    el.addEventListener('click', () => setScenarioInfo(el.dataset.infoTitle || '정보', el.dataset.infoBody || ''));
+  });
 }
 
 function crosswalkColor(tier) {
