@@ -6,6 +6,7 @@
 <title>VoiceGuide 대시보드</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -101,6 +102,16 @@
     display: grid;
     grid-template-columns: 340px 1fr;
     overflow: hidden;
+    min-height: 0;
+  }
+
+  /* 중앙: 지도(상단) + 실시간 위험도(하단) */
+  .center-column {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    min-width: 0;
   }
 
   /* ── 왼쪽 패널 ────────────────────────────── */
@@ -151,9 +162,153 @@
   .stat-card.warn .stat-value    { color: var(--warn); }
   .stat-card.safe .stat-value    { color: var(--safe); }
 
+  .global-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .global-stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 6px;
+    text-align: center;
+  }
+  .global-stat-value {
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .global-stat-label { font-size: 9px; color: var(--muted); }
+  .global-stat-card.danger .global-stat-value { color: var(--danger); }
+  .global-stat-card.warn .global-stat-value { color: var(--warn); }
+  .global-stat-card.safe .global-stat-value { color: var(--safe); }
+  .session-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 112px;
+    overflow-y: auto;
+  }
+  .session-summary-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 9px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .session-summary-item:hover {
+    border-color: var(--accent);
+    background: #252943;
+  }
+  .session-summary-id {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .session-summary-meta {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .disabled-context-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+  }
+  .disabled-context-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+  .disabled-context-value {
+    color: var(--accent2);
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .disabled-context-date {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .disabled-context-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .disabled-context-row strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .disabled-region-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+    max-height: 76px;
+    overflow: hidden;
+  }
+  .disabled-region-row {
+    display: grid;
+    grid-template-columns: 58px 1fr 56px;
+    align-items: center;
+    gap: 7px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .disabled-region-track {
+    height: 6px;
+    overflow: hidden;
+    border-radius: 99px;
+    background: #171b2c;
+  }
+  .disabled-region-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent2);
+  }
+
+  .disabled-demographic-summary {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .disabled-demographic-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .disabled-demographic-row strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+
   /* 탐지 물체 목록 */
   .objects-list {
-    flex: 1;
+    flex: 1 1 96px;
+    min-height: 92px;
     overflow-y: auto;
     padding: 12px 20px;
     display: flex;
@@ -222,10 +377,104 @@
   }
   .empty-state svg { opacity: 0.3; }
 
-  /* ── 오른쪽: 지도 영역 ────────────────────── */
+  /* ── 지도 영역 ────────────────────────────── */
   .map-container {
     position: relative;
     background: var(--bg);
+    flex: 8;
+    min-height: 0;
+  }
+
+  .analysis-panel {
+    flex: 2;
+    min-height: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+  }
+  .analysis-half {
+    flex: 1;
+    min-width: 0;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+  }
+  .analysis-half + .analysis-half {
+    border-left: 1px solid var(--border);
+  }
+  .analysis-panel .section-title { margin-bottom: 0; }
+  /* 경고안내 카드 */
+  .alert-notice-card {
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid var(--border);
+    animation: slideIn 0.25s ease;
+  }
+  .alert-notice-card.critical { border-color: var(--danger); background: rgba(239,68,68,0.06); }
+  .alert-notice-card.beep     { border-color: var(--warn);   background: rgba(251,146,60,0.06); }
+  .alert-notice-card.silent   { border-color: var(--safe);   background: rgba(74,222,128,0.06); }
+  .alert-notice-header { display: flex; align-items: center; gap: 8px; }
+  .alert-mode-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 4px; color: #fff; flex-shrink: 0;
+  }
+  .alert-mode-badge.critical { background: var(--danger); }
+  .alert-mode-badge.beep     { background: var(--warn); }
+  .alert-mode-badge.silent   { background: var(--safe); }
+  .alert-sentence {
+    font-size: 13px; font-weight: 600; line-height: 1.5;
+    color: var(--text);
+  }
+  .alert-time { font-size: 11px; color: var(--muted); }
+  .alert-history { display: flex; flex-direction: column; gap: 6px; }
+  .alert-history-item {
+    font-size: 11px; color: var(--muted); padding: 6px 10px;
+    border-radius: 4px; background: var(--surface2);
+    border-left: 3px solid var(--border);
+  }
+  .alert-history-item.critical { border-left-color: var(--danger); }
+  .alert-history-item.beep     { border-left-color: var(--warn); }
+  .alert-history-item.silent   { border-left-color: var(--safe); }
+  .empty-alert {
+    color: var(--muted); font-size: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  #riskBarChart {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .risk-bar-row {
+    font-size: 12px;
+  }
+  .risk-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    gap: 8px;
+  }
+  .risk-bar-label span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .risk-bar-track {
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .risk-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.35s ease;
   }
 
   #map {
@@ -237,6 +486,12 @@
   /* Leaflet 다크 테마 오버라이드 */
   .leaflet-tile { filter: brightness(0.85) saturate(0.8) hue-rotate(180deg) invert(1); }
   .leaflet-container { background: #111; }
+
+  /* 줌 등 좌상단 컨트롤: 커스텀 범례( top-left 오버레이 ) 아래로 */
+  .map-container .leaflet-top.leaflet-left {
+    top: 55px;
+    left: 10px;
+  }
 
   /* 지도 위 오버레이 카드 */
   .map-overlay {
@@ -266,10 +521,141 @@
   .gps-label { color: var(--muted); }
   .gps-value { font-family: monospace; color: var(--accent2); }
 
-  .map-overlay.bottom-left {
-    bottom: 24px; left: 16px;
+  .map-overlay.top-left {
+    top: 16px; left: 16px;
     display: flex;
     gap: 8px;
+  }
+
+  .map-overlay.bottom-left {
+    left: 16px;
+    bottom: 16px;
+    width: 150px;
+    max-height: 44px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: default;
+    transition: width 0.18s ease, max-height 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .map-overlay.bottom-left:hover,
+  .map-overlay.bottom-left:focus-within,
+  .map-overlay.bottom-left.is-expanded {
+    width: min(360px, calc(100% - 32px));
+    max-height: 275px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+  }
+
+  .hotspot-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 18px;
+  }
+
+  .hotspot-panel-hint {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .map-overlay.bottom-left:hover .hotspot-panel-hint,
+  .map-overlay.bottom-left:focus-within .hotspot-panel-hint,
+  .map-overlay.bottom-left.is-expanded .hotspot-panel-hint {
+    display: none;
+  }
+
+  .hotspot-panel-body {
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: opacity 0.12s ease;
+  }
+
+  .map-overlay.bottom-left:hover .hotspot-panel-body,
+  .map-overlay.bottom-left:focus-within .hotspot-panel-body,
+  .map-overlay.bottom-left.is-expanded .hotspot-panel-body {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .hotspot-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .hotspot-legend .legend-item {
+    font-size: 10px;
+  }
+
+  .hotspot-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .hotspot-stat {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 6px;
+    text-align: center;
+  }
+
+  .hotspot-stat strong {
+    display: block;
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .hotspot-stat span {
+    display: block;
+    color: var(--muted);
+    font-size: 9px;
+    margin-top: 4px;
+  }
+
+  .hotspot-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 3px;
+  }
+
+  .hotspot-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--danger);
+    border-radius: 8px;
+    padding: 8px 9px;
+    cursor: pointer;
+  }
+
+  .hotspot-item:hover {
+    border-color: var(--accent);
+  }
+
+  .hotspot-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hotspot-meta {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 10px;
   }
 
   .legend-item {
@@ -284,37 +670,6 @@
     border-radius: 50%;
     flex-shrink: 0;
   }
-
-  /* 네비게이션 버튼 그룹 */
-  .nav-buttons {
-    position: absolute;
-    z-index: 400;
-    top: 16px; left: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .nav-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-  }
-  .nav-btn:hover { background: var(--surface2); border-color: var(--accent); }
-  .nav-btn.naver  { border-color: #03c75a33; color: #03c75a; }
-  .nav-btn.kakao  { border-color: #fee50033; color: #fee500; }
-  .nav-btn.street { border-color: #4285f433; color: #4285f4; }
 
   /* 타임스탬프 + FPS */
   .last-update {
@@ -354,20 +709,20 @@
      각자 독립적으로 스크롤된다.
   ────────────────────────────────────────── */
   .panel-top {
-    flex: 1 1 0;
+    flex: 0 0 56%;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
     min-height: 0;                          /* flex 자식 overflow 작동에 필수 */
     border-bottom: 2px solid var(--border); /* 상/하단 구분선 */
   }
 
   .panel-bottom {
-    flex: 1 1 0;
+    flex: 1 1 44%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 0;
+    min-height: 220px;
   }
 
   /* ── 24시간 요약 통계 카드 ────────────────
@@ -467,6 +822,70 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+
+  /* ── 데모 시나리오 패널 ──────────────────────── */
+  .scenario-section { background: rgba(108,99,255,0.04); border-top: 2px solid var(--accent) !important; }
+
+  .scenario-route-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .scenario-route-place { flex: 1; display: flex; flex-direction: column; }
+  .scenario-place-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .scenario-place-name  { font-size: 12px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .scenario-route-arrow { color: var(--accent); font-weight: 700; font-size: 14px; }
+
+  .scenario-route-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .scenario-route-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .scenario-route-card.route-a { border-color: rgba(255,77,109,0.35); }
+  .scenario-route-card.route-b { border-color: rgba(82,183,136,0.35); }
+  .scenario-route-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .scenario-route-label { font-size: 10px; font-weight: 700; color: var(--muted); }
+  .scenario-route-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+  .badge-fail { background: rgba(255,77,109,0.15); color: var(--danger); }
+  .badge-win  { background: rgba(82,183,136,0.15); color: var(--safe); }
+  .scenario-crosswalk-id { font-size: 9px; color: var(--accent2); font-family: monospace; margin-bottom: 3px; }
+  .scenario-distance     { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .scenario-score-bar    { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  .scenario-score-fill   { height: 100%; border-radius: inherit; }
+  .scenario-score-label  { font-size: 9px; color: var(--muted); line-height: 1.4; }
+
+  .scenario-tts {
+    background: rgba(72,191,227,0.06);
+    border: 1px solid rgba(72,191,227,0.2);
+    border-left: 3px solid var(--accent2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--accent2);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .scenario-grade-title { font-size: 9px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .scenario-grades      { display: flex; flex-direction: column; gap: 4px; }
+  .scenario-grade-row   { display: grid; grid-template-columns: 74px 1fr 28px; align-items: center; gap: 6px; }
+  .scenario-grade-label { font-size: 9px; color: var(--muted); font-family: monospace; }
+  .scenario-grade-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .scenario-grade-fill  { height: 100%; border-radius: inherit; }
+  .scenario-grade-count { font-size: 9px; color: var(--text); text-align: right; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -512,6 +931,71 @@
     <!-- ▲ 상단: 실시간 현황 (기존과 동일) -->
     <div class="panel-top">
 
+      <!-- 전체 단말 통계 -->
+      <div class="panel-section">
+        <div class="section-title">전체 단말 24시간 통계</div>
+        <div class="global-summary-grid">
+          <div class="global-stat-card">
+            <div class="global-stat-value" id="globalSessions">0</div>
+            <div class="global-stat-label">단말</div>
+          </div>
+          <div class="global-stat-card">
+            <div class="global-stat-value" id="globalTotal">0</div>
+            <div class="global-stat-label">탐지</div>
+          </div>
+          <div class="global-stat-card danger">
+            <div class="global-stat-value" id="globalCritical">0</div>
+            <div class="global-stat-label">위험</div>
+          </div>
+          <div class="global-stat-card warn">
+            <div class="global-stat-value" id="globalBeep">0</div>
+            <div class="global-stat-label">주의</div>
+          </div>
+        </div>
+        <div class="session-summary-list" id="sessionSummaryList">
+          <div style="font-size:11px;color:var(--muted);">전체 단말 통계 불러오는 중...</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-title">시각장애 등록 현황</div>
+        <div class="disabled-context-card" id="disabledContextCard">
+          <div class="disabled-context-main">
+            <div class="disabled-context-value" id="disabledVisualTotal">-</div>
+            <div class="disabled-context-date" id="disabledMonth">-</div>
+          </div>
+          <div class="disabled-context-row">
+            <span>전체 등록장애인 대비</span>
+            <strong id="disabledVisualShare">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심한 장애</span>
+            <strong id="disabledSevere">-</strong>
+          </div>
+          <div class="disabled-context-row">
+            <span>심하지 않은 장애</span>
+            <strong id="disabledMild">-</strong>
+          </div>
+          <div class="disabled-region-bars" id="disabledRegionBars">
+            <div style="font-size:11px;color:var(--muted);">지역 통계 불러오는 중...</div>
+          </div>
+          <div class="disabled-demographic-summary" id="disabledDemographicSummary">
+            <div class="disabled-demographic-row">
+              <span>전체 등록장애인</span>
+              <strong id="disabledGenderTotal">-</strong>
+            </div>
+            <div class="disabled-demographic-row">
+              <span>남/여</span>
+              <strong id="disabledGenderMix">-</strong>
+            </div>
+            <div class="disabled-demographic-row">
+              <span>심한/심하지 않은 장애</span>
+              <strong id="disabledDegreeMix">-</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 통계 카드 -->
       <div class="panel-section">
         <div class="section-title">실시간 현황</div>
@@ -541,6 +1025,82 @@
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <span>탐지된 물체 없음<br>앱을 실행하세요</span>
+        </div>
+      </div>
+
+      <!-- 데모 시나리오 패널 -->
+      <div class="panel-section scenario-section">
+        <div class="section-title">데모 경로 시나리오</div>
+
+        <!-- 출발 → 목적지 -->
+        <div class="scenario-route-header">
+          <div class="scenario-route-place">
+            <span class="scenario-place-label">출발</span>
+            <span class="scenario-place-name">보라매역</span>
+          </div>
+          <div class="scenario-route-arrow">→</div>
+          <div class="scenario-route-place" style="text-align:right;">
+            <span class="scenario-place-label">목적지</span>
+            <span class="scenario-place-name">서울시남부<br>장애인종합복지관</span>
+          </div>
+        </div>
+
+        <!-- A/B 경로 비교 -->
+        <div class="scenario-route-pair">
+          <div class="scenario-route-card route-a">
+            <div class="scenario-route-card-header">
+              <span class="scenario-route-label">A 경로</span>
+              <span class="scenario-route-badge badge-fail">탈락</span>
+            </div>
+            <div class="scenario-crosswalk-id">06-0000016344</div>
+            <div class="scenario-distance">약 817m</div>
+            <div class="scenario-score-bar">
+              <div class="scenario-score-fill" style="width:12.5%;background:var(--danger);"></div>
+            </div>
+            <div class="scenario-score-label">접근성 1점<br>보행지원시설 없음</div>
+          </div>
+          <div class="scenario-route-card route-b">
+            <div class="scenario-route-card-header">
+              <span class="scenario-route-label">B 경로</span>
+              <span class="scenario-route-badge badge-win">선택</span>
+            </div>
+            <div class="scenario-crosswalk-id">06-0000032157</div>
+            <div class="scenario-distance">약 825m (+8m)</div>
+            <div class="scenario-score-bar">
+              <div class="scenario-score-fill" style="width:87.5%;background:var(--safe);"></div>
+            </div>
+            <div class="scenario-score-label">접근성 7점<br>보행등·음향·버튼</div>
+          </div>
+        </div>
+
+        <!-- TTS -->
+        <div class="scenario-tts">
+          "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
+        </div>
+
+        <!-- 동작구 횡단보도 등급 분포 -->
+        <div class="scenario-grade-title">동작구 횡단보도 1,025건 등급분포</div>
+        <div class="scenario-grades">
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">preferred</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:5.3%;background:var(--safe);"></div></div>
+            <span class="scenario-grade-count">54</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">recommended</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:30.6%;background:var(--accent2);"></div></div>
+            <span class="scenario-grade-count">314</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">basic</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:59.5%;background:var(--warn);"></div></div>
+            <span class="scenario-grade-count">610</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">insufficient</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:4.6%;background:var(--danger);"></div></div>
+            <span class="scenario-grade-count">47</span>
+          </div>
         </div>
       </div>
 
@@ -580,7 +1140,8 @@
 
   </div>
 
-  <!-- 오른쪽: 지도 -->
+  <!-- 중앙: 지도 + 실시간 위험도 -->
+  <div class="center-column">
   <div class="map-container">
     <div id="map"></div>
 
@@ -599,6 +1160,16 @@
         <span class="gps-label">경로 포인트</span>
         <span class="gps-value" id="trackCount">0</span>
       </div>
+      <div style="margin-top:8px;">
+        <button onclick="saveCurrentRoute()" id="btnSaveRoute" style="
+          width:100%;background:var(--surface2);border:1px solid var(--border);
+          border-radius:6px;color:var(--muted);font-size:11px;font-weight:600;
+          padding:5px 8px;cursor:pointer;transition:border-color 0.15s,color 0.15s;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          💾 현재 경로 저장
+        </button>
+      </div>
       <div id="routePanel" style="display:none;">
         <hr class="route-divider">
         <div class="gps-label" style="margin-bottom:4px;">저장된 경로</div>
@@ -608,21 +1179,8 @@
       </div>
     </div>
 
-    <!-- 네비게이션 / 로드뷰 버튼 -->
-    <div class="nav-buttons" id="navButtons" style="display:none;">
-      <a id="btnNaver" class="nav-btn naver" href="#" target="_blank">
-        🗺️ 네이버 지도로 열기
-      </a>
-      <a id="btnKakao" class="nav-btn kakao" href="#" target="_blank">
-        🗺️ 카카오맵으로 열기
-      </a>
-      <a id="btnStreet" class="nav-btn street" href="#" target="_blank">
-        📸 Google 로드뷰
-      </a>
-    </div>
-
     <!-- 범례 -->
-    <div class="map-overlay bottom-left">
+    <div class="map-overlay top-left">
       <div class="legend-item">
         <div class="legend-dot" style="background:#6c63ff;"></div> 현재 위치
       </div>
@@ -632,10 +1190,75 @@
       <div class="legend-item">
         <div class="legend-dot" style="background:#f4a261; opacity:0.8;"></div> 저장된 경로
       </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ff4d6d; opacity:0.85;"></div> 사고다발 고위험
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f4a261; opacity:0.85;"></div> 사고다발 주의
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#52b788; opacity:0.85;"></div> 사고다발 관심
+      </div>
     </div>
 
-    <div class="last-update" id="lastUpdate">—</div>
+    <div class="map-overlay bottom-left" id="hotspotPanel" tabindex="0" aria-label="보행자 사고다발구역 요약">
+      <div class="hotspot-panel-header">
+        <div class="section-title" style="margin-bottom:0;">사고다발구역</div>
+        <span class="hotspot-panel-hint">마우스 올리기</span>
+      </div>
+      <div class="hotspot-panel-body">
+        <div class="hotspot-summary-grid">
+          <div class="hotspot-stat">
+            <strong id="hotspotTotal">-</strong>
+            <span>전체 지점</span>
+          </div>
+          <div class="hotspot-stat">
+            <strong id="hotspotHigh">-</strong>
+            <span>고위험</span>
+          </div>
+          <div class="hotspot-stat">
+            <strong id="hotspotClusters">-</strong>
+            <span>클러스터</span>
+          </div>
+        </div>
+        <div class="hotspot-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#ff4d6d;"></div> 고위험
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#f4a261;"></div> 주의
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#52b788;"></div> 관심
+          </div>
+        </div>
+        <div class="hotspot-list" id="hotspotList">
+          <div class="hotspot-meta">사고다발구역 데이터를 불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="last-update" id="lastUpdate">-</div>
   </div>
+
+  <div class="analysis-panel">
+    <!-- 왼쪽: 실시간 위험도 분석 -->
+    <div class="analysis-half">
+      <div class="section-title">실시간 위험도 분석</div>
+      <div id="riskBarChart">
+        <div style="color:var(--muted); font-size:12px;">탐지 데이터 대기 중...</div>
+      </div>
+    </div>
+    <!-- 오른쪽: 경고안내 -->
+    <div class="analysis-half">
+      <div class="section-title">경고안내</div>
+      <div id="alertLatest">
+        <div class="empty-alert">탐지 대기 중...</div>
+      </div>
+      <div id="alertHistory" class="alert-history" style="display:none;"></div>
+    </div>
+  </div>
+  </div><!-- /center-column -->
 
 </main>
 
@@ -655,6 +1278,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19
 }).addTo(map);
 
+window.addEventListener('resize', () => map.invalidateSize());
+requestAnimationFrame(() => { map.invalidateSize(); });
+
 // 현재 위치 마커
 const markerIcon = L.divIcon({
   html: `<div style="
@@ -672,6 +1298,9 @@ const markerIcon = L.divIcon({
 let marker    = null;
 let trackLine = null;
 let routeLine = null;  // 저장된 경로 표시용 (주황색)
+let heatLayer = null;  // 위험 구간 히트맵 레이어
+let pedestrianHotspotLayer = null;  // 과거 보행자 사고다발구역 레이어
+let pedestrianHotspotFeatures = [];
 let mapCentered = false;
 const teamMarkers = {};  // session_id → Leaflet marker
 
@@ -723,33 +1352,190 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function formatCount(value) {
+  return Number(value ?? 0).toLocaleString('ko-KR');
+}
+
 // ── 아이콘 매핑 ───────────────────────────────────────
 const ICONS = {
   '사람':   '🚶', '자전거':   '🚲', '자동차':   '🚗', '오토바이': '🏍',
   '버스':   '🚌', '기차':     '🚂', '트럭':     '🚛', '의자':     '🪑',
-  '소파':   '🛋',  '침대':     '🛏',  '테이블':   '🪞', '계단':     '🪜',
+  '소파':   '🛋',  '침대':     '🛏',  '테이블':  '🪞', '계단':     '🪜',
   '신호등': '🚦', '칼':       '🔪', '가위':     '✂️',  '개':       '🐕',
   '고양이': '🐈',  '말':       '🐎', '화분':     '🪴', '병':       '🍶',
-  '컵':     '☕',  '우산':     '☂️',  '배낭':     '🎒', '핸드백':   '👜',
+  '컵':     '☕',  '우산':     '☂️',  '배낭':    '🎒', '핸드백':   '👜',
   '여행가방':'🧳',  '책':       '📚',
 };
-function getIcon(name) { return ICONS[name] || '📦'; }
+// 특정 물체는 SVG 아이콘으로 더 정확하게 표현
+const ICON_SVG = {
+  '벤치': `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="26" height="26">
+    <rect x="2"  y="13" width="28" height="3" rx="1.5" fill="#c8874a"/>
+    <rect x="2"  y="17" width="28" height="3" rx="1.5" fill="#c8874a"/>
+    <rect x="5"  y="20" width="3"  height="8" rx="1.5" fill="#7a5230"/>
+    <rect x="24" y="20" width="3"  height="8" rx="1.5" fill="#7a5230"/>
+    <rect x="2"  y="7"  width="28" height="3" rx="1.5" fill="#c8874a"/>
+    <rect x="2"  y="10" width="28" height="3" rx="1.5" fill="#c8874a"/>
+    <rect x="6"  y="7"  width="3"  height="13" rx="1.5" fill="#7a5230"/>
+    <rect x="23" y="7"  width="3"  height="13" rx="1.5" fill="#7a5230"/>
+  </svg>`,
+};
+function getIcon(name) {
+  if (ICON_SVG[name]) return ICON_SVG[name];
+  return ICONS[name] || '📦';
+}
 
 // ── 위험도 판단 ───────────────────────────────────────
+// 서버 policy.json 카테고리와 동일 기준
+const RISK_CRITICAL = 0.7;
+const RISK_BEEP     = 0.4;
+
+const CRITICAL_KO = ['자동차','오토바이','버스','트럭','기차','자전거','곰','코끼리','계단'];
+const ANIMAL_KO   = ['개','말','고양이'];
+const CAUTION_KO  = ['칼','가위','유리잔','야구 방망이','배낭','핸드백','여행가방','공'];
+
 function getRisk(obj) {
   const d  = obj.distance_m ?? 99;
   const kn = obj.class_ko ?? '';
-  if (['자동차','오토바이','버스','트럭','기차','자전거'].includes(kn) && d < 8) return 'critical';
-  if (['개','말','고양이'].includes(kn) && d < 3)  return 'critical';
-  if (kn === '계단')  return 'critical';
-  if (['칼','가위'].includes(kn) && d < 3)         return 'critical';
-  if (d < 0.5)        return 'critical';
-  if (d < 1.0)        return 'beep';
+  if (CRITICAL_KO.includes(kn))               return 'critical';
+  if (ANIMAL_KO.includes(kn) && d < 3)        return 'critical';
+  if (CAUTION_KO.includes(kn))                return 'beep';
+  if (d < 0.5)                                return 'critical';
+  if (d < 1.0)                                return 'beep';
   return 'silent';
+}
+
+// ── 경고안내 ────────────────────────────────────────
+const _alertHistory = [];   // { sentence, alertMode, time }
+const ALERT_HISTORY_MAX = 5;
+
+function _koParticle(name) {
+  // 한글 마지막 자모 받침(종성) 여부: (코드 - 0xAC00) % 28 != 0 이면 받침 있음
+  const code = name.charCodeAt(name.length - 1);
+  return (code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0) ? '이' : '가';
+}
+
+function _buildAlertSentence(objects) {
+  if (!objects || objects.length === 0) return null;
+  const top  = [...objects].sort((a, b) => (b.risk_score ?? 0) - (a.risk_score ?? 0))[0];
+  const name = top.class_ko ?? '물체';
+  const dir  = top.direction ?? '';
+  const tier = riskTierForObject(top);
+  const ig   = _koParticle(name);
+  const loc  = dir ? `${dir} 방향에` : '정면에';
+  if (tier === 'critical') return `위험! ${dir ? dir + ' ' : ''}${name}! 조심! 멈추세요!`;
+  if (tier === 'beep')     return `${loc} ${name}${ig} 있어요. 조심하세요.`;
+  return `${loc} ${name}${ig} 있어요.`;
+}
+
+function clearAlert() {
+  _alertHistory.length = 0;
+  const latestEl  = document.getElementById('alertLatest');
+  const historyEl = document.getElementById('alertHistory');
+  if (latestEl)  latestEl.innerHTML = '<div class="empty-alert">탐지 대기 중...</div>';
+  if (historyEl) { historyEl.style.display = 'none'; historyEl.innerHTML = ''; }
+}
+
+function renderAlertNotice(sentence, alertMode) {
+  const latestEl  = document.getElementById('alertLatest');
+  const historyEl = document.getElementById('alertHistory');
+  if (!latestEl) return;
+
+  if (!sentence) {
+    latestEl.innerHTML = '<div class="empty-alert">탐지 대기 중...</div>';
+    return;
+  }
+
+  const labelMap = { critical: '위험', beep: '주의', silent: '안전' };
+  const label = labelMap[alertMode] ?? '—';
+  const now   = new Date().toLocaleTimeString('ko-KR');
+
+  latestEl.innerHTML = `
+    <div class="alert-notice-card ${alertMode}">
+      <div class="alert-notice-header">
+        <span class="alert-mode-badge ${alertMode}">${label}</span>
+        <span class="alert-time">${now}</span>
+      </div>
+      <div class="alert-sentence">${escapeHtml(sentence)}</div>
+    </div>`;
+
+  // 히스토리 누적 (silent 제외)
+  if (alertMode !== 'silent') {
+    _alertHistory.unshift({ sentence, alertMode, time: now });
+    if (_alertHistory.length > ALERT_HISTORY_MAX) _alertHistory.pop();
+    if (_alertHistory.length > 1) {
+      historyEl.style.display = 'flex';
+      historyEl.innerHTML = _alertHistory.slice(1).map(h =>
+        `<div class="alert-history-item ${h.alertMode}">
+           <span style="color:var(--muted);margin-right:6px;">${h.time}</span>${escapeHtml(h.sentence)}
+         </div>`
+      ).join('');
+    }
+  }
 }
 
 function riskLabel(r) {
   return { critical: '위험', beep: '주의', silent: '안전' }[r] ?? '—';
+}
+
+/** 0~1 점수 → 등급 (서버와 동일 임계값) */
+function riskTierFromScore(score) {
+  const s = Math.max(0, Math.min(1, Number(score)));
+  if (s >= RISK_CRITICAL) return 'critical';
+  if (s >= RISK_BEEP) return 'beep';
+  return 'silent';
+}
+
+/** 목록·뱃지·통계: 서버 risk_score 우선, 없을 때만 거리·클래스 휴리스틱 */
+function riskTierForObject(obj) {
+  const rs = obj.risk_score;
+  if (rs != null && Number.isFinite(Number(rs))) return riskTierFromScore(Number(rs));
+  return getRisk(obj);
+}
+
+/** 서버 risk_score(0~1) 우선, 없으면 휴리스틱 등급을 대략 점수로 환산 */
+function objectRiskScore(obj) {
+  const rs = obj.risk_score;
+  if (rs != null && Number.isFinite(Number(rs))) {
+    return Math.max(0, Math.min(1, Number(rs)));
+  }
+  const tier = getRisk(obj);
+  if (tier === 'critical') return 0.85;
+  if (tier === 'beep') return 0.5;
+  return 0.15;
+}
+
+function updateRiskChart(objects) {
+  const container = document.getElementById('riskBarChart');
+  if (!container) return;
+
+  if (!objects || objects.length === 0) {
+    container.innerHTML =
+      '<div style="color:var(--muted);font-size:12px;">탐지된 물체 없음</div>';
+    return;
+  }
+
+  const ranked = [...objects]
+    .map(o => ({ o, score: objectRiskScore(o) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+
+  container.innerHTML = ranked.map(({ o, score }) => {
+    const pct = Math.round(score * 100);
+    const tier = riskTierFromScore(score);
+    const color = tier === 'critical' ? 'var(--danger)' : tier === 'beep' ? 'var(--warn)' : 'var(--safe)';
+    const dir = o.direction ?? '—';
+    const name = escapeHtml(o.class_ko ?? '알 수 없음');
+    return `
+      <div class="risk-bar-row">
+        <div class="risk-bar-label">
+          <span title="${name}">${name} <span style="color:var(--muted);font-weight:400;">(${escapeHtml(dir)})</span></span>
+          <span style="color:${color};font-weight:700;">${pct}%</span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" style="background:${color};width:${pct}%;"></div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function distLabel(d) {
@@ -776,12 +1562,13 @@ function renderObjects(objects) {
     document.getElementById('statCritical').textContent = 0;
     document.getElementById('statBeep').textContent     = 0;
     document.getElementById('statSafe').textContent     = 0;
+    updateRiskChart([]);
     return;
   }
 
   let critical = 0, beep = 0, safe = 0;
   const cards = objects.map(obj => {
-    const risk = getRisk(obj);
+    const risk = riskTierForObject(obj);
     if (risk === 'critical') critical++;
     else if (risk === 'beep') beep++;
     else safe++;
@@ -808,6 +1595,7 @@ function renderObjects(objects) {
   document.getElementById('statCritical').textContent = critical;
   document.getElementById('statBeep').textContent     = beep;
   document.getElementById('statSafe').textContent     = safe;
+  updateRiskChart(objects);
 }
 
 function renderGps(gps, track) {
@@ -820,7 +1608,6 @@ function renderGps(gps, track) {
     document.getElementById('gpsLat').textContent = '—';
     document.getElementById('gpsLng').textContent = '—';
     document.getElementById('trackCount').textContent = 0;
-    document.getElementById('navButtons').style.display = 'none';
     return;
   }
 
@@ -863,23 +1650,119 @@ function renderGps(gps, track) {
     mapCentered = true;
   }
 
-  // 네비게이션·로드뷰 버튼 URL 업데이트
-  document.getElementById('navButtons').style.display = 'flex';
-  // 네이버 지도: 현재 위치 중심으로 열기
-  document.getElementById('btnNaver').href =
-    `https://map.naver.com/v5/?c=${lng},${lat},15,0,0,0,dh`;
-  // 카카오맵: 현재 위치 중심으로 열기
-  document.getElementById('btnKakao').href =
-    `https://map.kakao.com/link/map/현재위치,${lat},${lng}`;
-  // Google Street View (로드뷰 대체): 현재 좌표로
-  document.getElementById('btnStreet').href =
-    `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+  fetchDisabledPopulationContext(lat, lng);
 }
 
 // ── 폴링 ─────────────────────────────────────────────
-let prevObjectCount = 0;
-let eventSource = null;
-let pollTimer = null;
+const OBJECT_HOLD_MS = 30_000;   // 탐지 후 최소 30초 유지
+const GPS_IDLE_MS    = 30_000;   // 60초간 GPS 없음 → 세션 종료로 간주, 경고안내 소거
+let prevObjectCount  = 0;
+let eventSource      = null;
+let pollTimer        = null;
+let _objClearTimer   = null;
+let _gpsIdleTimer    = null;
+let _heatmapTimer    = null;
+let _cachedGpsKey    = null;   // 페이지 로드 직후 서버에서 받은 첫 GPS (캐시된 값)
+let _liveGpsActive   = false;  // 위치가 실제로 변경됐을 때만 true (활성 추적 중)
+let _heatmapData     = [];     // 서버에서 받아온 히트맵 포인트 (lat, lng, intensity)
+let _heatmapVisible  = false;  // 현재 지도에 히트맵이 표시 중인지 여부
+
+function _scheduleObjectClear() {
+  if (_objClearTimer) clearTimeout(_objClearTimer);
+  _objClearTimer = setTimeout(() => { renderObjects([]); _objClearTimer = null; }, OBJECT_HOLD_MS);
+}
+
+let _heatmapGen  = 0;          // 세대 카운터 — 중단 후 날아온 응답을 무시하기 위해 사용
+let _currentGps  = null;       // 가장 최근 수신된 GPS 좌표 {lat, lng}
+
+// 현재 위치 반경 이 거리(m) 이내의 포인트만 지도에 표시
+const HEATMAP_RADIUS_M = 50;
+
+/** Haversine 공식으로 두 GPS 좌표 사이 거리(m)를 반환 */
+function _haversineM(lat1, lng1, lat2, lng2) {
+  const R = 6371000, f = Math.PI / 180;
+  const φ1 = lat1 * f, φ2 = lat2 * f;
+  const Δφ = (lat2 - lat1) * f, Δλ = (lng2 - lng1) * f;
+  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * GPS 위치 기준으로 반경 HEATMAP_RADIUS_M 이내 포인트만 걸러 렌더링한다.
+ * GPS 업데이트마다 호출 → 지나친 구간은 사라지고 다가오는 구간만 나타남.
+ */
+function _checkHeatmapProximity(lat, lng) {
+  if (!_liveGpsActive || _heatmapData.length === 0) {
+    if (_heatmapVisible) { _heatmapVisible = false; renderHeatmap([]); }
+    return;
+  }
+
+  // 현재 위치 반경 내 포인트만 필터링
+  const nearby = _heatmapData.filter(
+    p => _haversineM(lat, lng, p.lat, p.lng) <= HEATMAP_RADIUS_M
+  );
+
+  if (nearby.length > 0) {
+    _heatmapVisible = true;
+    renderHeatmap(nearby);      // 반경 내 포인트만 표시 (GPS 이동마다 갱신)
+  } else if (_heatmapVisible) {
+    _heatmapVisible = false;
+    renderHeatmap([]);          // 반경 내 포인트 없음 → 히트맵 숨김
+  }
+}
+
+function _startHeatmapPolling() {
+  if (_heatmapTimer) return;
+  fetchHeatmap();  // 백그라운드에서 데이터 취득 시작
+  _heatmapTimer = setInterval(fetchHeatmap, HISTORY_POLL_MS);
+}
+
+function _stopHeatmapPolling(clear = false) {
+  _heatmapGen++;  // 진행 중인 fetchHeatmap 응답을 무효화
+  if (_heatmapTimer) { clearInterval(_heatmapTimer); _heatmapTimer = null; }
+  _heatmapData    = [];
+  _heatmapVisible = false;
+  if (clear) renderHeatmap([]);
+}
+
+function _resetLiveGpsState() {
+  _liveGpsActive = false;
+  _cachedGpsKey  = null;
+  _currentGps    = null;
+}
+
+/**
+ * GPS 이벤트 수신 시 호출. lat/lng를 받아 위치 변경 여부를 판단한다.
+ * - 첫 수신(=서버 캐시): 위치 저장만 하고 히트맵은 시작하지 않음
+ * - 위치가 바뀐 순간(=실제 이동): 히트맵 폴링 시작
+ */
+function _scheduleGpsIdle(lat, lng) {
+  const key = `${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}`;
+
+  if (_cachedGpsKey === null) {
+    // 세션 내 첫 GPS → 서버 캐시일 가능성 있음, 위치만 기억
+    _cachedGpsKey = key;
+  } else if (!_liveGpsActive && key !== _cachedGpsKey) {
+    // 위치가 달라짐 → 장치가 실제로 움직이고 있음
+    _liveGpsActive = true;
+  }
+
+  _currentGps = { lat, lng };  // 항상 최신 GPS 저장 (fetchHeatmap 갱신 시 재평가용)
+
+  if (_gpsIdleTimer) clearTimeout(_gpsIdleTimer);
+  if (_liveGpsActive) {
+    _startHeatmapPolling();           // 백그라운드 데이터 폴링 시작 (최초 1회만 실행)
+    _checkHeatmapProximity(lat, lng); // GPS 업데이트마다 반경 내 포인트 재계산
+  }
+
+  _gpsIdleTimer = setTimeout(() => {
+    clearAlert();
+    _gpsIdleTimer = null;
+    _resetLiveGpsState();
+    const sel = document.getElementById('routeSelect');
+    if (!sel || !sel.value) _stopHeatmapPolling(true);
+  }, GPS_IDLE_MS);
+}
 
 async function poll() {
   const sessionId = document.getElementById('sessionId').value.trim() || '__default__';
@@ -894,7 +1777,22 @@ async function poll() {
     const resolvedSession = data.session_id ?? sessionId;
     text.textContent = data.gps ? `연결됨 · ${resolvedSession}` : '연결됨 · 세션 선택 필요';
 
-    renderObjects(data.objects);
+    const pollObjs = data.objects ?? [];
+    if (pollObjs.length > 0) {
+      // 새 objects 있음 → 표시 + 타이머 리셋
+      renderObjects(pollObjs);
+      _scheduleObjectClear();
+      const sentence = _buildAlertSentence(pollObjs);
+      const tier = riskTierForObject(pollObjs[0]);
+      const mode = tier === 'critical' ? 'critical' : tier === 'beep' ? 'beep' : 'silent';
+      renderAlertNotice(sentence, mode);
+    } else if (_objClearTimer === null) {
+      // 타이머 없고 objects도 없음 → 소거
+      renderObjects([]);
+    }
+    // 타이머 진행 중이면 빈 응답이 와도 표시 유지
+
+    if (data.gps && Number.isFinite(Number(data.gps?.lat))) _scheduleGpsIdle(data.gps.lat, data.gps.lng);
     renderGps(data.gps, data.track);
 
     // 팀원 위치 업데이트 (실패해도 무시)
@@ -904,17 +1802,16 @@ async function poll() {
       .catch(() => {});
 
     // 새 물체 감지 시 토스트
-    const currCount = (data.objects ?? []).length;
+    const currCount = pollObjs.length;
     if (currCount > prevObjectCount && prevObjectCount >= 0) {
-      const names = (data.objects ?? []).map(o => o.class_ko).join(', ');
+      const names = pollObjs.map(o => o.class_ko).join(', ');
       if (names) showToast(`🔍 탐지: ${names}`);
     }
     prevObjectCount = currCount;
 
-    const objCount = (data.objects ?? []).length;
     document.getElementById('lastUpdate').innerHTML =
       '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR') +
-      `<br>탐지: ${objCount}개`;
+      `<br>탐지: ${currCount}개`;
   } catch (e) {
     dot.className  = 'pulse-dot offline';
     text.textContent = '서버 연결 끊김';
@@ -928,7 +1825,29 @@ function applyPushedStatus(data, sessionId) {
   const resolvedSession = data.session_id ?? sessionId;
   text.textContent = data.gps ? `연결됨 · ${resolvedSession}` : '연결됨 · 세션 선택 필요';
 
-  renderObjects(data.objects);
+  const objs = data.objects ?? [];
+  const isDetectEvent = 'latest_event' in data;  // 실제 탐지 이벤트 여부
+
+  if (objs.length > 0) {
+    // 탐지 결과 있음 → 표시하고 12초 유지 타이머 재설정
+    renderObjects(objs);
+    _scheduleObjectClear();
+  } else if (isDetectEvent) {
+    // 탐지 이벤트인데 물체 없음 → 명시적 소거
+    if (_objClearTimer) { clearTimeout(_objClearTimer); _objClearTimer = null; }
+    renderObjects([]);
+  }
+  // GPS-only 이벤트(latest_event 없음, objects 빈 배열) → 기존 표시 유지
+
+  // 경고안내: SSE 탐지 이벤트에 서버가 생성한 sentence 사용
+  if (isDetectEvent) {
+    const ev = data.latest_event ?? {};
+    const sentence = ev.sentence || (objs.length > 0 ? _buildAlertSentence(objs) : null);
+    const alertMode = ev.alert_mode || (objs.length > 0 ? (riskTierForObject(objs[0]) === 'critical' ? 'critical' : riskTierForObject(objs[0]) === 'beep' ? 'beep' : 'silent') : 'silent');
+    if (sentence) renderAlertNotice(sentence, alertMode);
+  }
+
+  if (data.gps && Number.isFinite(Number(data.gps?.lat))) _scheduleGpsIdle(data.gps.lat, data.gps.lng);
   renderGps(data.gps, data.track);
 
   // 경로 저장 완료 신호 수신 시 콤보박스 목록 새로고침
@@ -939,17 +1858,16 @@ function applyPushedStatus(data, sessionId) {
     .then(d => renderTeamLocations(d.locations ?? [], resolvedSession))
     .catch(() => {});
 
-  const currCount = (data.objects ?? []).length;
+  const currCount = objs.length;
   if (currCount > prevObjectCount && prevObjectCount >= 0) {
-    const names = (data.objects ?? []).map(o => o.class_ko).join(', ');
+    const names = objs.map(o => o.class_ko).join(', ');
     if (names) showToast(`감지: ${names}`);
   }
   prevObjectCount = currCount;
 
-  const objCount = (data.objects ?? []).length;
   document.getElementById('lastUpdate').innerHTML =
     '마지막 업데이트: ' + new Date().toLocaleTimeString('ko-KR') +
-    `<br>감지: ${objCount}개`;
+    `<br>감지: ${currCount}개`;
 }
 
 function connectEventStream() {
@@ -981,11 +1899,17 @@ async function loadSessions() {
   box.style.display = 'block';
   box.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">불러오는 중...</div>';
   try {
-    const res  = await fetch(`${SERVER_BASE}/sessions`);
-    const data = await res.json();
-    const sessions = data.sessions ?? [];
+    const [res, summaryRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/sessions`),
+      fetch(`${SERVER_BASE}/dashboard/summary`),
+    ]);
+    const data = res.ok ? await res.json() : {};
+    const summaryData = summaryRes.ok ? await summaryRes.json() : {};
+    const gpsSessions = data.sessions ?? [];
+    const eventSessions = (summaryData.sessions ?? []).map(s => s.session_id).filter(Boolean);
+    const sessions = [...new Set([...gpsSessions, ...eventSessions])];
     if (sessions.length === 0) {
-      box.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">GPS 데이터 없음<br>앱에서 분석을 시작하세요</div>';
+      box.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">단말 데이터 없음<br>앱에서 분석을 시작하세요</div>';
     } else {
       box.innerHTML = sessions.map(s => `
         <div class="session-option" data-session="${escapeHtml(s)}" style="
@@ -1013,11 +1937,17 @@ function selectSession(s) {
   document.getElementById('sessionId').value = s;
   document.getElementById('sessionList').style.display = 'none';
   prevObjectCount = 0; mapCentered = false;
+  if (_objClearTimer) { clearTimeout(_objClearTimer); _objClearTimer = null; }
+  if (_gpsIdleTimer)  { clearTimeout(_gpsIdleTimer);  _gpsIdleTimer  = null; }
+  _alertHistory.length = 0;
+  renderAlertNotice(null, 'silent');
   if (marker)    { map.removeLayer(marker);    marker    = null; }
   if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  _resetLiveGpsState();
+  _stopHeatmapPolling(true);  // 세션 전환 시 히트맵 제거
   connectEventStream();
-  refreshHistory();
+  fetchHistory();
   loadRouteList();
 }
 
@@ -1025,9 +1955,15 @@ function selectSession(s) {
 document.getElementById('sessionId').addEventListener('change', () => {
   prevObjectCount = 0;
   mapCentered     = false;
+  if (_objClearTimer) { clearTimeout(_objClearTimer); _objClearTimer = null; }
+  if (_gpsIdleTimer)  { clearTimeout(_gpsIdleTimer);  _gpsIdleTimer  = null; }
+  _alertHistory.length = 0;
+  renderAlertNotice(null, 'silent');
   if (marker)    { map.removeLayer(marker);    marker    = null; }
   if (trackLine) { map.removeLayer(trackLine); trackLine = null; }
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  _resetLiveGpsState();
+  _stopHeatmapPolling(true);  // 세션 변경 시 히트맵 제거
   connectEventStream();
   loadRouteList();
 });
@@ -1038,18 +1974,36 @@ async function loadRouteList() {
   const panel  = document.getElementById('routePanel');
   const select = document.getElementById('routeSelect');
   try {
-    const res  = await fetch(`${SERVER_BASE}/routes/${encodeURIComponent(sessionId)}`);
-    if (!res.ok) { panel.style.display = 'none'; return; }
-    const data = await res.json();
-    const routes = data.routes ?? [];
-    if (routes.length === 0) { panel.style.display = 'none'; return; }
+    // 저장된 경로 + 현재 실시간 트랙을 병렬로 조회
+    const [routeRes, statusRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/routes/${encodeURIComponent(sessionId)}`),
+      fetch(`${SERVER_BASE}/status/${encodeURIComponent(sessionId)}`),
+    ]);
 
-    select.innerHTML = '<option value="">— 경로 선택 —</option>' +
-      routes.map(r => {
-        const label = r.name || r.route_id.slice(0, 8);
-        const pts   = r.point_count ? ` (${r.point_count}pts)` : '';
-        return `<option value="${escapeHtml(r.route_id)}">${escapeHtml(label)}${pts}</option>`;
-      }).join('');
+    const routes = routeRes.ok ? ((await routeRes.json()).routes ?? []) : [];
+    const track  = statusRes.ok ? ((await statusRes.json()).track ?? []) : [];
+
+    // 현재 트랙도 없고 저장된 경로도 없으면 숨김
+    if (routes.length === 0 && track.length < 2) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    let options = '<option value="">— 경로 선택 —</option>';
+
+    // 현재 실시간 트랙이 있으면 맨 위에 고정 옵션으로 추가
+    if (track.length >= 2) {
+      options += `<option value="__live__">📍 현재 이동 경로 (${track.length}pts)</option>`;
+    }
+
+    // 저장된 경로 목록
+    options += routes.map(r => {
+      const label = r.name || r.route_id.slice(0, 8);
+      const pts   = r.point_count ? ` (${r.point_count}pts)` : '';
+      return `<option value="${escapeHtml(r.route_id)}">${escapeHtml(label)}${pts}</option>`;
+    }).join('');
+
+    select.innerHTML = options;
     panel.style.display = 'block';
   } catch (_) {
     panel.style.display = 'none';
@@ -1058,31 +2012,106 @@ async function loadRouteList() {
 
 async function loadRouteTrack(routeId) {
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-  if (!routeId) return;
+  if (!routeId) {
+    // 경로 선택 해제 — 라이브 GPS가 없으면 히트맵 제거
+    if (!_gpsIdleTimer) _stopHeatmapPolling(true);
+    return;
+  }
   const sessionId = document.getElementById('sessionId').value.trim() || '__default__';
-  try {
-    const res  = await fetch(`${SERVER_BASE}/routes/${encodeURIComponent(sessionId)}/${encodeURIComponent(routeId)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const coords = (data.points ?? [])
-      .map(p => [Number(p.lat), Number(p.lng)])
-      .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
-    if (coords.length < 2) return;
-    routeLine = L.polyline(coords, {
-      color: '#f4a261',
-      weight: 3,
-      opacity: 0.8,
-      dashArray: '6 4',
-      smoothFactor: 1,
-    }).addTo(map);
-    map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
-  } catch (_) {}
+
+  let coords = [];
+
+  if (routeId === '__live__') {
+    // 현재 실시간 트랙 — status 엔드포인트에서 가져옴
+    try {
+      const res  = await fetch(`${SERVER_BASE}/status/${encodeURIComponent(sessionId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      coords = (data.track ?? [])
+        .map(p => [Number(p.lat), Number(p.lng)])
+        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+    } catch (_) { return; }
+  } else {
+    // 저장된 경로
+    try {
+      const res  = await fetch(`${SERVER_BASE}/routes/${encodeURIComponent(sessionId)}/${encodeURIComponent(routeId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      coords = (data.points ?? [])
+        .map(p => [Number(p.lat), Number(p.lng)])
+        .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+    } catch (_) { return; }
+  }
+
+  if (coords.length < 2) return;
+  routeLine = L.polyline(coords, {
+    color: '#f4a261',
+    weight: 3,
+    opacity: 0.8,
+    dashArray: '6 4',
+    smoothFactor: 1,
+  }).addTo(map);
+  map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+  // 저장된 경로 선택 시 히트맵을 즉시 표시 (근접 여부 무관)
+  fetchHeatmap(true);
 }
 
 // ── 24시간 탐지 내역 ──────────────────────────────────
 // 폴링 주기: 30초 (앱의 /detect 호출 주기와 완전히 별개)
 // 앱 FPS에 영향 없음 — 브라우저만 이 API를 호출함
 const HISTORY_POLL_MS = 30_000;
+const SUMMARY_POLL_MS = 30_000;
+
+async function fetchDashboardSummary() {
+  try {
+    const res = await fetch(`${SERVER_BASE}/dashboard/summary`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderDashboardSummary(data);
+  } catch (_) {
+    // 전체 통계는 부가 정보이므로 실패 시 현재 표시 유지
+  }
+}
+
+function renderDashboardSummary(data) {
+  const summary = data.summary ?? {};
+  const sessions = data.sessions ?? [];
+
+  document.getElementById('globalSessions').textContent = summary.sessions ?? 0;
+  document.getElementById('globalTotal').textContent = summary.total ?? 0;
+  document.getElementById('globalCritical').textContent = summary.critical ?? 0;
+  document.getElementById('globalBeep').textContent = summary.beep ?? 0;
+
+  const list = document.getElementById('sessionSummaryList');
+  if (!list) return;
+
+  if (sessions.length === 0) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--muted);">최근 24시간 단말 통계 없음</div>';
+    return;
+  }
+
+  list.innerHTML = sessions.slice(0, 8).map(s => {
+    const sid = s.session_id ?? '__default__';
+    const shortId = sid.length > 18 ? `${sid.slice(0, 8)}…${sid.slice(-6)}` : sid;
+    const topObjects = (s.top_objects ?? [])
+      .map(o => `${escapeHtml(o.class_ko)} ${o.count}`)
+      .join(' · ') || '객체 없음';
+    return `
+      <div class="session-summary-item" data-session="${escapeHtml(sid)}">
+        <div class="session-summary-id">
+          <span title="${escapeHtml(sid)}">${escapeHtml(shortId)}</span>
+          <span style="color:var(--accent2);">${s.total ?? 0}건</span>
+        </div>
+        <div class="session-summary-meta">
+          위험 ${s.critical ?? 0} · 주의 ${s.beep ?? 0} · 안전 ${s.safe ?? 0} / ${topObjects}
+        </div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.session-summary-item').forEach(el => {
+    el.addEventListener('click', () => selectSession(el.dataset.session));
+  });
+}
 
 /**
  * 서버의 /history/{sessionId} 를 호출해 24시간 내역을 가져온다.
@@ -1163,15 +2192,359 @@ function formatHistoryTime(isoStr) {
 }
 
 // 페이지 로드 직후 1회 + 30초마다 반복 조회
+let _disabledContextKey = '';
+
+async function fetchDisabledPopulationContext(lat = null, lng = null) {
+  const hasGps = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+  const key = hasGps ? `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}` : 'national';
+  if (key === _disabledContextKey) return;
+  _disabledContextKey = key;
+
+  try {
+    if (hasGps) {
+      const [visualRes, genderRes] = await Promise.all([
+        fetch(`${SERVER_BASE}/disabled-population/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius_m=3000`),
+        fetch(`${SERVER_BASE}/disabled-gender-degree/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius_m=3000`),
+      ]);
+      if (!visualRes.ok) throw new Error('disabled nearby failed');
+      const visualPayload = await visualRes.json();
+      const genderPayload = genderRes.ok ? await genderRes.json() : null;
+      renderDisabledPopulationContext(visualPayload.summary, [], visualPayload, genderPayload);
+      return;
+    }
+
+    const [summaryRes, regionsRes, genderRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/disabled-population/summary`),
+      fetch(`${SERVER_BASE}/disabled-population/regions?limit=6`),
+      fetch(`${SERVER_BASE}/disabled-gender-degree/summary`),
+    ]);
+    if (!summaryRes.ok || !regionsRes.ok) throw new Error('disabled summary failed');
+    const summary = await summaryRes.json();
+    const regions = await regionsRes.json();
+    const genderSummary = genderRes.ok ? await genderRes.json() : null;
+    renderDisabledPopulationContext(summary, regions.regions ?? [], { scope: 'national' }, { summary: genderSummary, scope: 'national' });
+  } catch (_) {
+    _disabledContextKey = '';
+    const box = document.getElementById('disabledRegionBars');
+    if (box) box.innerHTML = '<div style="font-size:11px;color:var(--muted);">등록 통계를 불러오지 못했습니다.</div>';
+  }
+}
+
+function setDisabledMetric(id, label, value) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const labelEl = el.parentElement?.querySelector('span');
+  if (labelEl) labelEl.textContent = label;
+  el.textContent = value;
+}
+
+function renderDisabledPopulationContext(summary, regions, context = {}, genderContext = null) {
+  const latest = summary.latest ?? {};
+  const month = latest.month ?? summary.month?.latest ?? '';
+  const degree = latest.visual_by_degree ?? {};
+  const region = context.region;
+  const isRegional = context.scope === 'region' && region;
+  const visualTotal = isRegional ? region.visual_disabled : latest.visual_disabled;
+  const locationName = isRegional ? `${region.sido} ${region.sigungu}` : '전국';
+
+  document.getElementById('disabledVisualTotal').textContent = `${formatCount(visualTotal)}명`;
+  document.getElementById('disabledMonth').textContent = month
+    ? `${month.slice(0, 4)}.${month.slice(4)} 기준`
+    : '-';
+
+  if (isRegional) {
+    const share = region.visual_region_share_pct ?? '-';
+    const matched = context.matched_hotspot?.district || '가까운 사고다발구역';
+    setDisabledMetric('disabledVisualShare', '현재 지역', locationName);
+    setDisabledMetric('disabledSevere', '전국 대비', `${share}%`);
+    setDisabledMetric('disabledMild', '매칭 근거', matched);
+  } else {
+    setDisabledMetric('disabledVisualShare', '전체 등록장애인 대비', `${latest.visual_share_pct ?? '-'}%`);
+    setDisabledMetric('disabledSevere', '심한 장애', `${formatCount(degree['심한 장애'])}명`);
+    setDisabledMetric('disabledMild', '심하지 않은 장애', `${formatCount(degree['심하지 않은 장애'])}명`);
+  }
+
+  const bars = document.getElementById('disabledRegionBars');
+  if (bars) {
+    if (isRegional) {
+      const national = Number(latest.visual_disabled || 0);
+      const width = national > 0 ? Math.max(5, Math.round(Number(region.visual_disabled || 0) / national * 100)) : 5;
+      bars.innerHTML = `
+        <div class="disabled-region-row" title="${escapeHtml(locationName)}">
+          <span>${escapeHtml(region.sigungu)}</span>
+          <div class="disabled-region-track">
+            <div class="disabled-region-fill" style="width:${width}%"></div>
+          </div>
+          <strong>${formatCount(region.visual_disabled)}</strong>
+        </div>
+        <div class="disabled-region-row" title="전국 시각장애 등록 현황">
+          <span>전국</span>
+          <div class="disabled-region-track">
+            <div class="disabled-region-fill" style="width:100%"></div>
+          </div>
+          <strong>${formatCount(latest.visual_disabled)}</strong>
+        </div>
+      `;
+    } else {
+      const top = (regions || []).slice(0, 6);
+      if (top.length === 0) {
+        bars.innerHTML = '<div style="font-size:11px;color:var(--muted);">지역 통계 없음</div>';
+      } else {
+        const maxValue = Math.max(...top.map(item => Number(item.visual_disabled || 0)), 1);
+        bars.innerHTML = top.map(item => {
+          const label = item.sigungu === '소계' ? item.sido : item.sigungu;
+          const width = Math.max(5, Math.round(Number(item.visual_disabled || 0) / maxValue * 100));
+          return `
+            <div class="disabled-region-row" title="${escapeHtml(item.sido)} ${escapeHtml(item.sigungu)}">
+              <span>${escapeHtml(label)}</span>
+              <div class="disabled-region-track">
+                <div class="disabled-region-fill" style="width:${width}%"></div>
+              </div>
+              <strong>${formatCount(item.visual_disabled)}</strong>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  }
+
+  renderDisabledGenderDegreeContext(genderContext);
+}
+
+function renderDisabledGenderDegreeContext(context) {
+  const latest = context?.summary?.latest ?? {};
+  const region = context?.region;
+  const isRegional = context?.scope === 'region' && region;
+  const source = isRegional ? region : latest;
+
+  const total = Number(source.total_disabled || 0);
+  const male = Number(isRegional ? source.male : latest.by_gender?.['남자']);
+  const female = Number(isRegional ? source.female : latest.by_gender?.['여자']);
+  const severe = Number(isRegional ? source.severe : latest.by_degree?.['심한 장애']);
+  const mild = Number(isRegional ? source.mild : latest.by_degree?.['심하지 않은 장애']);
+
+  const totalEl = document.getElementById('disabledGenderTotal');
+  const genderEl = document.getElementById('disabledGenderMix');
+  const degreeEl = document.getElementById('disabledDegreeMix');
+  if (!totalEl || !genderEl || !degreeEl) return;
+
+  if (!total) {
+    totalEl.textContent = '-';
+    genderEl.textContent = '-';
+    degreeEl.textContent = '-';
+    return;
+  }
+
+  const malePct = Math.round(male / total * 100);
+  const femalePct = Math.round(female / total * 100);
+  const severePct = Math.round(severe / total * 100);
+  const mildPct = Math.round(mild / total * 100);
+  totalEl.textContent = `${formatCount(total)}명`;
+  genderEl.textContent = `남 ${malePct}% · 여 ${femalePct}%`;
+  degreeEl.textContent = `심한 ${severePct}% · 심하지 않은 ${mildPct}%`;
+}
+
 fetchHistory();
 setInterval(fetchHistory, HISTORY_POLL_MS);
+fetchDashboardSummary();
+setInterval(fetchDashboardSummary, SUMMARY_POLL_MS);
+fetchDisabledPopulationContext();
 
 // 세션 변경 시 내역도 즉시 갱신
 function refreshHistory() { fetchHistory(); }
 
+// ── 위험 구간 히트맵 ──────────────────────────────────
+function renderHeatmap(points) {
+  if (!points || points.length === 0) {
+    if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null; }
+    return;
+  }
+  const data = points.map(p => [p.lat, p.lng, p.intensity]);
+  if (!heatLayer) {
+    heatLayer = L.heatLayer(data, {
+      radius: 25, blur: 20, maxZoom: 17,
+      gradient: { 0.2: '#48bfe3', 0.5: '#f4a261', 1.0: '#e63946' },
+    }).addTo(map);
+  } else {
+    heatLayer.setLatLngs(data);
+  }
+}
+
+/**
+ * 서버에서 히트맵 데이터를 가져와 _heatmapData에 저장한다.
+ * forceShow=true 이면 근접 여부 무관하게 즉시 표시 (저장된 경로 선택 시 사용).
+ */
+async function fetchHeatmap(forceShow = false) {
+  const gen = _heatmapGen;  // 요청 시점의 세대 기록
+  const sessionId = document.getElementById('sessionId').value.trim() || '__default__';
+  try {
+    const res = await fetch(`${SERVER_BASE}/heatmap/${encodeURIComponent(sessionId)}`);
+    if (!res.ok || _heatmapGen !== gen) return;  // 중단됐으면 응답 무시
+    const data = await res.json();
+    if (_heatmapGen !== gen) return;             // 응답 파싱 후에도 재확인
+    _heatmapData = data.points ?? [];
+    if (forceShow) {
+      // 저장된 경로 보기: 근접 여부 무관하게 전체 표시
+      _heatmapVisible = true;
+      renderHeatmap(_heatmapData);
+    } else if (_currentGps) {
+      // 백그라운드 갱신: 현재 위치 기준으로 반경 재평가
+      _checkHeatmapProximity(_currentGps.lat, _currentGps.lng);
+    }
+  } catch (_) {}
+}
+
+// ── 과거 보행자 사고다발구역 레이어 ───────────────────────────────
+function hotspotColor(level) {
+  if (level === 'high') return '#ff4d6d';
+  if (level === 'medium') return '#f4a261';
+  return '#52b788';
+}
+
+function hotspotRadius(props) {
+  const score = Number(props.max_risk_score ?? 0);
+  return Math.max(7, Math.min(22, 7 + score / 7));
+}
+
+function hotspotPopup(props) {
+  const years = (props.source_years ?? []).join(', ');
+  return `
+    <div style="min-width:220px">
+      <b>${escapeHtml(props.display_name ?? '사고다발구역')}</b><br>
+      <span>등급: ${escapeHtml(props.risk_level_ko ?? props.risk_level ?? '-')}</span><br>
+      <span>최대 위험점수: ${Number(props.max_risk_score ?? 0).toFixed(1)}</span><br>
+      <span>누적 사고: ${props.accidents_total ?? 0}건 · 사망 ${props.deaths_total ?? 0}명 · 중상 ${props.serious_injuries_total ?? 0}명</span><br>
+      <span>반복 연도: ${escapeHtml(years || '-')}</span>
+    </div>
+  `;
+}
+
+function renderPedestrianHotspots(features) {
+  pedestrianHotspotFeatures = features || [];
+  if (pedestrianHotspotLayer) {
+    map.removeLayer(pedestrianHotspotLayer);
+    pedestrianHotspotLayer = null;
+  }
+  pedestrianHotspotLayer = L.geoJSON(
+    { type: 'FeatureCollection', features: pedestrianHotspotFeatures },
+    {
+      pointToLayer: (feature, latlng) => {
+        const props = feature.properties ?? {};
+        return L.circleMarker(latlng, {
+          radius: hotspotRadius(props),
+          color: '#ffffff',
+          weight: 1,
+          fillColor: hotspotColor(props.risk_level),
+          fillOpacity: 0.64,
+          opacity: 0.9,
+        });
+      },
+      onEachFeature: (feature, layer) => {
+        const props = feature.properties ?? {};
+        layer.bindPopup(hotspotPopup(props));
+        layer.on('click', () => {
+          const coords = feature.geometry?.coordinates ?? [];
+          if (coords.length >= 2) map.setView([coords[1], coords[0]], 16);
+        });
+      },
+    }
+  ).addTo(map);
+}
+
+function renderHotspotPanel(summary, features) {
+  document.getElementById('hotspotTotal').textContent = summary.record_count ?? '-';
+  document.getElementById('hotspotHigh').textContent = summary.risk_level_counts?.high ?? '-';
+  document.getElementById('hotspotClusters').textContent = summary.cluster_count ?? '-';
+
+  const list = document.getElementById('hotspotList');
+  const items = (features || []).slice(0, 8);
+  if (items.length === 0) {
+    list.innerHTML = '<div class="hotspot-meta">표시할 사고다발구역이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = items.map((feature, index) => {
+    const p = feature.properties ?? {};
+    const color = hotspotColor(p.risk_level);
+    return `
+      <div class="hotspot-item" style="border-left-color:${color}" onclick="focusPedestrianHotspot(${index})">
+        <div class="hotspot-meta">
+          ${escapeHtml(p.risk_level_ko ?? p.risk_level ?? '-')} · 점수 ${Number(p.max_risk_score ?? 0).toFixed(1)}
+          · 사고 ${p.accidents_total ?? 0}건 · 반복 ${p.repeat_year_count ?? 0}년
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function focusPedestrianHotspot(index) {
+  const feature = pedestrianHotspotFeatures[index];
+  const coords = feature?.geometry?.coordinates ?? [];
+  if (coords.length < 2) return;
+  map.setView([coords[1], coords[0]], 16);
+}
+
+async function loadPedestrianHotspots() {
+  const list = document.getElementById('hotspotList');
+  try {
+    const [summaryRes, clusterRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/pedestrian-hotspots/summary`),
+      fetch(`${SERVER_BASE}/pedestrian-hotspots/clusters?risk_level=all&limit=1200`),
+    ]);
+    if (!summaryRes.ok || !clusterRes.ok) throw new Error('hotspot fetch failed');
+    const summary = await summaryRes.json();
+    const clusters = await clusterRes.json();
+    const features = clusters.features ?? [];
+    renderPedestrianHotspots(features);
+    renderHotspotPanel(summary, features);
+  } catch (e) {
+    if (list) list.innerHTML = '<div class="hotspot-meta">사고다발구역 데이터를 불러오지 못했습니다.</div>';
+  }
+}
+
+function bindHotspotPanelHover() {
+  const panel = document.getElementById('hotspotPanel');
+  if (!panel) return;
+  const expand = () => panel.classList.add('is-expanded');
+  const collapse = () => panel.classList.remove('is-expanded');
+  panel.addEventListener('mouseenter', expand);
+  panel.addEventListener('mouseleave', collapse);
+  panel.addEventListener('focus', expand);
+  panel.addEventListener('blur', collapse);
+}
+
+// ── 현재 경로 저장 ───────────────────────────────────
+async function saveCurrentRoute() {
+  const sessionId = document.getElementById('sessionId').value.trim() || '__default__';
+  const btn = document.getElementById('btnSaveRoute');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+  const name = `${sessionId} ${new Date().toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+  try {
+    const res = await fetch(`${SERVER_BASE}/gps/route/save`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_id: sessionId, name}),
+    });
+    const data = await res.json();
+    if (data.saved) {
+      showToast(`경로 저장 완료 — ${name} (${data.point_count ?? 0}pts)`);
+      await loadRouteList();
+    } else {
+      showToast(`저장 건너뜀: ${data.reason || 'GPS 데이터 없음'}`);
+    }
+  } catch(e) {
+    showToast('경로 저장 중 오류 발생');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 현재 경로 저장';
+  }
+}
+
 // ── 시작 ─────────────────────────────────────────────
 connectEventStream();
 loadRouteList();
+bindHotspotPanelHover();
+loadPedestrianHotspots();
 </script>
 </body>
 </html>
