@@ -18,7 +18,10 @@ models/
 
 # 개발용 폴더
 train/
-data/
+data/*
+!data/processed/
+!data/processed/voiceguide_scenario/
+!data/processed/voiceguide_scenario/**
 results/
 legacy/
 android/
