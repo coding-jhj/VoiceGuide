@@ -4,9 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VoiceGuide 대시보드</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css"/>
+<script src="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"></script>
 <style>
   :root {
     --bg: #0f1117;
@@ -484,12 +483,10 @@
     z-index: 0;
   }
 
-  /* Leaflet 다크 테마 오버라이드 */
-  .leaflet-tile { filter: none; }
-  .leaflet-container { background: #111; }
+  .maplibregl-map { background: #eef2f6; }
 
   /* 줌 등 좌상단 컨트롤: 커스텀 범례( top-left 오버레이 ) 아래로 */
-  .map-container .leaflet-top.leaflet-left {
+  .map-container .maplibregl-ctrl-top-left {
     top: 55px;
     left: 10px;
   }
@@ -1343,12 +1340,232 @@ const POLL_MS     = 2000;   // 2초마다 폴링
 const SERVER_BASE = window.location.origin;
 
 // ── 지도 초기화 ───────────────────────────────────────
-const map = L.map('map', { zoomControl: true, attributionControl: false })
-  .setView([37.5665, 126.9780], 15);  // 기본 위치: 서울
+const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+const map = new maplibregl.Map({
+  container: 'map',
+  style: MAP_STYLE_URL,
+  center: [126.9780, 37.5665],
+  zoom: 15,
+  pitch: 0,
+  bearing: 0,
+  attributionControl: false,
+  antialias: true
+});
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-left');
+map.dragRotate.disable();
+map.touchZoomRotate.disableRotation();
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19
-}).addTo(map);
+const mapReady = new Promise(resolve => {
+  if (map.loaded()) resolve();
+  else map.once('load', resolve);
+});
+
+function applyAccessibleMapStyle() {
+  const style = map.getStyle();
+  if (!style?.layers) return;
+  for (const layer of style.layers) {
+    const haystack = `${layer.id} ${layer['source-layer'] || ''}`.toLowerCase();
+    if (layer.type === 'fill-extrusion') {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+      continue;
+    }
+    if (layer.type === 'symbol' && /(road|street|transportation_name|highway|building|housenumber|address)/.test(haystack)) {
+      map.setLayoutProperty(layer.id, 'visibility', 'none');
+    }
+  }
+  map.setPitch(0);
+  map.setBearing(0);
+}
+map.on('style.load', applyAccessibleMapStyle);
+mapReady.then(applyAccessibleMapStyle);
+
+const nativeRemoveLayer = map.removeLayer.bind(map);
+map.removeLayer = function(layer) {
+  if (layer && typeof layer.remove === 'function') {
+    layer.remove();
+    return this;
+  }
+  if (typeof layer === 'string' && this.getLayer(layer)) nativeRemoveLayer(layer);
+  return this;
+};
+map.setView = function(latlng, zoom = this.getZoom()) {
+  this.easeTo({ center: [Number(latlng[1]), Number(latlng[0])], zoom, pitch: 0, bearing: 0, duration: 350 });
+  return this;
+};
+map.invalidateSize = () => map.resize();
+const nativeFitBounds = map.fitBounds.bind(map);
+map.fitBounds = function(bounds, options = {}) {
+  const nextOptions = { ...options };
+  if (Array.isArray(nextOptions.padding)) nextOptions.padding = Math.max(...nextOptions.padding);
+  return nativeFitBounds(bounds, nextOptions);
+};
+
+function latLngToLngLat(latlng) {
+  return [Number(latlng[1]), Number(latlng[0])];
+}
+
+function boundsFromLatLngs(latlngs) {
+  const lnglats = latlngs.map(latLngToLngLat);
+  const lngs = lnglats.map(p => p[0]);
+  const lats = lnglats.map(p => p[1]);
+  return [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+}
+
+let mapObjectSeq = 0;
+function nextMapId(prefix) {
+  mapObjectSeq += 1;
+  return `${prefix}-${mapObjectSeq}`;
+}
+
+function makeHtmlMarker(latlng, html, className = '') {
+  const wrap = document.createElement('div');
+  wrap.className = className;
+  wrap.innerHTML = html;
+  const element = wrap.firstElementChild || wrap;
+  const marker = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(latLngToLngLat(latlng));
+  return {
+    marker,
+    element,
+    addTo() { marker.addTo(map); return this; },
+    setLatLng(nextLatLng) { marker.setLngLat(latLngToLngLat(nextLatLng)); return this; },
+    bindTooltip(text) { element.title = text; return this; },
+    bindPopup(htmlText) { marker.setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(htmlText)); return this; },
+    on(eventName, handler) { element.addEventListener(eventName, handler); return this; },
+    remove() { marker.remove(); }
+  };
+}
+
+function makeLineLayer(latlngs, options = {}) {
+  const id = nextMapId('line');
+  let coords = latlngs.map(latLngToLngLat);
+  const data = () => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} });
+  return {
+    addTo() {
+      mapReady.then(() => {
+        if (map.getSource(id)) return;
+        map.addSource(id, { type: 'geojson', data: data() });
+        map.addLayer({
+          id,
+          type: 'line',
+          source: id,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': options.color || '#48bfe3',
+            'line-width': options.weight || 3,
+            'line-opacity': options.opacity ?? 0.7,
+            ...(options.dashArray ? { 'line-dasharray': options.dashArray.split(/\s+/).map(Number) } : {})
+          }
+        });
+      });
+      return this;
+    },
+    setLatLngs(nextLatLngs) {
+      coords = nextLatLngs.map(latLngToLngLat);
+      const source = map.getSource(id);
+      if (source) source.setData(data());
+      return this;
+    },
+    getBounds() { return boundsFromLatLngs(coords.map(([lng, lat]) => [lat, lng])); },
+    remove() {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  };
+}
+
+function makeCircleMarker(latlng, options = {}) {
+  const radius = Number(options.radius || 6);
+  const color = options.fillColor || options.color || '#48bfe3';
+  const border = options.color || '#fff';
+  const opacity = options.fillOpacity ?? 0.75;
+  return makeHtmlMarker(latlng, `<div style="
+    width:${radius * 2}px;height:${radius * 2}px;
+    border-radius:50%;
+    background:${color};
+    border:${options.weight ?? 1}px solid ${border};
+    opacity:${opacity};
+    box-shadow:0 0 0 2px rgba(255,255,255,0.32);
+  "></div>`);
+}
+
+function makeGeoJsonLayer(collection, options = {}) {
+  const children = [];
+  return {
+    addTo() {
+      const features = collection.features || [];
+      for (const feature of features) {
+        const coords = feature.geometry?.coordinates || [];
+        if (feature.geometry?.type !== 'Point' || coords.length < 2) continue;
+        const latlng = [coords[1], coords[0]];
+        const child = options.pointToLayer ? options.pointToLayer(feature, latlng) : makeCircleMarker(latlng);
+        if (options.onEachFeature) options.onEachFeature(feature, child);
+        child.addTo(map);
+        children.push(child);
+      }
+      return this;
+    },
+    remove() { children.forEach(child => child.remove()); children.length = 0; }
+  };
+}
+
+function makeHeatLayer(points, options = {}) {
+  const id = nextMapId('heat');
+  let heatPoints = points;
+  const toData = () => ({
+    type: 'FeatureCollection',
+    features: heatPoints.map(([lat, lng, intensity]) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+      properties: { intensity: Number(intensity || 0.6) }
+    }))
+  });
+  return {
+    addTo() {
+      mapReady.then(() => {
+        if (map.getSource(id)) return;
+        map.addSource(id, { type: 'geojson', data: toData() });
+        map.addLayer({
+          id,
+          type: 'heatmap',
+          source: id,
+          paint: {
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 1, 1],
+            'heatmap-intensity': 0.9,
+            'heatmap-radius': options.radius || 25,
+            'heatmap-opacity': 0.7,
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(72,191,227,0)',
+              0.35, '#48bfe3',
+              0.65, '#f4a261',
+              1, '#e63946'
+            ]
+          }
+        });
+      });
+      return this;
+    },
+    setLatLngs(nextPoints) {
+      heatPoints = nextPoints;
+      const source = map.getSource(id);
+      if (source) source.setData(toData());
+      return this;
+    },
+    remove() {
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  };
+}
+
+const L = {
+  divIcon: options => options,
+  marker: (latlng, options = {}) => makeHtmlMarker(latlng, options.icon?.html || '<div></div>', options.icon?.className || ''),
+  polyline: makeLineLayer,
+  circleMarker: makeCircleMarker,
+  geoJSON: makeGeoJsonLayer,
+  heatLayer: makeHeatLayer
+};
 
 window.addEventListener('resize', () => map.invalidateSize());
 requestAnimationFrame(() => { map.invalidateSize(); });
@@ -1376,7 +1593,7 @@ let finalCrosswalkLayer = null;
 let finalRouteLayer = null;
 let pedestrianHotspotFeatures = [];
 let mapCentered = false;
-const teamMarkers = {};  // session_id → Leaflet marker
+const teamMarkers = {};  // session_id → map marker
 
 const TEAM_COLORS = ['#ff6b35','#f7c59f','#efefd0','#00a8e8','#f72585','#7209b7','#3a86ff'];
 function teamColor(sessionId) {
@@ -2255,7 +2472,6 @@ function renderFinalScenario(data) {
     <div class="scenario-route-pair">${routeCards}</div>
     <div class="scenario-tts">${escapeHtml(selected.selection_reason || meta.scenario || '보행지원시설 근거가 확인된 경로를 우선 안내합니다.')}</div>
     <div id="scenarioInfoBox" class="scenario-info-box" aria-live="polite"></div>
-    <div class="scenario-info-box is-visible"><strong>지도 표기 메모</strong>현재 Leaflet/OSM 타일에서는 편의점·상가는 보이게 두고 건물명·도로명만 선택적으로 숨기기 어렵습니다. 원하시면 MapLibre GL(벡터 타일) 전환으로 원하는 레이어만 제어할 수 있습니다.</div>
     <div class="scenario-grade-title">동작구 횡단보도 ${formatCount(total)}건 접근성 등급</div>
     <div class="scenario-grades">${tierRows}</div>
     <div class="scenario-grade-title" style="margin-top:12px;">보강 제안 지점</div>
