@@ -22,7 +22,10 @@ train/
 tools/
 tests/
 docs/
-data/
+data/*
+!data/processed/
+!data/processed/voiceguide_scenario/
+!data/processed/voiceguide_scenario/**
 models/
 datasets/
 runs/

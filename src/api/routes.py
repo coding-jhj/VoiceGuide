@@ -22,9 +22,10 @@ import hashlib
 import json
 import asyncio
 from collections import defaultdict
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Body, Form, Header, HTTPException, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from src.api import locations as location_api
 
@@ -53,6 +54,19 @@ from src.api.tracker import get_tracker
 
 router = APIRouter()
 
+_SCENARIO_DATA_DIR = (
+    Path(__file__).resolve().parents[2] / "data" / "processed" / "voiceguide_scenario"
+)
+
+
+def _scenario_data_file(filename: str) -> Path:
+    path = (_SCENARIO_DATA_DIR / filename).resolve()
+    if _SCENARIO_DATA_DIR.resolve() not in path.parents:
+        raise HTTPException(status_code=400, detail="Invalid scenario data path")
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"Scenario data file not found: {filename}")
+    return path
+
 @router.get("/api/policy")
 async def get_voice_policy(
     response: Response,
@@ -77,6 +91,27 @@ async def get_voice_policy(
 
     response.headers["ETag"] = f'"{etag}"'
     return policy_dict
+
+
+@router.get("/scenario-data/summary", dependencies=[Depends(_verify_api_key)])
+async def get_scenario_data_summary():
+    with _scenario_data_file("preprocess_summary.json").open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+@router.get("/scenario-data/dataset", dependencies=[Depends(_verify_api_key)])
+async def get_scenario_data_dataset():
+    with _scenario_data_file("final_scenario_dataset.json").open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+@router.get("/scenario-data/crosswalks.geojson", dependencies=[Depends(_verify_api_key)])
+async def get_scenario_crosswalk_geojson():
+    return FileResponse(
+        _scenario_data_file("final_crosswalk_accessibility.geojson"),
+        media_type="application/geo+json",
+        filename="final_crosswalk_accessibility.geojson",
+    )
 
 # ── 세션별 마지막 문장 캐시 (TTS 중복 방지) ────────────────────────────────────
 import time as _time

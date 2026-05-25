@@ -1036,12 +1036,12 @@
         <div class="scenario-route-header">
           <div class="scenario-route-place">
             <span class="scenario-place-label">출발</span>
-            <span class="scenario-place-name">보라매역</span>
+            <span class="scenario-place-name" id="scenarioOrigin">보라매역</span>
           </div>
           <div class="scenario-route-arrow">→</div>
           <div class="scenario-route-place" style="text-align:right;">
             <span class="scenario-place-label">목적지</span>
-            <span class="scenario-place-name">서울시남부<br>장애인종합복지관</span>
+            <span class="scenario-place-name" id="scenarioDestination">서울시남부<br>장애인종합복지관</span>
           </div>
         </div>
 
@@ -1052,54 +1052,54 @@
               <span class="scenario-route-label">A 경로</span>
               <span class="scenario-route-badge badge-fail">탈락</span>
             </div>
-            <div class="scenario-crosswalk-id">06-0000016344</div>
-            <div class="scenario-distance">약 817m</div>
+            <div class="scenario-crosswalk-id" id="scenarioRouteAId">06-0000016344</div>
+            <div class="scenario-distance" id="scenarioRouteADistance">약 817m</div>
             <div class="scenario-score-bar">
-              <div class="scenario-score-fill" style="width:12.5%;background:var(--danger);"></div>
+              <div class="scenario-score-fill" id="scenarioRouteAScoreFill" style="width:12.5%;background:var(--danger);"></div>
             </div>
-            <div class="scenario-score-label">접근성 1점<br>보행지원시설 없음</div>
+            <div class="scenario-score-label" id="scenarioRouteAScoreLabel">접근성 1점<br>보행지원시설 없음</div>
           </div>
           <div class="scenario-route-card route-b">
             <div class="scenario-route-card-header">
               <span class="scenario-route-label">B 경로</span>
               <span class="scenario-route-badge badge-win">선택</span>
             </div>
-            <div class="scenario-crosswalk-id">06-0000032157</div>
-            <div class="scenario-distance">약 825m (+8m)</div>
+            <div class="scenario-crosswalk-id" id="scenarioRouteBId">06-0000032157</div>
+            <div class="scenario-distance" id="scenarioRouteBDistance">약 825m (+8m)</div>
             <div class="scenario-score-bar">
-              <div class="scenario-score-fill" style="width:87.5%;background:var(--safe);"></div>
+              <div class="scenario-score-fill" id="scenarioRouteBScoreFill" style="width:87.5%;background:var(--safe);"></div>
             </div>
-            <div class="scenario-score-label">접근성 7점<br>보행등·음향·버튼</div>
+            <div class="scenario-score-label" id="scenarioRouteBScoreLabel">접근성 7점<br>보행등·음향·버튼</div>
           </div>
         </div>
 
         <!-- TTS -->
-        <div class="scenario-tts">
+        <div class="scenario-tts" id="scenarioTts">
           "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
         </div>
 
         <!-- 동작구 횡단보도 등급 분포 -->
-        <div class="scenario-grade-title">동작구 횡단보도 1,025건 등급분포</div>
+        <div class="scenario-grade-title" id="scenarioGradeTitle">동작구 횡단보도 1,025건 등급분포</div>
         <div class="scenario-grades">
           <div class="scenario-grade-row">
             <span class="scenario-grade-label">preferred</span>
-            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:5.3%;background:var(--safe);"></div></div>
-            <span class="scenario-grade-count">54</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" id="scenarioGradePreferredFill" style="width:5.3%;background:var(--safe);"></div></div>
+            <span class="scenario-grade-count" id="scenarioGradePreferredCount">54</span>
           </div>
           <div class="scenario-grade-row">
             <span class="scenario-grade-label">recommended</span>
-            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:30.6%;background:var(--accent2);"></div></div>
-            <span class="scenario-grade-count">314</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" id="scenarioGradeRecommendedFill" style="width:30.6%;background:var(--accent2);"></div></div>
+            <span class="scenario-grade-count" id="scenarioGradeRecommendedCount">314</span>
           </div>
           <div class="scenario-grade-row">
             <span class="scenario-grade-label">basic</span>
-            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:59.5%;background:var(--warn);"></div></div>
-            <span class="scenario-grade-count">610</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" id="scenarioGradeBasicFill" style="width:59.5%;background:var(--warn);"></div></div>
+            <span class="scenario-grade-count" id="scenarioGradeBasicCount">610</span>
           </div>
           <div class="scenario-grade-row">
             <span class="scenario-grade-label">insufficient</span>
-            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:4.6%;background:var(--danger);"></div></div>
-            <span class="scenario-grade-count">47</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" id="scenarioGradeInsufficientFill" style="width:4.6%;background:var(--danger);"></div></div>
+            <span class="scenario-grade-count" id="scenarioGradeInsufficientCount">47</span>
           </div>
         </div>
       </div>
@@ -2541,10 +2541,81 @@ async function saveCurrentRoute() {
 }
 
 // ── 시작 ─────────────────────────────────────────────
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el && value !== undefined && value !== null && value !== '') {
+    el.textContent = String(value);
+  }
+}
+
+function setHtml(id, value) {
+  const el = document.getElementById(id);
+  if (el && value !== undefined && value !== null && value !== '') {
+    el.innerHTML = escapeHtml(value).replace(/\n/g, '<br>');
+  }
+}
+
+function setWidth(id, value, maxValue = 8) {
+  const el = document.getElementById(id);
+  const number = Number(value || 0);
+  if (el) el.style.width = `${Math.max(0, Math.min(100, number / maxValue * 100))}%`;
+}
+
+function routeSummaryText(route) {
+  const score = route.accessibility_score ?? route.support_score ?? '-';
+  const evidence = route.safety_evidence || route.support_evidence || route.reason_summary || '';
+  return `접근성 ${score}점\n${evidence}`;
+}
+
+function updateScenarioGrade(tier, count, total) {
+  const key = tier.charAt(0).toUpperCase() + tier.slice(1);
+  setText(`scenarioGrade${key}Count`, count);
+  const fill = document.getElementById(`scenarioGrade${key}Fill`);
+  if (fill && total > 0) fill.style.width = `${Math.round(Number(count || 0) / total * 1000) / 10}%`;
+}
+
+async function loadScenarioData() {
+  try {
+    const res = await fetch(`${SERVER_BASE}/scenario-data/summary`);
+    if (!res.ok) throw new Error('scenario summary failed');
+    const summary = await res.json();
+    const pair = summary.demo_pair || {};
+    const routeA = pair.shortest_route_crosswalk_a || {};
+    const routeB = pair.safer_route_crosswalk_b || {};
+    const counts = summary.counts || {};
+    const tiers = counts.route_recommendation_tiers || {};
+    const total = Number(counts.dongjak_crosswalks || 0);
+
+    setText('scenarioOrigin', routeA.start_name || routeB.start_name);
+    setHtml('scenarioDestination', routeB.destination_name || routeA.destination_name);
+    setText('scenarioRouteAId', routeA.main_crosswalk_id);
+    setText('scenarioRouteBId', routeB.main_crosswalk_id);
+    setText('scenarioRouteADistance', `약 ${routeA.approx_distance_m ?? '-'}m`);
+    setText(
+      'scenarioRouteBDistance',
+      `약 ${routeB.approx_distance_m ?? '-'}m (+${routeB.distance_delta_vs_shortest_m ?? 0}m)`
+    );
+    setHtml('scenarioRouteAScoreLabel', routeSummaryText(routeA));
+    setHtml('scenarioRouteBScoreLabel', routeSummaryText(routeB));
+    setWidth('scenarioRouteAScoreFill', routeA.accessibility_score ?? routeA.support_score);
+    setWidth('scenarioRouteBScoreFill', routeB.accessibility_score ?? routeB.support_score);
+    setText('scenarioTts', `"${routeB.reason_summary || pair.selection_rule || ''}"`);
+    if (total) setText('scenarioGradeTitle', `동작구 횡단보도 ${formatCount(total)}건 등급분포`);
+
+    updateScenarioGrade('preferred', tiers.preferred, total);
+    updateScenarioGrade('recommended', tiers.recommended, total);
+    updateScenarioGrade('basic', tiers.basic, total);
+    updateScenarioGrade('insufficient', tiers.insufficient, total);
+  } catch (err) {
+    console.warn('scenario data unavailable', err);
+  }
+}
+
 connectEventStream();
 loadRouteList();
 bindHotspotPanelHover();
 loadPedestrianHotspots();
+loadScenarioData();
 </script>
 </body>
 </html>

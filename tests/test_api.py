@@ -27,6 +27,34 @@ def test_policy_endpoint():
     assert "vehicle_ko" in body["classes"]
 
 
+def test_scenario_data_summary_endpoint():
+    response = client.get("/scenario-data/summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["counts"]["dongjak_crosswalks"] == 1025
+    assert body["counts"]["route_recommendation_tiers"]["preferred"] == 54
+    assert body["demo_pair"]["shortest_route_crosswalk_a"]["main_crosswalk_id"] == "06-0000016344"
+    assert body["demo_pair"]["safer_route_crosswalk_b"]["main_crosswalk_id"] == "06-0000032157"
+
+
+def test_scenario_data_crosswalk_geojson_endpoint():
+    response = client.get("/scenario-data/crosswalks.geojson")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) == 1025
+
+
+def test_dashboard_loads_scenario_data_api():
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "/scenario-data/summary" in response.text
+    assert "loadScenarioData()" in response.text
+
+
 def test_detect_endpoint_exists():
     # /detect는 온디바이스 탐지 결과 JSON을 받는다.
     response = client.post("/detect", json={"device_id": "test_device", "objects": []})
