@@ -484,6 +484,20 @@
   }
 
   .maplibregl-map { background: #eef2f6; }
+  .maplibregl-popup-content {
+    color: #172033;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.28);
+    font: 12px/1.5 'Segoe UI', -apple-system, sans-serif;
+  }
+  .maplibregl-popup-content b,
+  .maplibregl-popup-content strong {
+    color: #0f172a;
+  }
+  .maplibregl-popup-close-button {
+    color: #172033;
+  }
 
   /* 줌 등 좌상단 컨트롤: 커스텀 범례( top-left 오버레이 ) 아래로 */
   .map-container .maplibregl-ctrl-top-left {
@@ -1349,7 +1363,9 @@ const map = new maplibregl.Map({
   pitch: 0,
   bearing: 0,
   attributionControl: false,
-  antialias: true
+  antialias: true,
+  fadeDuration: 0,
+  renderWorldCopies: false
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-left');
 map.dragRotate.disable();
@@ -1364,12 +1380,24 @@ function applyAccessibleMapStyle() {
   const style = map.getStyle();
   if (!style?.layers) return;
   for (const layer of style.layers) {
-    const haystack = `${layer.id} ${layer['source-layer'] || ''}`.toLowerCase();
+    const sourceLayer = String(layer['source-layer'] || '').toLowerCase();
     if (layer.type === 'fill-extrusion') {
       map.setLayoutProperty(layer.id, 'visibility', 'none');
       continue;
     }
-    if (layer.type === 'symbol' && /(road|street|transportation_name|highway|building|housenumber|address)/.test(haystack)) {
+    if (layer.id === 'building' && layer.type === 'fill') {
+      map.setPaintProperty(layer.id, 'fill-color', '#d8ded4');
+      map.setPaintProperty(layer.id, 'fill-outline-color', '#9ca8b3');
+      map.setPaintProperty(layer.id, 'fill-opacity', 0.72);
+      continue;
+    }
+    const shouldHideLabel = layer.type === 'symbol' && (
+      sourceLayer === 'transportation_name' ||
+      sourceLayer === 'housenumber' ||
+      sourceLayer === 'address' ||
+      sourceLayer === 'building_name'
+    );
+    if (shouldHideLabel) {
       map.setLayoutProperty(layer.id, 'visibility', 'none');
     }
   }
