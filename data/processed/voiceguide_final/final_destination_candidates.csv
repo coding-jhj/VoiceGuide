@@ -1,0 +1,5 @@
+﻿facility_id,facility_name,facility_type,facility_detail_type,gu,address,phone,postal_code,is_dongjak,is_welfare_center,needs_geocoding,geocode_status
+A5108,서울시립발달장애인복지관,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20나길 33 (신대방동),,,True,True,True,address_only_needs_geocoding
+C0455,서울시남부장애인종합복지관,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20나길 40 (신대방동),,,True,True,True,address_only_needs_geocoding
+C5102,삼성소리샘복지관,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 양녕로30길 19-4 (상도동),,,True,True,True,address_only_needs_geocoding
+C1471,서울남부주간보호센터,(장애인복지시설) 장애인주간보호시설,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20길 33 (신대방동),,,True,False,True,address_only_needs_geocoding

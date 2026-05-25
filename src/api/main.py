@@ -17,6 +17,9 @@ async def lifespan(app: FastAPI):
     print("[main] policy.json 적재 완료")
     # DB 초기화는 동기적으로 (빠름)
     db.init_db()
+    removed_private = db.purge_private_address_identifiers()
+    if removed_private:
+        print(f"[main] removed private address-like sessions: {removed_private}")
     db.start_event_writer()
     # 서버는 온디바이스 탐지 결과 JSON만 처리한다.
     # 추가 모델성 기능은 서버 런타임에서 실행하지 않는다.

@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceGuide 서울 공공데이터 활용 시나리오</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --ink: #17202a;
+      --muted: #5d6875;
+      --line: #d9dee7;
+      --navy: #18324a;
+      --blue: #2457d6;
+      --teal: #087f7a;
+      --green: #247a43;
+      --amber: #a86300;
+      --red: #b83a3a;
+      --soft-blue: #eef4ff;
+      --soft-green: #eef8f2;
+      --soft-amber: #fff7e8;
+      --shadow: 0 12px 28px rgba(23, 32, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+      line-height: 1.62;
+      letter-spacing: 0;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 42px 24px 64px;
+    }
+
+    header {
+      padding: 8px 0 28px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      color: var(--teal);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.15;
+    }
+
+    .lead {
+      max-width: 920px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .summary {
+      margin-top: 24px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    section {
+      margin-top: 42px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: 25px;
+      line-height: 1.28;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    a {
+      color: var(--blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+
+    .card p,
+    td {
+      color: var(--muted);
+    }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .tag.blue { background: var(--blue); }
+    .tag.teal { background: var(--teal); }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(23, 32, 42, 0.05);
+    }
+
+    th,
+    td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #edf2f7;
+      color: var(--navy);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    td strong {
+      color: var(--ink);
+    }
+
+    .fit-high {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .fit-mid {
+      color: var(--amber);
+      font-weight: 800;
+    }
+
+    .fit-low {
+      color: var(--red);
+      font-weight: 800;
+    }
+
+    .scenario {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .step {
+      min-height: 150px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      background: var(--soft-blue);
+      border: 1px solid #c7d8ff;
+      border-radius: 8px;
+    }
+
+    .callout strong {
+      color: var(--navy);
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .note {
+      background: var(--soft-amber);
+      border: 1px solid #efd29c;
+    }
+
+    .good {
+      background: var(--soft-green);
+      border: 1px solid #badfc6;
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 960px) {
+      main {
+        padding: 28px 16px 44px;
+      }
+
+      .grid,
+      .two-column,
+      .scenario {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">서울 기준 공공데이터 재정리</div>
+      <h1>VoiceGuide에 붙일 서울 공공데이터와 기능 연결안</h1>
+      <p class="lead">
+        이 문서는 팀 회의용으로, “데이터 이름”이 아니라 앱에서 어떤 판단과 음성 안내로 바뀌는지를 기준으로 정리했다.
+        창원·대전 같은 타지역 예시는 제외하고, 같은 역할을 하는 서울시 데이터로 다시 맞췄다.
+      </p>
+      <div class="summary">
+        핵심 방향: 서울 장애인콜택시, 복지시설, 횡단보도, 음향신호기, 보도, 실시간 혼잡 데이터를 엮어
+        “길 안내”가 아니라 “보행 위험 판단과 대체 이동 안내”를 보여준다.
+      </div>
+    </header>
+
+    <section>
+      <h2>우선 적용할 서울 데이터</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>서울 데이터</th>
+            <th>VoiceGuide 기능</th>
+            <th>앱에서 쓰는 방식</th>
+            <th>대시보드 위치</th>
+            <th>링크</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>전국교통약자이동지원센터정보표준데이터</strong></td>
+            <td>위험 구간 접근 후 대체 이동수단 안내</td>
+            <td>
+              센터명, 주소, 위도·경도, 전화번호, 운영시간, 예약 가능 시점, 이용 대상, 이용 제한, 운행 지역, 요금 정보를 사용한다.
+              전국 표준데이터에서 서울 항목을 필터링해 “가까운 이동지원센터/장애인콜택시 안내”의 핵심 근거로 쓴다.
+            </td>
+            <td><span class="fit-high">높음</span><br>대체 이동 안내 카드, 공공데이터 근거 로그</td>
+            <td>
+              <a href="https://www.data.go.kr/tcs/dss/selectStdDataDetailView.do?publicDataPk=15028207">표준데이터</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울시설공단 장애인콜택시 운영 CSV</strong></td>
+            <td>서울 장애인콜택시 수요·대기시간 분석</td>
+            <td>
+              탑승내역, 시간대별 대기시간, 시간대별 탑승건수, 차량운행상태 종류를 사용한다.
+              직접 호출 안내보다는 “서울에서 어떤 시간대에 대기시간이 길고 이용 수요가 높은지”를 설명하는 보조 근거로 쓴다.
+            </td>
+            <td><span class="fit-mid">중간</span><br>이용 수요 분석, 시간대별 대기 근거</td>
+            <td>
+              <a href="https://www.data.go.kr/data/15115859/fileData.do">탑승내역 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15147613/fileData.do">시간대별 대기시간 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15147614/fileData.do">시간대별 탑승건수 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15138243/fileData.do">차량운행상태 종류 CSV</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울시설공단 장애인콜시스템 Open API</strong></td>
+            <td>실서비스 확장용 실시간/상세 호출</td>
+            <td>
+              공모전 제출물의 핵심 구현 데이터로 두기보다는, 파일데이터 분석 이후 실제 서비스 단계에서 연동할 확장 데이터로 둔다.
+              신청이 필요한 API이므로 “연동 예정”으로만 표시한다.
+            </td>
+            <td><span class="fit-low">낮음</span><br>확장 계획, 고도화 항목</td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-15558/A/1/datasetView.do">서울 열린데이터 API</a><br>
+              <a href="https://data.seoul.go.kr/dataList/30/literacyView.do">장애인콜시스템 설명</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울시 사회복지시설(장애인지역사회재활시설) 목록</strong></td>
+            <td>복지관·장애인센터 목적지 시나리오</td>
+            <td>
+              시설명, 시설 종류, 자치구, 주소, 전화번호를 사용해 “복지관으로 이동 중”이라는 실제 목적지를 만든다.
+              시각장애 특화 시설은 시설명·종류에서 필터링한다.
+            </td>
+            <td><span class="fit-high">높음</span><br>목적지 정보, 주변 지원시설 추천</td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-20429/S/1/datasetView.do">서울 데이터</a><br>
+              <a href="https://www.data.go.kr/data/15076912/fileData.do">공공데이터포털 설명</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울특별시 자치구 횡단보도 정보</strong></td>
+            <td>횡단보도 접근 사전 안내</td>
+            <td>
+              횡단보도 위치, 자치구, 주소, 종류, 신호등 설치 여부, 위도·경도를 GPS와 비교해서
+              “전방 횡단보도 접근” 안내를 만든다.
+            </td>
+            <td><span class="fit-high">높음</span><br>지도 레이어, 접근 경고 로그</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-22906/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 교통안전시설물 횡단보도 정보</strong></td>
+            <td>정밀 위치 기반 보행 안전 판단</td>
+            <td>
+              횡단보도 위치 및 부착대 정보를 사용한다. 좌표계가 EPSG:5186이므로 앱 GPS에 쓰려면 WGS84 변환 전처리가 필요하다.
+            </td>
+            <td><span class="fit-mid">중간</span><br>정밀 지도 전처리 데이터</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15554/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 음향신호기 관련 정보</strong></td>
+            <td>시각장애인 특화 횡단 안내</td>
+            <td>
+              횡단보도 주변에 음향신호기가 있는지 확인해 “음향신호기가 있는 횡단보도입니다” 또는
+              “음향신호기 확인이 필요합니다” 같은 보조 문장을 만든다.
+            </td>
+            <td><span class="fit-high">높음</span><br>시각장애 특화 안전 근거</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15543/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 보행자작동신호기 관련 정보</strong></td>
+            <td>버튼식 신호기 접근 안내</td>
+            <td>
+              보행자작동신호기 위치를 활용해 “근처에 보행자 버튼 신호기가 있습니다”처럼
+              횡단 전에 사용자가 해야 할 행동을 안내한다.
+            </td>
+            <td><span class="fit-mid">중간</span><br>횡단보도 상세 안내</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15545/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 보도통계자료</strong></td>
+            <td>보행 환경 위험 판단 보조</td>
+            <td>
+              자치구별 보도 현황, 노선별 보도 방향, 폭, 면적, 보도블록 종류, 투수 여부, 시공연도 등을 사용해
+              “좁은 보도/노후 보도/보행환경 취약 구간”의 설명 근거로 쓴다.
+            </td>
+            <td><span class="fit-mid">중간</span><br>지역별 보행환경 설명</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-22240/F/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 장애인 편의시설 통계</strong></td>
+            <td>시설 접근성 근거</td>
+            <td>
+              점자블록, 안내시설, 접근로, 출입구 높이차 제거 같은 설치 현황을 자치구 단위로 보여준다.
+              실시간 안내보다는 발표용 문제 근거와 지역 접근성 비교에 적합하다.
+            </td>
+            <td><span class="fit-low">낮음</span><br>발표 도입부, 배경 근거</td>
+            <td><a href="https://data.seoul.go.kr/dataList/5/S/2/datasetView.do?obj_var_id=A&amp;up_itm_id=001006">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>서울시 보행 교통사고 현황 통계</strong></td>
+            <td>보행 위험 문제 근거</td>
+            <td>
+              자치구별 보행자 사망·부상 통계를 사용한다. “시각장애인이 운전한다”가 아니라
+              “보행자가 사고를 당하는 도로환경”이라는 설명으로 써야 한다.
+            </td>
+            <td><span class="fit-mid">중간</span><br>문제 배경, 위험지역 설명</td>
+            <td><a href="https://data.seoul.go.kr/bsp/wgs/dataView/data300View/21620.do">데이터 설명서</a></td>
+          </tr>
+          <tr>
+            <td><strong>스마트서울 도시데이터 센서(S-DoT) 유동인구 측정 정보</strong></td>
+            <td>혼잡 구간 주의 안내</td>
+            <td>
+              서울 전역 센서의 10분 단위 유동인구 CSV와 설치 위치정보를 사용한다.
+              API 키 없이 CSV를 내려받아 특정 장소·시간대의 보행 혼잡 경향을 만들 수 있으므로 공모전용 구현 데이터로 적합하다.
+            </td>
+            <td><span class="fit-high">높음</span><br>혼잡도 카드, 현재 상황 근거</td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-15964/A/1/datasetView.do">S-DoT 유동인구 CSV</a><br>
+              <a href="https://data.seoul.go.kr/bsp/wgs/dataView/data300View/1988.do">데이터 설명서</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>행정동 단위 서울 생활인구(내국인)</strong></td>
+            <td>시간대별 혼잡 예측 보조</td>
+            <td>
+              월별 ZIP 파일을 내려받아 행정동·시간대별 생활인구를 분석한다.
+              실시간은 아니지만 “평일 오후 강남역 주변은 생활인구가 높다”처럼 보행 혼잡 예상 근거로 쓰기 좋다.
+            </td>
+            <td><span class="fit-high">높음</span><br>시간대별 혼잡 예측, 발표 근거</td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-14991/S/1/datasetView.do">서울 생활인구 ZIP</a><br>
+              <a href="https://data.seoul.go.kr/dataVisual/seoul/seoulLivingPopulation.do">서울 생활인구 안내</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울 실시간 도시데이터 / 실시간 인구 API</strong></td>
+            <td>고도화 단계의 실시간 혼잡 안내</td>
+            <td>
+              인증키가 필요한 Open API이므로 공모전 핵심 구현 데이터에서는 제외한다.
+              대신 S-DoT 유동인구와 서울 생활인구로 구현하고, 이 API는 실제 서비스 확장 항목으로 둔다.
+            </td>
+            <td><span class="fit-low">낮음</span><br>확장 계획, 실시간 고도화</td>
+            <td>
+              <a href="https://www.data.go.kr/data/15146211/openapi.do">공공데이터포털 API</a><br>
+              <a href="https://data.seoul.go.kr/dataVisual/seoul/guide.do">서울 실시간 도시데이터 안내</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>발표용 시나리오</h2>
+      <p>
+        서울 기준 데모는 “시각장애인이 서울의 장애인복지관으로 이동하다가 횡단보도와 혼잡 구간을 만나는 상황”으로 잡는 것이 가장 자연스럽다.
+      </p>
+      <div class="scenario">
+        <div class="step">
+          <div class="step-number">1</div>
+          <strong>목적지 설정</strong>
+          <span>서울 장애인지역사회재활시설 목록에서 복지관 또는 시각장애 관련 시설을 목적지로 선택한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <strong>보행 중 인식</strong>
+          <span>YOLO가 계단, 문, 사람, 차량, 장애물을 인식하고 거리와 방향을 음성으로 안내한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <strong>횡단 전 판단</strong>
+          <span>GPS가 서울 횡단보도, 음향신호기, 보행자작동신호기 데이터와 가까워지면 사전 경고한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <strong>혼잡/위험 보정</strong>
+          <span>S-DoT 유동인구, 서울 생활인구, 보행 사고 통계를 근거로 혼잡하거나 사고가 잦은 구간임을 설명한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">5</div>
+          <strong>대체 이동 안내</strong>
+          <span>우회가 어렵거나 위험도가 높으면 서울 장애인콜택시 이용 가능성을 안내하고 대시보드에 근거를 남긴다.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>대시보드에 보여줄 것</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tag blue">핵심</span>
+          <h3>공공데이터 기반 안내 로그</h3>
+          <p>
+            “서울 횡단보도 80m 접근”, “음향신호기 있음”, “혼잡도 높음”, “장애인콜택시 안내 후보”처럼
+            어떤 데이터 때문에 안내가 발생했는지 보여준다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag green">핵심</span>
+          <h3>사용자 위치 주변 안전 레이어</h3>
+          <p>
+            전체 서울 지도를 통계로 채우기보다, 현재 GPS 주변 300m 안의 횡단보도, 음향신호기, 보행자작동신호기만 표시한다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag teal">핵심</span>
+          <h3>대체 이동 추천 카드</h3>
+          <p>
+            위험도가 높은 상황에서 “장애인콜택시 이용 가능” 또는 “가까운 복지시설 연락처”를 카드로 보여준다.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>팀원용 역할 분리</h2>
+      <div class="two-column">
+        <div class="card good">
+          <h3>앱/서버 기능으로 바로 연결되는 데이터</h3>
+          <ul>
+            <li>전국교통약자이동지원센터정보표준데이터: 서울 이동지원센터 위치·전화번호·운영시간 기반 대체 이동 안내</li>
+            <li>서울시설공단 장애인콜택시 운영 CSV: 시간대별 대기시간과 이용 수요 분석</li>
+            <li>서울 장애인지역사회재활시설 목록: 복지관/센터 목적지</li>
+            <li>서울 자치구 횡단보도 정보: 횡단보도 접근 경고</li>
+            <li>서울 음향신호기 정보: 시각장애인 특화 횡단 안내</li>
+            <li>S-DoT 유동인구 및 서울 생활인구: 혼잡도와 시간대별 보행 수요 보정</li>
+          </ul>
+        </div>
+        <div class="card note">
+          <h3>발표 근거로 쓰는 데이터</h3>
+          <ul>
+            <li>서울 보행 교통사고 현황 통계: 보행자 안전 문제 배경</li>
+            <li>서울 보도통계자료: 보도 폭, 포장재, 노후도 등 보행환경 설명</li>
+            <li>서울 장애인 편의시설 통계: 점자블록·안내시설 등 접근성 배경</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>중요한 표현:</strong>
+        “보행자 사고다발구역”은 운전자 관점이 아니라 “시각장애인을 포함한 보행자가 실제로 다치는 도로환경 데이터”로 설명한다.
+        “시각장애 등록 현황”은 대시보드 메인에서 빼고, 필요하면 발표 도입부의 수요 근거로만 사용한다.
+      </div>
+    </section>
+
+    <section>
+      <h2>예시 음성 안내 문장</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>상황</th>
+            <th>사용 데이터</th>
+            <th>안내 문장 예시</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>횡단보도 접근</strong></td>
+            <td>서울 자치구 횡단보도 정보 + 음향신호기 정보</td>
+            <td>“전방 70m 횡단보도입니다. 음향신호기 위치를 확인하고 정지 후 건너세요.”</td>
+          </tr>
+          <tr>
+            <td><strong>혼잡 지역 진입</strong></td>
+            <td>S-DoT 유동인구 + 서울 생활인구</td>
+            <td>“현재 주변 혼잡도가 높습니다. 사람과 충돌하지 않도록 속도를 줄이세요.”</td>
+          </tr>
+          <tr>
+            <td><strong>복지관 목적지 이동</strong></td>
+            <td>서울 장애인지역사회재활시설 목록</td>
+            <td>“목적지인 복지관까지 이동 중입니다. 입구 주변 계단과 문을 확인합니다.”</td>
+          </tr>
+          <tr>
+            <td><strong>위험 구간에서 대체 이동</strong></td>
+            <td>전국교통약자이동지원센터정보표준데이터 + 서울시설공단 장애인콜택시 운영 CSV</td>
+            <td>“이 구간은 이동 위험도가 높습니다. 우회가 어렵다면 장애인콜택시 이용을 고려하세요.”</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      작성 기준일: 2026-05-23 · 서울 열린데이터광장과 공공데이터포털에서 확인한 서울 기준 데이터만 정리
+    </footer>
+  </main>
+</body>
+</html>

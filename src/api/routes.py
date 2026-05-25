@@ -20,7 +20,9 @@ import os
 import uuid
 import hashlib
 import json
+import csv
 import asyncio
+import re
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
@@ -68,6 +70,12 @@ _DISABLED_GENDER_DEGREE_DIR = _ROOT_DIR / "datasets" / "disabled_gender_degree"
 _DISABLED_GENDER_DEGREE_SUMMARY_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_summary.json"
 _DISABLED_GENDER_DEGREE_REGIONS_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_regions.json"
 _DISABLED_GENDER_DEGREE_TREND_PATH = _DISABLED_GENDER_DEGREE_DIR / "disabled_gender_degree_trend.json"
+_VOICEGUIDE_FINAL_DIR = _ROOT_DIR / "data" / "processed" / "voiceguide_final"
+_VOICEGUIDE_FINAL_ROUTE_PATH = _VOICEGUIDE_FINAL_DIR / "final_route_comparison.csv"
+_VOICEGUIDE_FINAL_CROSSWALK_PATH = _VOICEGUIDE_FINAL_DIR / "final_crosswalk_accessibility.csv"
+_VOICEGUIDE_FINAL_SCENARIO_PATH = _VOICEGUIDE_FINAL_DIR / "final_scenario_dataset.json"
+_VOICEGUIDE_FINAL_USAGE_PATH = _VOICEGUIDE_FINAL_DIR / "final_data_usage_refined.html"
+_VOICEGUIDE_FINAL_USAGE_FALLBACK_PATH = _VOICEGUIDE_FINAL_DIR / "final_data_usage.html"
 _SIDO_ALIASES = {
     "서울": "서울특별시",
     "부산": "부산광역시",
@@ -102,6 +110,134 @@ def _require_json_artifact(path: Path) -> dict:
             detail=f"Pedestrian hotspot artifact not found: {path}",
         )
     return _load_json_artifact(str(path))
+
+
+@lru_cache(maxsize=8)
+def _load_csv_artifact(path: str) -> list[dict]:
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def _require_csv_artifact(path: Path) -> list[dict]:
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"CSV artifact not found: {path}")
+    return _load_csv_artifact(str(path))
+
+
+def _to_bool(value: object) -> bool:
+    return str(value or "").strip().lower() in {"true", "1", "y", "yes"}
+
+
+def _to_float(value: object, default: float | None = None) -> float | None:
+    try:
+        if value in ("", None):
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_int(value: object, default: int = 0) -> int:
+    number = _to_float(value)
+    return int(number) if number is not None else default
+
+
+def _facility_status(row: dict) -> dict:
+    checks = {
+        "pedestrian_light": _to_bool(row.get("has_pedestrian_light") or row.get("has_pedestrian_signal")),
+        "audio_signal": _to_bool(row.get("has_audio_signal")),
+        "push_button": _to_bool(row.get("has_push_button") or row.get("has_pedestrian_button")),
+        "raised_crosswalk": _to_bool(row.get("is_raised_crosswalk")),
+        "traffic_safety_detail": _to_bool(row.get("has_traffic_safety_detail")),
+    }
+    missing = [
+        {"key": key, "label": label}
+        for key, label in [
+            ("pedestrian_light", "보행등"),
+            ("audio_signal", "음향신호기"),
+            ("push_button", "보행자작동신호기"),
+            ("raised_crosswalk", "고원식 횡단보도"),
+        ]
+        if not checks.get(key)
+    ]
+    return {"installed": checks, "missing": missing}
+
+
+def _build_final_summary() -> dict:
+    routes = _require_csv_artifact(_VOICEGUIDE_FINAL_ROUTE_PATH)
+    crosswalks = _require_csv_artifact(_VOICEGUIDE_FINAL_CROSSWALK_PATH)
+    scenario = _require_json_artifact(_VOICEGUIDE_FINAL_SCENARIO_PATH)
+
+    tier_order = ["preferred", "recommended", "basic", "insufficient"]
+    tier_counts = {tier: 0 for tier in tier_order}
+    facility_counts = {
+        "pedestrian_light": 0,
+        "audio_signal": 0,
+        "push_button": 0,
+        "raised_crosswalk": 0,
+        "traffic_safety_detail": 0,
+    }
+    improvement_candidates = []
+
+    for row in crosswalks:
+        tier = row.get("route_recommendation_tier") or "unknown"
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        facilities = _facility_status(row)
+        for key, installed in facilities["installed"].items():
+            if installed:
+                facility_counts[key] = facility_counts.get(key, 0) + 1
+        if facilities["missing"]:
+            improvement_candidates.append({
+                "crosswalk_id": row.get("crosswalk_id"),
+                "lat": _to_float(row.get("latitude")),
+                "lng": _to_float(row.get("longitude")),
+                "accessibility_score": _to_int(row.get("accessibility_score")),
+                "tier": tier,
+                "missing": facilities["missing"],
+            })
+
+    route_items = []
+    for row in routes:
+        facilities = _facility_status(row)
+        route_items.append({
+            "route_id": row.get("route_id"),
+            "route_name": row.get("route_name"),
+            "route_role": row.get("route_role"),
+            "selected": _to_bool(row.get("selected")),
+            "start_name": row.get("start_name"),
+            "destination_name": row.get("destination_name"),
+            "main_crosswalk_id": row.get("main_crosswalk_id"),
+            "lat": _to_float(row.get("main_crosswalk_lat")),
+            "lng": _to_float(row.get("main_crosswalk_lon")),
+            "approx_distance_m": _to_int(row.get("approx_distance_m")),
+            "distance_delta_vs_shortest_m": _to_int(row.get("distance_delta_vs_shortest_m")),
+            "accessibility_score": _to_int(row.get("accessibility_score")),
+            "recommendation_tier": row.get("route_recommendation_tier"),
+            "support_evidence": row.get("support_evidence") or row.get("safety_evidence"),
+            "selection_reason": row.get("final_selection_reason") or row.get("reason_summary"),
+            "facilities": facilities,
+        })
+
+    selected = next((route for route in route_items if route["selected"]), route_items[-1] if route_items else {})
+    return {
+        "metadata": scenario.get("metadata", {}),
+        "routes": route_items,
+        "selected_route": selected,
+        "tier_counts": tier_counts,
+        "crosswalk_total": len(crosswalks),
+        "facility_counts": facility_counts,
+        "improvement_candidates": sorted(
+            improvement_candidates,
+            key=lambda item: (item["accessibility_score"], item["crosswalk_id"] or ""),
+        )[:12],
+        "files": {
+            "route_comparison_csv": "final_route_comparison.csv",
+            "scenario_json": "final_scenario_dataset.json",
+            "crosswalk_accessibility_csv": "final_crosswalk_accessibility.csv",
+            "crosswalk_accessibility_geojson": "final_crosswalk_accessibility.geojson",
+            "data_usage_html": "final_data_usage_refined.html",
+        },
+    }
 
 
 def _distance_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -169,6 +305,31 @@ def _find_gender_degree_region(sido: str, sigungu_candidates: list[str]) -> dict
             if candidate and (candidate in name or name in candidate):
                 return row
     return None
+
+
+_ADDRESS_SESSION_RE = re.compile(
+    r"("
+    r"특별시|광역시|특별자치시|특별자치도|도\s|시\s|군\s|구\s|읍\s|면\s|동\s|로\d*|길\d*|번지|아파트|빌라|오피스텔|"
+    r"\d{1,5}-\d{1,5}|"
+    r"\b\d{1,5}\s*(?:st|street|ave|avenue|rd|road|blvd|drive|dr)\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_address_session(value: str) -> bool:
+    text = str(value or "").strip()
+    if not text:
+        return False
+    return bool(_ADDRESS_SESSION_RE.search(text))
+
+
+def _visible_session_ids(session_ids: list[str]) -> list[str]:
+    return [sid for sid in session_ids if not _looks_like_address_session(sid)]
+
+
+def _drop_address_identifier(value: str) -> str:
+    return "" if _looks_like_address_session(value) else str(value or "")
 
 @router.get("/api/policy")
 async def get_voice_policy(
@@ -250,6 +411,8 @@ def _normalize_session_id(wifi_ssid: str = "", device_id: str = "") -> str:
     """기기별 대시보드 세션 ID 정규화."""
     preferred = device_id or wifi_ssid
     value = (preferred or "").strip().strip('"')
+    if _looks_like_address_session(value):
+        return "__default__"
     if not value or value.lower() in {"<unknown ssid>", "unknown ssid", "0x"}:
         # 버그 수정: 익명 유저 간 세션 꼬임 방지 (일회용 UUID 부여)
         return f"anonymous_{uuid.uuid4().hex[:8]}"
@@ -403,8 +566,10 @@ async def detect(
     payload: dict = Body(...),
 ):
     _t0 = _time.monotonic()
-    wifi_ssid = str(payload.get("wifi_ssid", ""))
-    device_id = str(payload.get("device_id", ""))
+    raw_wifi_ssid = str(payload.get("wifi_ssid", ""))
+    raw_device_id = str(payload.get("device_id", ""))
+    wifi_ssid = _drop_address_identifier(raw_wifi_ssid)
+    device_id = _drop_address_identifier(raw_device_id)
     camera_orientation = str(payload.get("camera_orientation", "front"))
     mode = str(payload.get("mode", "장애물"))
     query_text = str(payload.get("query_text", ""))
@@ -413,7 +578,7 @@ async def detect(
     request_id = str(payload.get("request_id") or "")
     request_id = request_id or f"srv-{int(_t0 * 1000)}"
     event_id = str(payload.get("event_id") or request_id or uuid.uuid4().hex)
-    session_id = _normalize_session_id(wifi_ssid, device_id)
+    session_id = _normalize_session_id(raw_wifi_ssid, raw_device_id)
 
     if lat != 0.0 or lng != 0.0:
         db.save_gps(session_id, lat, lng)
@@ -572,8 +737,10 @@ async def detect_from_json(body: dict):
     }
     """
     _t0 = _time.monotonic()
-    device_id  = body.get("device_id", "")
-    wifi_ssid  = body.get("wifi_ssid", "")
+    raw_device_id = body.get("device_id", "")
+    raw_wifi_ssid = body.get("wifi_ssid", "")
+    device_id  = _drop_address_identifier(raw_device_id)
+    wifi_ssid  = _drop_address_identifier(raw_wifi_ssid)
     request_id = body.get("request_id", f"srv-{int(_t0*1000)}")
     mode       = body.get("mode", "장애물")
     lat        = float(body.get("lat", 0.0))
@@ -581,7 +748,7 @@ async def detect_from_json(body: dict):
     camera_orientation = body.get("camera_orientation", "front")
     raw_detections: list[dict] = body.get("detections", [])
 
-    session_id = _normalize_session_id(wifi_ssid, device_id)
+    session_id = _normalize_session_id(raw_wifi_ssid, raw_device_id)
 
     if lat != 0.0 or lng != 0.0:
         db.save_gps(session_id, lat, lng)
@@ -636,12 +803,14 @@ async def answer_question(body: dict):
     (최근 /detect_json으로 쌓인 데이터)를 꺼내 요약 문장을 반환.
     """
     _t0 = _time.monotonic()
-    device_id  = body.get("device_id", "")
-    wifi_ssid  = body.get("wifi_ssid", "")
+    raw_device_id = body.get("device_id", "")
+    raw_wifi_ssid = body.get("wifi_ssid", "")
+    device_id  = _drop_address_identifier(raw_device_id)
+    wifi_ssid  = _drop_address_identifier(raw_wifi_ssid)
     request_id = body.get("request_id", f"srv-q-{int(_t0*1000)}")
     camera_orientation = body.get("camera_orientation", "front")
 
-    session_id = _normalize_session_id(wifi_ssid, device_id)
+    session_id = _normalize_session_id(raw_wifi_ssid, raw_device_id)
     tracker    = get_tracker(session_id)
 
     # tracker에 누적된 최근 3초 상태 조회
@@ -696,10 +865,12 @@ async def save_gps_ping(
 
 @router.post("/gps/route/save", dependencies=[Depends(_verify_api_key)])
 async def save_gps_route(body: dict = Body(...)):
-    device_id = str(body.get("device_id", ""))
-    wifi_ssid = str(body.get("wifi_ssid", ""))
+    raw_device_id = str(body.get("device_id", ""))
+    raw_wifi_ssid = str(body.get("wifi_ssid", ""))
+    device_id = _drop_address_identifier(raw_device_id)
+    wifi_ssid = _drop_address_identifier(raw_wifi_ssid)
     name = body.get("name")
-    session_id = _normalize_session_id(wifi_ssid, device_id)
+    session_id = _normalize_session_id(raw_wifi_ssid, raw_device_id)
     route_id = db.save_gps_route(session_id, name=name)
     if not route_id:
         return {"saved": False, "reason": "no_gps_data"}
@@ -770,7 +941,7 @@ async def stream_session_events(session_id: str):
 
 @router.get("/sessions", dependencies=[Depends(_verify_api_key)])
 async def list_sessions():
-    return {"sessions": db.get_recent_sessions()}
+    return {"sessions": _visible_session_ids(db.get_recent_sessions())}
 
 @router.post("/locations/save", dependencies=[Depends(_verify_api_key)])
 async def save_location(body: dict | None = Body(default=None)):
@@ -829,7 +1000,7 @@ async def delete_location(label: str, wifi_ssid: str = "", device_id: str = "", 
 @router.get("/team-locations", dependencies=[Depends(_verify_api_key)])
 async def get_team_locations():
     locations = []
-    for s in db.get_recent_sessions(limit=20):
+    for s in _visible_session_ids(db.get_recent_sessions(limit=20)):
         gps = db.get_last_gps(s)
         if gps and gps.get("lat") and gps.get("lng"):
             locations.append({"session_id": s, "lat": gps["lat"], "lng": gps["lng"]})
@@ -843,7 +1014,14 @@ async def get_dashboard_summary():
     보여주도록 제공한다. 데모 영상에서 클라이언트 화면과 대시보드의 세션이
     서로 매칭되는지 설명할 때 사용한다.
     """
-    return db.get_dashboard_summary_24h(limit=500)
+    payload = db.get_dashboard_summary_24h(limit=500)
+    sessions = [
+        item for item in payload.get("sessions", [])
+        if not _looks_like_address_session(item.get("session_id", ""))
+    ]
+    payload["sessions"] = sessions
+    payload["summary"]["sessions"] = len(sessions)
+    return payload
 
 @router.get("/history/{session_id}", dependencies=[Depends(_verify_api_key)])
 async def get_detection_history(session_id: str):
@@ -957,6 +1135,52 @@ async def get_nearby_pedestrian_hotspots(
         "count": len(nearby[:limit]),
         "radius_m": radius_m,
     }
+
+
+@router.get("/voiceguide-final/summary", dependencies=[Depends(_verify_api_key)])
+async def get_voiceguide_final_summary():
+    """Scenario-ready final dataset summary for the dashboard."""
+    return _build_final_summary()
+
+
+@router.get("/voiceguide-final/crosswalks.geojson", dependencies=[Depends(_verify_api_key)])
+async def get_voiceguide_final_crosswalks_geojson(limit: int = 1200):
+    """Return final crosswalk accessibility points without street-address labels."""
+    limit = max(1, min(limit, 2000))
+    rows = _require_csv_artifact(_VOICEGUIDE_FINAL_CROSSWALK_PATH)[:limit]
+    features = []
+    for row in rows:
+        lat = _to_float(row.get("latitude"))
+        lng = _to_float(row.get("longitude"))
+        if lat is None or lng is None:
+            continue
+        facilities = _facility_status(row)
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lng, lat]},
+            "properties": {
+                "crosswalk_id": row.get("crosswalk_id"),
+                "district": row.get("district"),
+                "accessibility_score": _to_int(row.get("accessibility_score")),
+                "route_recommendation_tier": row.get("route_recommendation_tier"),
+                "support_evidence": row.get("support_evidence"),
+                "installed": facilities["installed"],
+                "missing": facilities["missing"],
+            },
+        })
+    return {"type": "FeatureCollection", "features": features, "count": len(features)}
+
+
+@router.get("/voiceguide-final/data-usage", dependencies=[Depends(_verify_api_key)])
+async def get_voiceguide_final_data_usage():
+    """Serve the refined final data usage explanation document."""
+    from fastapi.responses import HTMLResponse
+
+    path = _VOICEGUIDE_FINAL_USAGE_PATH if _VOICEGUIDE_FINAL_USAGE_PATH.exists() else _VOICEGUIDE_FINAL_USAGE_FALLBACK_PATH
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="final data usage HTML not found")
+    with open(path, encoding="utf-8") as f:
+        return HTMLResponse(f.read())
 
 
 @router.get("/disabled-population/summary", dependencies=[Depends(_verify_api_key)])
@@ -1130,6 +1354,7 @@ async def save_location(body: dict):
     """장소 저장: {"label": "집", "wifi_ssid": "HomeWifi"}"""
     label    = (body.get("label") or "").strip()
     wifi_ssid = (body.get("wifi_ssid") or "").strip()
+    wifi_ssid = _drop_address_identifier(wifi_ssid).strip()
     if not label:
         return {
             "saved": False,
@@ -1195,6 +1420,7 @@ async def save_location_endpoint(body: dict):
     """장소 저장: {"label": "집", "wifi_ssid": "HomeWifi"}"""
     label     = (body.get("label") or "").strip()
     wifi_ssid = (body.get("wifi_ssid") or "").strip()
+    wifi_ssid = _drop_address_identifier(wifi_ssid).strip()
     if not label:
         return {
             "saved": False,

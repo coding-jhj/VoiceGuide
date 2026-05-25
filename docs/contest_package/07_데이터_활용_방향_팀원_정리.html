@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceGuide 데이터 활용 방향 정리</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #fff;
+      --ink: #17202a;
+      --muted: #5f6b7a;
+      --line: #d9dee7;
+      --navy: #18324a;
+      --blue: #2457d6;
+      --green: #247a43;
+      --amber: #a86300;
+      --red: #b83a3a;
+      --soft-blue: #eef4ff;
+      --soft-green: #eef8f2;
+      --soft-amber: #fff7e8;
+      --shadow: 0 12px 28px rgba(23, 32, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+      line-height: 1.62;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 42px 24px 64px;
+    }
+    header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: #087f7a;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.15;
+    }
+    .lead {
+      max-width: 920px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .summary {
+      margin-top: 24px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      font-size: 19px;
+      font-weight: 800;
+    }
+    section { margin-top: 40px; }
+    h2 {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: 25px;
+      line-height: 1.28;
+    }
+    h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    p { margin: 0; }
+    a {
+      color: var(--blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+    .card p, td { color: var(--muted); }
+    .card.core { background: var(--soft-green); border-color: #badfc6; }
+    .card.ask { background: var(--soft-amber); border-color: #efd29c; }
+    .card.out { background: #fff3f3; border-color: #efc2c2; }
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(23, 32, 42, 0.05);
+    }
+    th, td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #edf2f7;
+      color: var(--navy);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td strong { color: var(--ink); }
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      background: var(--soft-blue);
+      border: 1px solid #c7d8ff;
+      border-radius: 8px;
+    }
+    ul { margin: 12px 0 0; padding-left: 20px; }
+    li + li { margin-top: 8px; }
+    footer {
+      margin-top: 48px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 900px) {
+      main { padding: 28px 16px 44px; }
+      .grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">팀원 공유용</div>
+      <h1>공공데이터 활용 방향: 핵심 구현, 보조 분석, 질문 대상 분리</h1>
+      <p class="lead">
+        공모전 평가에서 공공데이터 활용 비중이 크기 때문에, 신청이 필요한 Open API나 활용 근거가 약한 데이터는 핵심 구현으로 주장하지 않는다.
+        바로 확보 가능한 서울/공공데이터를 중심으로 시나리오를 만들고, 애매한 데이터는 강사님께 확인할 질문으로 분리한다.
+      </p>
+      <div class="summary">
+        결론: 핵심 구현은 다운로드 가능한 CSV/ZIP/표준데이터로 구성하고, Open API와 CCTV 관제형 아이디어는 향후 계획 또는 강사님 확인 항목으로 둔다.
+      </div>
+    </header>
+
+    <section>
+      <h2>데이터를 세 그룹으로 나눈 이유</h2>
+      <div class="grid">
+        <article class="card core">
+          <span class="tag green">핵심 구현</span>
+          <h3>바로 받을 수 있는 데이터</h3>
+          <p>
+            CSV, ZIP, 표준데이터처럼 팀이 직접 내려받아 전처리하고 앱/대시보드에 연결할 수 있는 데이터다.
+            발표에서는 “실제 사용한 공공데이터”로 가장 강하게 말할 수 있다.
+          </p>
+        </article>
+        <article class="card ask">
+          <span class="tag amber">확인 필요</span>
+          <h3>API 신청 또는 활용 해석이 필요한 데이터</h3>
+          <p>
+            서울시설공단 장애인콜시스템 Open API, 서울 실시간 도시데이터 API, CCTV 데이터처럼
+            신청·권한·개인정보·서비스 범위 문제가 생길 수 있는 항목이다.
+          </p>
+        </article>
+        <article class="card out">
+          <span class="tag red">제외</span>
+          <h3>주제를 흐리는 데이터</h3>
+          <p>
+            단순 범죄 통계나 치안 순위처럼 시각장애인 보행 보조보다 안심귀가 앱처럼 보이게 만드는 데이터는
+            핵심 시나리오에서 제외한다.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>핵심으로 쓸 데이터</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>역할</th>
+            <th>데이터</th>
+            <th>기능 연결</th>
+            <th>링크</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>대체 이동 안내</strong></td>
+            <td>전국교통약자이동지원센터정보표준데이터</td>
+            <td>서울 항목만 필터링해 이동지원센터 위치, 전화번호, 운영시간, 이용대상, 요금 안내에 사용한다.</td>
+            <td><a href="https://www.data.go.kr/tcs/dss/selectStdDataDetailView.do?publicDataPk=15028207">표준데이터</a></td>
+          </tr>
+          <tr>
+            <td><strong>장애인콜택시 보조 근거</strong></td>
+            <td>서울시설공단 장애인콜택시 운영 CSV</td>
+            <td>직접 호출 안내가 아니라 시간대별 대기시간, 탑승건수, 이용 수요 분석에 사용한다.</td>
+            <td>
+              <a href="https://www.data.go.kr/data/15115859/fileData.do">탑승내역</a><br>
+              <a href="https://www.data.go.kr/data/15147613/fileData.do">시간대별 대기시간</a><br>
+              <a href="https://www.data.go.kr/data/15147614/fileData.do">시간대별 탑승건수</a><br>
+              <a href="https://www.data.go.kr/data/15138243/fileData.do">차량운행상태 종류</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>목적지 시나리오</strong></td>
+            <td>서울시 사회복지시설(장애인지역사회재활시설) 목록</td>
+            <td>장애인복지관, 시각장애 관련 시설을 목적지로 설정한다.</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-20429/S/1/datasetView.do">서울 데이터</a></td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 접근 경고</strong></td>
+            <td>서울특별시 자치구 횡단보도 정보</td>
+            <td>GPS 기준 주변 횡단보도 접근 여부를 판단한다.</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-22906/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>시각장애 특화 횡단 안내</strong></td>
+            <td>서울시 음향신호기 관련 정보</td>
+            <td>음향신호기 존재 여부를 안내 문장에 붙인다.</td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15543/S/1/datasetView.do">데이터셋</a></td>
+          </tr>
+          <tr>
+            <td><strong>혼잡도 보조 판단</strong></td>
+            <td>S-DoT 유동인구, 서울 생활인구</td>
+            <td>실시간 API 대신 다운로드 가능한 유동인구/생활인구로 시간대별 혼잡 근거를 만든다.</td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-15964/A/1/datasetView.do">S-DoT 유동인구</a><br>
+              <a href="https://data.seoul.go.kr/dataList/OA-14991/S/1/datasetView.do">서울 생활인구</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>강사님께 물어볼 데이터</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>데이터</th>
+            <th>왜 애매한가</th>
+            <th>질문 방향</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>서울시설공단 장애인콜시스템 Open API</strong></td>
+            <td>신청이 필요하고, 공모전 기간 내 실시간 연동을 핵심 구현으로 주장하기 어렵다.</td>
+            <td>CSV 분석을 핵심으로 두고 API는 고도화 계획으로 써도 되는지 확인한다.</td>
+          </tr>
+          <tr>
+            <td><strong>서울 실시간 도시데이터 API</strong></td>
+            <td>인증키가 필요하다. 실시간 혼잡도는 좋지만, API 연동 실패 시 기능이 흔들린다.</td>
+            <td>S-DoT/생활인구로 구현하고 실시간 API는 확장으로 둬도 평가상 괜찮은지 확인한다.</td>
+          </tr>
+          <tr>
+            <td><strong>CCTV·안심 인프라 데이터</strong></td>
+            <td>보행 보조와 연결할 수는 있지만, 치안/관제 서비스처럼 보일 위험이 있다.</td>
+            <td>사업계획서 향후 계획에서 “위험지역 진입 시 관제형 모니터링”으로 표현해도 되는지 확인한다.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        팀 설명 문장: “지금 구현은 다운로드 가능한 공공데이터로 확실하게 만들고, 신청형 API와 CCTV 관제형 아이디어는 강사님께 방향을 확인한 뒤 향후 계획으로 넣는다.”
+      </div>
+    </section>
+
+    <footer>
+      작성 기준일: 2026-05-23 · VoiceGuide 공모전 데이터 활용 방향 정리
+    </footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceGuide 전처리 비교 및 통합 계획</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --paper: #ffffff;
+      --ink: #18212f;
+      --muted: #5f6b7a;
+      --line: #dce3ec;
+      --navy: #18324a;
+      --blue: #2457d6;
+      --green: #26734d;
+      --amber: #9a6200;
+      --red: #b23b3b;
+      --soft-blue: #eef4ff;
+      --soft-green: #eef8f2;
+      --soft-amber: #fff7e6;
+      --soft-red: #fff1f1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      line-height: 1.65;
+      word-break: keep-all;
+    }
+
+    main {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 42px 22px 72px;
+    }
+
+    header {
+      padding: 30px 32px;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fbff 64%, #eef5ff 100%);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+    }
+
+    .lead {
+      max-width: 920px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    section {
+      margin-top: 26px;
+      padding: 26px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      color: var(--navy);
+      font-size: 24px;
+      line-height: 1.3;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: var(--ink);
+    }
+
+    p { margin: 0; }
+    p + p { margin-top: 10px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .card p, li, td {
+      color: var(--muted);
+    }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .blue { background: var(--blue); }
+    .green { background: var(--green); }
+    .amber { background: var(--amber); }
+    .red { background: var(--red); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--navy);
+      background: #edf2f7;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+    strong { color: var(--ink); }
+
+    .callout {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border-radius: 10px;
+      border: 1px solid #c8d8ff;
+      background: var(--soft-blue);
+      color: var(--navy);
+      font-weight: 800;
+    }
+
+    .callout.green {
+      border-color: #bfdfca;
+      background: var(--soft-green);
+      color: #185b38;
+    }
+
+    .callout.amber {
+      border-color: #f0d59a;
+      background: var(--soft-amber);
+      color: #725000;
+    }
+
+    .callout.red {
+      border-color: #efc0c0;
+      background: var(--soft-red);
+      color: #812a2a;
+    }
+
+    ol, ul {
+      margin: 10px 0 0;
+      padding-left: 22px;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: #eef1f5;
+      color: #263241;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 150px 1fr 220px;
+      gap: 12px;
+      align-items: start;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .phase:first-child { border-top: 0; }
+    .phase strong { color: var(--navy); }
+
+    footer {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      main { padding: 24px 14px 48px; }
+      header, section { padding: 20px; }
+      .grid, .phase { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">VoiceGuide 데이터 비교 계획</p>
+      <h1>두 ZIP과 현재 전처리 결과를 비교해 좋은 점만 합치는 계획</h1>
+      <p class="lead">
+        목표는 데이터를 더 많이 모으는 것이 아니라, 발표 시나리오에서 바로 설명 가능한
+        최종 데이터셋을 만드는 것이다. 따라서 채택 기준은 “시나리오에 바로 쓰이는가”,
+        “근거가 남는가”, “지도와 대시보드에 연결하기 쉬운가”로 둔다.
+      </p>
+    </header>
+
+    <section>
+      <h2>결론</h2>
+      <div class="callout green">
+        현재 우리가 만든 전처리 결과를 기준본으로 두고,
+        <code>voiceguide_scenario.zip</code>의 GeoJSON, 추천 등급, 근거 문구 구조를 흡수한다.
+        <code>voiceguide전처리.zip</code>에서는 데모 HTML 구성과 단순한 컬럼명 방식을 참고한다.
+      </div>
+      <p style="margin-top: 12px;">
+        단, 외부 ZIP의 90m A/B 예시는 그대로 쓰지 않는 것이 좋다. 해당 예시는 사당동 횡단보도 쌍 기준이고,
+        현재 우리가 고정한 “보라매역 → 서울시남부장애인종합복지관” 시나리오와 직접 연결되지 않는다.
+      </p>
+    </section>
+
+    <section>
+      <h2>자료별 좋은 점</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tag blue">현재 우리 결과</span>
+          <h3>기준본으로 사용</h3>
+          <p>
+            원본 역할별 폴더가 분명하고, 동작구 복지관과 횡단보도 점수표,
+            실제 시나리오 A/B 비교 파일, 지도 마커, TTS 문장까지 연결되어 있다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag green">voiceguide_scenario.zip</span>
+          <h3>지도와 발표 설명에 강함</h3>
+          <p>
+            동작구 횡단보도 1,025건을 GeoJSON으로 제공하고,
+            <code>support_evidence</code>, <code>route_recommendation_tier</code>처럼
+            발표에서 바로 읽기 좋은 컬럼이 있다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag amber">voiceguide전처리.zip</span>
+          <h3>화면 예시와 단순 컬럼에 강함</h3>
+          <p>
+            <code>demo_A_step_flow.html</code>, <code>demo_B_dashboard.html</code>,
+            <code>demo_C_app_simulator.html</code>가 있어 발표 화면 구성을 참고하기 좋다.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>비교표</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>현재 우리 결과</th>
+            <th>voiceguide_scenario.zip</th>
+            <th>voiceguide전처리.zip</th>
+            <th>채택 계획</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>시나리오 A/B 비교</strong></td>
+            <td>보라매역 → 서울시남부장애인종합복지관 기준 A/B 비교 CSV 있음</td>
+            <td>90m 예시가 있으나 사당동 횡단보도 쌍 기준</td>
+            <td>시각화 HTML은 있으나 최종 A/B 데이터는 약함</td>
+            <td>우리 A/B 비교를 유지하고, 설명 문구만 더 다듬기</td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 점수</strong></td>
+            <td>보행등, 음향신호기, 버튼, 고원식 기준 <code>support_score</code></td>
+            <td>교통안전시설 상세까지 포함한 <code>accessibility_score</code></td>
+            <td>단순 점수 구조라 이해하기 쉬움</td>
+            <td>우리 점수에 <code>has_traffic_safety_detail</code>을 추가해 보강</td>
+          </tr>
+          <tr>
+            <td><strong>지도 활용</strong></td>
+            <td>지도 마커용 CSV 있음</td>
+            <td>동작구 횡단보도 GeoJSON 있음</td>
+            <td>WGS84 CSV가 많음</td>
+            <td>GeoJSON을 최종 산출물에 추가</td>
+          </tr>
+          <tr>
+            <td><strong>목적지 복지관</strong></td>
+            <td>동작구 9개 전체와 시나리오 목적지 1개 있음</td>
+            <td>대표 후보 4개로 줄여 설명이 쉬움</td>
+            <td>동작구 9개 단순 목록</td>
+            <td>전체 9개 보존, 발표용 후보 4개 별도 생성</td>
+          </tr>
+          <tr>
+            <td><strong>이동지원센터</strong></td>
+            <td>서울/수도권 관련 56개</td>
+            <td>서울 소재 1개 예시</td>
+            <td>서울 소재 1개 예시</td>
+            <td>우리 56개 유지, 발표에는 가장 가까운 fallback만 표시</td>
+          </tr>
+          <tr>
+            <td><strong>화면 자료</strong></td>
+            <td>데이터 파일 중심</td>
+            <td>사용 설명 HTML 있음</td>
+            <td>단계 흐름, 대시보드, 앱 시뮬레이터 HTML 있음</td>
+            <td>화면 구성은 <code>voiceguide전처리.zip</code>의 HTML을 참고</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>최종 통합 산출물 설계</h2>
+      <p>
+        최종 폴더는 <code>data/processed/voiceguide_final</code>처럼 새로 만들고,
+        기존 산출물은 건드리지 않는 방식이 좋다. 그래야 원본 전처리와 통합본을 비교하기 쉽다.
+      </p>
+      <table style="margin-top: 14px;">
+        <thead>
+          <tr>
+            <th>파일</th>
+            <th>용도</th>
+            <th>가져올 장점</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>final_route_comparison.csv</code></td>
+            <td>발표 핵심 A/B 경로 비교표</td>
+            <td>우리 A/B 구조 + scenario ZIP의 근거 문구 방식</td>
+          </tr>
+          <tr>
+            <td><code>final_crosswalk_accessibility.csv</code></td>
+            <td>동작구 횡단보도 전체 점수표</td>
+            <td>우리 매칭 결과 + traffic safety 상세 컬럼 + 추천 등급</td>
+          </tr>
+          <tr>
+            <td><code>final_crosswalk_accessibility.geojson</code></td>
+            <td>지도 표시용 횡단보도 포인트</td>
+            <td>scenario ZIP의 GeoJSON 구조</td>
+          </tr>
+          <tr>
+            <td><code>final_scenario_dataset.json</code></td>
+            <td>앱/대시보드가 한 번에 읽는 대표 JSON</td>
+            <td>scenario ZIP의 JSON 패키징 방식</td>
+          </tr>
+          <tr>
+            <td><code>final_tts_guidance.csv</code></td>
+            <td>사용자에게 말할 문장</td>
+            <td>우리 TTS 문장 + 지원시설 근거 문구</td>
+          </tr>
+          <tr>
+            <td><code>final_data_usage.html</code></td>
+            <td>교수님/팀원에게 보여줄 데이터 사용 설명</td>
+            <td>scenario ZIP의 설명 HTML + 우리 실제 파일 경로</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>작업 순서</h2>
+      <div class="phase">
+        <strong>1단계</strong>
+        <div>
+          <h3>컬럼 표준 정하기</h3>
+          <p>
+            횡단보도는 <code>crosswalk_id</code>, <code>district</code>, <code>address</code>,
+            <code>latitude</code>, <code>longitude</code>, <code>has_pedestrian_light</code>,
+            <code>has_audio_signal</code>, <code>has_push_button</code>, <code>accessibility_score</code>,
+            <code>support_evidence</code>로 맞춘다.
+          </p>
+        </div>
+        <p>우선순위 높음</p>
+      </div>
+      <div class="phase">
+        <strong>2단계</strong>
+        <div>
+          <h3>점수 체계 합치기</h3>
+          <p>
+            현재 점수는 유지하되, scenario ZIP의 <code>has_traffic_safety_detail</code>을 추가한다.
+            최종 점수는 보행등, 음향신호기, 보행자작동신호기, 고원식, 교통안전시설 상세를 반영한다.
+          </p>
+        </div>
+        <p>우선순위 높음</p>
+      </div>
+      <div class="phase">
+        <strong>3단계</strong>
+        <div>
+          <h3>GeoJSON 만들기</h3>
+          <p>
+            동작구 횡단보도 전체와 A/B 대표 횡단보도를 지도에 바로 올릴 수 있게 GeoJSON으로 만든다.
+          </p>
+        </div>
+        <p>우선순위 중간</p>
+      </div>
+      <div class="phase">
+        <strong>4단계</strong>
+        <div>
+          <h3>대표 JSON 패키지 만들기</h3>
+          <p>
+            목적지 후보, 추천 횡단보도 후보, A/B 비교, TTS 문장, 이동지원센터 fallback을
+            <code>final_scenario_dataset.json</code> 하나에 묶는다.
+          </p>
+        </div>
+        <p>우선순위 높음</p>
+      </div>
+      <div class="phase">
+        <strong>5단계</strong>
+        <div>
+          <h3>발표용 HTML 정리</h3>
+          <p>
+            <code>voiceguide전처리.zip</code>의 데모 화면 구조를 참고해서,
+            최종 데이터가 어떤 근거로 경로 B를 선택하는지 보여주는 HTML을 만든다.
+          </p>
+        </div>
+        <p>우선순위 중간</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>채택하지 않을 것</h2>
+      <div class="callout red">
+        <strong>90m 문구를 그대로 쓰지 않는다.</strong>
+        외부 ZIP의 90m 예시는 “횡단보도 점 사이의 직선거리”에 가깝고,
+        우리가 잡은 보라매역-남부장애인종합복지관 시나리오의 실제 보행 우회거리로 검증된 값이 아니다.
+      </div>
+      <ul>
+        <li>API로 실제 보행거리를 계산하기 전까지는 “정확한 최단 경로”라고 말하지 않는다.</li>
+        <li>서울 이동지원센터를 1개만 남기지 않는다. 우리 데이터처럼 후보를 넓게 유지한다.</li>
+        <li>좌표 변환 근거가 불명확한 파일은 최종 기준본으로 쓰지 않고 참고 자료로만 둔다.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>발표에서 말할 수 있는 문장</h2>
+      <div class="callout amber">
+        “공공데이터를 목적지, 횡단보도, 보행지원시설, 이동지원센터로 나눈 뒤,
+        동작구 시나리오에 맞춰 횡단보도별 보행지원 점수를 계산했습니다.
+        최종 데이터셋은 최단 후보 경로와 보행지원시설이 있는 안전 후보 경로를 비교할 수 있도록
+        CSV, GeoJSON, JSON, 안내문 형태로 구성할 계획입니다.”
+      </div>
+    </section>
+
+    <footer>
+      작성일: 2026-05-24 · 비교 대상:
+      <code>voiceguide전처리.zip</code>,
+      <code>voiceguide_scenario.zip</code>,
+      <code>data/processed/voiceguide</code>
+    </footer>
+  </main>
+</body>
+</html>

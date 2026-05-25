@@ -24,6 +24,7 @@
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  .panel-section:has(#disabledContextCard) { display: none; }
 
   body {
     font-family: 'Segoe UI', -apple-system, sans-serif;
@@ -100,7 +101,7 @@
   /* ── 메인 레이아웃 ────────────────────────── */
   main {
     display: grid;
-    grid-template-columns: 340px 1fr;
+    grid-template-columns: 410px 1fr;
     overflow: hidden;
     min-height: 0;
   }
@@ -124,12 +125,12 @@
   }
 
   .panel-section {
-    padding: 16px 20px 12px;
+    padding: 18px 22px 14px;
     border-bottom: 1px solid var(--border);
   }
 
   .section-title {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--muted);
     text-transform: uppercase;
@@ -205,7 +206,7 @@
     background: #252943;
   }
   .session-summary-id {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--text);
     display: flex;
@@ -213,7 +214,7 @@
     gap: 8px;
   }
   .session-summary-meta {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--muted);
     margin-top: 4px;
     white-space: nowrap;
@@ -484,7 +485,7 @@
   }
 
   /* Leaflet 다크 테마 오버라이드 */
-  .leaflet-tile { filter: brightness(0.85) saturate(0.8) hue-rotate(180deg) invert(1); }
+  .leaflet-tile { filter: none; }
   .leaflet-container { background: #111; }
 
   /* 줌 등 좌상단 컨트롤: 커스텀 범례( top-left 오버레이 ) 아래로 */
@@ -824,7 +825,7 @@
   }
 
   /* ── 데모 시나리오 패널 ──────────────────────── */
-  .scenario-section { background: rgba(108,99,255,0.04); border-top: 2px solid var(--accent) !important; }
+  .scenario-section { background: rgba(72,191,227,0.05); border-top: 2px solid var(--accent2) !important; }
 
   .scenario-route-header {
     display: flex;
@@ -833,21 +834,21 @@
     margin-bottom: 10px;
   }
   .scenario-route-place { flex: 1; display: flex; flex-direction: column; }
-  .scenario-place-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
-  .scenario-place-name  { font-size: 12px; font-weight: 700; color: var(--text); line-height: 1.3; }
-  .scenario-route-arrow { color: var(--accent); font-weight: 700; font-size: 14px; }
+  .scenario-place-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .scenario-place-name  { font-size: 15px; font-weight: 800; color: var(--text); line-height: 1.35; }
+  .scenario-route-arrow { color: var(--accent2); font-weight: 800; font-size: 18px; }
 
   .scenario-route-pair {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 7px;
-    margin-bottom: 10px;
+    gap: 10px;
+    margin-bottom: 12px;
   }
   .scenario-route-card {
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 12px 13px;
   }
   .scenario-route-card.route-a { border-color: rgba(255,77,109,0.35); }
   .scenario-route-card.route-b { border-color: rgba(82,183,136,0.35); }
@@ -857,15 +858,15 @@
     align-items: center;
     margin-bottom: 4px;
   }
-  .scenario-route-label { font-size: 10px; font-weight: 700; color: var(--muted); }
-  .scenario-route-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+  .scenario-route-label { font-size: 12px; font-weight: 800; color: var(--muted); }
+  .scenario-route-badge { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 4px; }
   .badge-fail { background: rgba(255,77,109,0.15); color: var(--danger); }
   .badge-win  { background: rgba(82,183,136,0.15); color: var(--safe); }
-  .scenario-crosswalk-id { font-size: 9px; color: var(--accent2); font-family: monospace; margin-bottom: 3px; }
-  .scenario-distance     { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
-  .scenario-score-bar    { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  .scenario-crosswalk-id { font-size: 11px; color: var(--accent2); font-family: monospace; margin-bottom: 5px; }
+  .scenario-distance     { font-size: 18px; font-weight: 850; color: var(--text); margin-bottom: 7px; }
+  .scenario-score-bar    { height: 7px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
   .scenario-score-fill   { height: 100%; border-radius: inherit; }
-  .scenario-score-label  { font-size: 9px; color: var(--muted); line-height: 1.4; }
+  .scenario-score-label  { font-size: 12px; color: var(--muted); line-height: 1.45; }
 
   .scenario-tts {
     background: rgba(72,191,227,0.06);
@@ -873,19 +874,53 @@
     border-left: 3px solid var(--accent2);
     border-radius: 6px;
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--accent2);
     line-height: 1.5;
     margin-bottom: 10px;
   }
 
-  .scenario-grade-title { font-size: 9px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .scenario-grade-title { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
   .scenario-grades      { display: flex; flex-direction: column; gap: 4px; }
-  .scenario-grade-row   { display: grid; grid-template-columns: 74px 1fr 28px; align-items: center; gap: 6px; }
-  .scenario-grade-label { font-size: 9px; color: var(--muted); font-family: monospace; }
-  .scenario-grade-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .scenario-grade-row   { display: grid; grid-template-columns: 92px 1fr 42px; align-items: center; gap: 8px; }
+  .scenario-grade-label { font-size: 11px; color: var(--muted); font-family: monospace; }
+  .scenario-grade-track { height: 7px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
   .scenario-grade-fill  { height: 100%; border-radius: inherit; }
-  .scenario-grade-count { font-size: 9px; color: var(--text); text-align: right; font-weight: 600; }
+  .scenario-grade-count { font-size: 11px; color: var(--text); text-align: right; font-weight: 700; }
+  .facility-chip-row { display: flex; flex-wrap: wrap; gap: 5px; margin: 7px 0 4px; }
+  .facility-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .facility-chip.on { color: var(--safe); border-color: rgba(82,183,136,0.35); background: rgba(82,183,136,0.10); }
+  .facility-chip.off { color: var(--warn); border-color: rgba(244,162,97,0.35); background: rgba(244,162,97,0.10); }
+  .improvement-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .improvement-item {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 8px;
+    padding: 8px 9px;
+    border: 1px solid rgba(244,162,97,0.22);
+    border-radius: 8px;
+    background: rgba(244,162,97,0.06);
+    font-size: 12px;
+  }
+  .improvement-item strong { color: var(--warn); font-family: monospace; }
+  .data-usage-link {
+    display: inline-flex;
+    margin-top: 10px;
+    color: var(--accent2);
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+  }
 </style>
 </head>
 <body>
@@ -1029,7 +1064,7 @@
       </div>
 
       <!-- 데모 시나리오 패널 -->
-      <div class="panel-section scenario-section">
+      <div class="panel-section scenario-section" id="finalScenarioPanel">
         <div class="section-title">데모 경로 시나리오</div>
 
         <!-- 출발 → 목적지 -->
@@ -1300,6 +1335,8 @@ let trackLine = null;
 let routeLine = null;  // 저장된 경로 표시용 (주황색)
 let heatLayer = null;  // 위험 구간 히트맵 레이어
 let pedestrianHotspotLayer = null;  // 과거 보행자 사고다발구역 레이어
+let finalCrosswalkLayer = null;
+let finalRouteLayer = null;
 let pedestrianHotspotFeatures = [];
 let mapCentered = false;
 const teamMarkers = {};  // session_id → Leaflet marker
@@ -1354,6 +1391,14 @@ function escapeHtml(value) {
 
 function formatCount(value) {
   return Number(value ?? 0).toLocaleString('ko-KR');
+}
+
+function looksLikeAddressSession(value) {
+  return /(특별시|광역시|특별자치시|특별자치도|시\s|군\s|구\s|읍\s|면\s|동\s|로\d*|길\d*|번지|아파트|빌라|오피스텔|\d{1,5}-\d{1,5})/i.test(String(value || ''));
+}
+
+function publicSessions(items) {
+  return (items || []).filter(s => !looksLikeAddressSession(typeof s === 'string' ? s : s?.session_id));
 }
 
 // ── 아이콘 매핑 ───────────────────────────────────────
@@ -1650,7 +1695,6 @@ function renderGps(gps, track) {
     mapCentered = true;
   }
 
-  fetchDisabledPopulationContext(lat, lng);
 }
 
 // ── 폴링 ─────────────────────────────────────────────
@@ -1905,8 +1949,8 @@ async function loadSessions() {
     ]);
     const data = res.ok ? await res.json() : {};
     const summaryData = summaryRes.ok ? await summaryRes.json() : {};
-    const gpsSessions = data.sessions ?? [];
-    const eventSessions = (summaryData.sessions ?? []).map(s => s.session_id).filter(Boolean);
+    const gpsSessions = publicSessions(data.sessions ?? []);
+    const eventSessions = publicSessions(summaryData.sessions ?? []).map(s => s.session_id).filter(Boolean);
     const sessions = [...new Set([...gpsSessions, ...eventSessions])];
     if (sessions.length === 0) {
       box.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--muted)">단말 데이터 없음<br>앱에서 분석을 시작하세요</div>';
@@ -2056,6 +2100,135 @@ async function loadRouteTrack(routeId) {
   fetchHeatmap(true);
 }
 
+function facilityLabel(key) {
+  return ({
+    pedestrian_light: '보행등',
+    audio_signal: '음향신호기',
+    push_button: '작동버튼',
+    raised_crosswalk: '고원식',
+    traffic_safety_detail: '상세정보'
+  })[key] || key;
+}
+
+function renderFacilityChips(facilities) {
+  const installed = facilities?.installed || {};
+  return `<div class="facility-chip-row">${
+    Object.keys(installed).map(key =>
+      `<span class="facility-chip ${installed[key] ? 'on' : 'off'}">${facilityLabel(key)}</span>`
+    ).join('')
+  }</div>`;
+}
+
+function renderFinalScenario(data) {
+  const panel = document.getElementById('finalScenarioPanel');
+  if (!panel) return;
+  const routes = data.routes || [];
+  const selected = data.selected_route || {};
+  const meta = data.metadata || {};
+  const total = data.crosswalk_total || 1;
+  const tierCounts = data.tier_counts || {};
+  const candidates = data.improvement_candidates || [];
+  const startName = routes[0]?.start_name || '보라매역';
+  const destinationName = selected.destination_name || routes[0]?.destination_name || '서울시남부장애인종합복지관';
+  const routeCards = routes.map(route => {
+    const score = Number(route.accessibility_score || 0);
+    const pct = Math.max(8, Math.min(100, score / 8 * 100));
+    return `
+      <div class="scenario-route-card ${route.selected ? 'route-b' : 'route-a'}">
+        <div class="scenario-route-card-header">
+          <span class="scenario-route-label">${escapeHtml(route.route_id)} 경로</span>
+          <span class="scenario-route-badge ${route.selected ? 'badge-win' : 'badge-fail'}">${route.selected ? '선택' : '탈락'}</span>
+        </div>
+        <div class="scenario-crosswalk-id">${escapeHtml(route.main_crosswalk_id || '-')}</div>
+        <div class="scenario-distance">약 ${formatCount(route.approx_distance_m)}m${route.distance_delta_vs_shortest_m ? ` (+${formatCount(route.distance_delta_vs_shortest_m)}m)` : ''}</div>
+        <div class="scenario-score-bar"><div class="scenario-score-fill" style="width:${pct}%;background:${route.selected ? 'var(--safe)' : 'var(--danger)'};"></div></div>
+        <div class="scenario-score-label">접근성 ${score}점 · ${escapeHtml(route.recommendation_tier || '')}</div>
+        ${renderFacilityChips(route.facilities)}
+      </div>`;
+  }).join('');
+  const maxTier = Math.max(...Object.values(tierCounts).map(Number), 1);
+  const tierRows = ['preferred', 'recommended', 'basic', 'insufficient'].map(tier => {
+    const count = Number(tierCounts[tier] || 0);
+    const color = tier === 'preferred' ? 'var(--safe)' : tier === 'recommended' ? 'var(--accent2)' : tier === 'basic' ? 'var(--warn)' : 'var(--danger)';
+    return `
+      <div class="scenario-grade-row">
+        <span class="scenario-grade-label">${tier}</span>
+        <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:${Math.max(4, count / maxTier * 100)}%;background:${color};"></div></div>
+        <span class="scenario-grade-count">${formatCount(count)}</span>
+      </div>`;
+  }).join('');
+  const installCandidates = candidates.slice(0, 3).map(item => `
+    <div class="improvement-item">
+      <strong>${escapeHtml(item.crosswalk_id || '-')}</strong>
+      <span>${escapeHtml((item.missing || []).map(m => m.label).join(', ') || '추가 시설 검토')} 설치 후보</span>
+    </div>`).join('');
+
+  panel.innerHTML = `
+    <div class="section-title">데모 경로 시나리오</div>
+    <div class="scenario-route-header">
+      <div class="scenario-route-place">
+        <span class="scenario-place-label">출발</span>
+        <span class="scenario-place-name">${escapeHtml(startName)}</span>
+      </div>
+      <div class="scenario-route-arrow">→</div>
+      <div class="scenario-route-place" style="text-align:right;">
+        <span class="scenario-place-label">목적지</span>
+        <span class="scenario-place-name">${escapeHtml(destinationName)}</span>
+      </div>
+    </div>
+    <div class="scenario-route-pair">${routeCards}</div>
+    <div class="scenario-tts">${escapeHtml(selected.selection_reason || meta.scenario || '보행지원시설 근거가 확인된 경로를 우선 안내합니다.')}</div>
+    <div class="scenario-grade-title">동작구 횡단보도 ${formatCount(total)}건 접근성 등급</div>
+    <div class="scenario-grades">${tierRows}</div>
+    <div class="scenario-grade-title" style="margin-top:12px;">우리가 넣을 시설 후보</div>
+    <div class="improvement-list">${installCandidates}</div>
+    <a class="data-usage-link" href="/voiceguide-final/data-usage" target="_blank" rel="noreferrer">데이터 활용 근거 보기</a>
+  `;
+}
+
+function crosswalkColor(tier) {
+  return tier === 'preferred' ? '#1b9e77' : tier === 'recommended' ? '#168aad' : tier === 'basic' ? '#e9a227' : '#d94841';
+}
+
+async function loadFinalScenarioLayer() {
+  try {
+    const [summaryRes, geoRes] = await Promise.all([
+      fetch(`${SERVER_BASE}/voiceguide-final/summary`),
+      fetch(`${SERVER_BASE}/voiceguide-final/crosswalks.geojson`)
+    ]);
+    if (summaryRes.ok) renderFinalScenario(await summaryRes.json());
+    if (!geoRes.ok) return;
+    const geojson = await geoRes.json();
+    if (finalCrosswalkLayer) map.removeLayer(finalCrosswalkLayer);
+    finalCrosswalkLayer = L.geoJSON(geojson, {
+      pointToLayer: (feature, latlng) => {
+        const props = feature.properties || {};
+        const missing = props.missing || [];
+        return L.circleMarker(latlng, {
+          radius: missing.length ? 5 : 4,
+          color: missing.length ? '#f4a261' : crosswalkColor(props.route_recommendation_tier),
+          weight: missing.length ? 2 : 1,
+          fillColor: crosswalkColor(props.route_recommendation_tier),
+          fillOpacity: missing.length ? 0.88 : 0.62
+        });
+      },
+      onEachFeature: (feature, layer) => {
+        const p = feature.properties || {};
+        const installed = p.installed || {};
+        const missing = (p.missing || []).map(m => m.label).join(', ') || '없음';
+        layer.bindPopup(`
+          <strong>${escapeHtml(p.crosswalk_id || '횡단보도')}</strong><br>
+          접근성 ${escapeHtml(p.accessibility_score ?? '-')}점 · ${escapeHtml(p.route_recommendation_tier || '')}<br>
+          보행등 ${installed.pedestrian_light ? '있음' : '없음'} · 음향 ${installed.audio_signal ? '있음' : '없음'} · 버튼 ${installed.push_button ? '있음' : '없음'}<br>
+          설치 후보: ${escapeHtml(missing)}
+        `);
+      }
+    }).addTo(map);
+  } catch (_) {
+    // Final data is supporting context; realtime dashboard keeps running if it fails.
+  }
+}
+
 // ── 24시간 탐지 내역 ──────────────────────────────────
 // 폴링 주기: 30초 (앱의 /detect 호출 주기와 완전히 별개)
 // 앱 FPS에 영향 없음 — 브라우저만 이 API를 호출함
@@ -2075,7 +2248,7 @@ async function fetchDashboardSummary() {
 
 function renderDashboardSummary(data) {
   const summary = data.summary ?? {};
-  const sessions = data.sessions ?? [];
+  const sessions = publicSessions(data.sessions ?? []);
 
   document.getElementById('globalSessions').textContent = summary.sessions ?? 0;
   document.getElementById('globalTotal').textContent = summary.total ?? 0;
@@ -2348,7 +2521,6 @@ fetchHistory();
 setInterval(fetchHistory, HISTORY_POLL_MS);
 fetchDashboardSummary();
 setInterval(fetchDashboardSummary, SUMMARY_POLL_MS);
-fetchDisabledPopulationContext();
 
 // 세션 변경 시 내역도 즉시 갱신
 function refreshHistory() { fetchHistory(); }
@@ -2518,7 +2690,7 @@ async function saveCurrentRoute() {
   const btn = document.getElementById('btnSaveRoute');
   btn.disabled = true;
   btn.textContent = '저장 중...';
-  const name = `${sessionId} ${new Date().toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+  const name = `demo-route ${new Date().toLocaleString('ko-KR', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
   try {
     const res = await fetch(`${SERVER_BASE}/gps/route/save`, {
       method: 'POST',
@@ -2541,10 +2713,12 @@ async function saveCurrentRoute() {
 }
 
 // ── 시작 ─────────────────────────────────────────────
+document.getElementById('disabledContextCard')?.closest('.panel-section')?.remove();
 connectEventStream();
 loadRouteList();
 bindHotspotPanelHover();
 loadPedestrianHotspots();
+loadFinalScenarioLayer();
 </script>
 </body>
 </html>

@@ -17,6 +17,7 @@ import sqlite3
 import queue
 import threading
 import time
+import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -26,6 +27,14 @@ DB_PATH      = "voiceguide.db"            # SQLite 로컬 파일
 _IS_POSTGRES = bool(DATABASE_URL)
 
 _pool = None  # PostgreSQL 커넥션 풀 (Supabase 모드에서만)
+_PRIVATE_ADDRESS_RE = re.compile(
+    r"("
+    r"특별시|광역시|특별자치시|특별자치도|시\s|군\s|구\s|읍\s|면\s|동\s|로\d*|길\d*|번지|아파트|빌라|오피스텔|"
+    r"\d{1,5}-\d{1,5}|"
+    r"\b\d{1,5}\s*(?:st|street|ave|avenue|rd|road|blvd|drive|dr)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def _get_pool():
@@ -1440,6 +1449,48 @@ def get_gps_route_points(route_id: str) -> list[dict]:
                 "SELECT points_json FROM gps_routes WHERE route_id = ?", (route_id,)
             ).fetchone()
             return json.loads(row[0]) if row else []
+
+
+def purge_private_address_identifiers() -> dict:
+    """Delete rows whose session/device/Wi-Fi identifiers look like real addresses."""
+    targets = {
+        "detection_events": ["session_id", "device_id", "wifi_ssid"],
+        "detections": ["session_id"],
+        "gps_history": ["session_id"],
+        "gps_routes": ["session_id"],
+        "recent_detections": ["session_id", "device_id"],
+        "performance_metrics": ["session_id", "device_id"],
+        "alert_decisions": ["session_id"],
+        "saved_locations": ["wifi_ssid"],
+    }
+    removed: dict[str, int] = {}
+    placeholder = "%s" if _IS_POSTGRES else "?"
+    with _conn() as conn:
+        cur = conn.cursor() if _IS_POSTGRES else conn
+        for table, columns in targets.items():
+            values: set[str] = set()
+            for column in columns:
+                try:
+                    rows = cur.execute(
+                        f"SELECT DISTINCT {column} FROM {table} WHERE {column} IS NOT NULL"
+                    ).fetchall()
+                except Exception:
+                    continue
+                for row in rows:
+                    value = row[column] if _IS_POSTGRES else row[0]
+                    text = str(value or "").strip()
+                    if text and _PRIVATE_ADDRESS_RE.search(text):
+                        values.add(text)
+            count = 0
+            for value in values:
+                clauses = " OR ".join(f"{column} = {placeholder}" for column in columns)
+                params = tuple(value for _ in columns)
+                result = cur.execute(f"DELETE FROM {table} WHERE {clauses}", params)
+                count += int(getattr(result, "rowcount", 0) or 0)
+            if count:
+                removed[table] = count
+        conn.commit()
+    return removed
 
 
 def get_gps_track(session_id: str, limit: int = 100) -> list[dict]:

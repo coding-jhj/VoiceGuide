@@ -402,6 +402,40 @@ def test_dashboard_summary_groups_recent_events_by_session():
     assert sessions[session_id]["top_objects"][0]["class_ko"] == "자동차"
 
 
+def test_address_like_session_ids_are_not_kept_or_listed():
+    private_address = "서울특별시 동작구 상도로 12"
+    response = client.post("/detect", json={"device_id": private_address, "objects": []})
+    assert response.status_code == 200
+    assert response.json()["session_id"] == "__default__"
+
+    sessions = client.get("/sessions")
+    assert sessions.status_code == 200
+    assert private_address not in sessions.json()["sessions"]
+
+    summary = client.get("/dashboard/summary")
+    assert summary.status_code == 200
+    assert private_address not in [s["session_id"] for s in summary.json()["sessions"]]
+
+
+def test_voiceguide_final_dashboard_endpoints():
+    summary = client.get("/voiceguide-final/summary")
+    assert summary.status_code == 200
+    body = summary.json()
+    assert body["selected_route"]["route_id"] == "B"
+    assert body["selected_route"]["facilities"]["installed"]["audio_signal"] is True
+    assert body["tier_counts"]["preferred"] > 0
+    assert body["improvement_candidates"]
+
+    geo = client.get("/voiceguide-final/crosswalks.geojson", params={"limit": 5})
+    assert geo.status_code == 200
+    geo_body = geo.json()
+    assert geo_body["type"] == "FeatureCollection"
+    assert geo_body["count"] == 5
+    props = geo_body["features"][0]["properties"]
+    assert "address" not in props
+    assert "installed" in props
+
+
 def test_pedestrian_hotspot_dashboard_endpoints():
     summary = client.get("/pedestrian-hotspots/summary")
     assert summary.status_code == 200

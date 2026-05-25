@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceGuide 데이터 통합 결과 · 디자인 개선본</title>
+<style>
+  :root {
+    --bg:#ffffff;
+    --bg-soft:#f7faf9;
+    --paper:#ffffff;
+    --ink:#101828;
+    --muted:#667085;
+    --subtle:#98a2b3;
+    --line:rgba(16,24,40,.08);
+    --line-strong:rgba(16,24,40,.13);
+    --green:#13b981;
+    --green-deep:#047857;
+    --green-soft:#e9fbf4;
+    --blue:#2563eb;
+    --blue-soft:#eff6ff;
+    --amber:#b7791f;
+    --amber-soft:#fff7e6;
+    --red:#c2410c;
+    --red-soft:#fff3ed;
+    --purple:#6d5bd0;
+    --purple-soft:#f3f0ff;
+    --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+    --shadow:0 22px 70px rgba(16,24,40,.08);
+    --radius:22px;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
+  body {
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(19,185,129,.14), transparent 30%),
+      radial-gradient(circle at 85% 8%, rgba(37,99,235,.10), transparent 30%),
+      linear-gradient(180deg,#ffffff 0%,#fbfdfc 42%,#f6faf8 100%);
+    color:var(--ink);
+    font-family:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:16px;
+    line-height:1.68;
+    letter-spacing:-.012em;
+    word-break:keep-all;
+  }
+
+  .page {
+    width:min(1180px, calc(100% - 40px));
+    margin:0 auto;
+    padding:40px 0 72px;
+  }
+
+  .hero {
+    position:relative;
+    overflow:hidden;
+    min-height:430px;
+    display:grid;
+    grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);
+    gap:34px;
+    align-items:center;
+    padding:46px;
+    border:1px solid var(--line);
+    border-radius:30px;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.96), rgba(255,255,255,.86)),
+      radial-gradient(circle at 92% 18%, rgba(19,185,129,.22), transparent 36%),
+      radial-gradient(circle at 58% 105%, rgba(37,99,235,.10), transparent 34%);
+    box-shadow:var(--shadow);
+    animation:show .45s ease both;
+  }
+  .hero::before {
+    content:"";
+    position:absolute;
+    inset:18px;
+    border:1px solid rgba(255,255,255,.7);
+    border-radius:24px;
+    pointer-events:none;
+  }
+  .hero > * { position:relative; z-index:1; }
+
+  .eyebrow {
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:16px;
+    padding:7px 12px;
+    border:1px solid rgba(19,185,129,.20);
+    border-radius:999px;
+    background:rgba(233,251,244,.75);
+    color:var(--green-deep);
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  .eyebrow::before {
+    content:"";
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 0 4px rgba(19,185,129,.12);
+  }
+
+  h1 {
+    max-width:760px;
+    color:var(--ink);
+    font-size:clamp(34px,5vw,58px);
+    font-weight:800;
+    line-height:1.08;
+    letter-spacing:-.06em;
+  }
+  .lead {
+    margin-top:20px;
+    max-width:760px;
+    color:#475467;
+    font-size:18px;
+    line-height:1.72;
+  }
+  .hero-answer {
+    margin-top:26px;
+    padding:18px 20px 18px 22px;
+    border:1px solid rgba(19,185,129,.22);
+    border-left:5px solid var(--green);
+    border-radius:18px;
+    background:rgba(233,251,244,.72);
+    color:#064e3b;
+    font-size:17px;
+    font-weight:800;
+    box-shadow:var(--shadow-sm);
+  }
+
+  .result-board {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+  }
+  .result-card {
+    min-height:138px;
+    padding:21px;
+    border:1px solid var(--line);
+    border-radius:22px;
+    background:rgba(255,255,255,.84);
+    box-shadow:0 10px 30px rgba(16,24,40,.055);
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .result-card:hover {
+    transform:translateY(-3px);
+    border-color:rgba(19,185,129,.35);
+    box-shadow:0 18px 40px rgba(16,24,40,.075);
+  }
+  .result-card strong {
+    display:block;
+    color:var(--ink);
+    font-size:30px;
+    font-weight:850;
+    line-height:1.1;
+    letter-spacing:-.04em;
+  }
+  .result-card span {
+    display:block;
+    margin-top:10px;
+    color:var(--muted);
+    font-size:14px;
+    line-height:1.6;
+  }
+
+  section {
+    margin-top:42px;
+    animation:show .55s ease both;
+  }
+  .section-head {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .badge {
+    width:auto;
+    min-width:34px;
+    height:34px;
+    padding:0 11px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#101828;
+    color:#fff;
+    font-size:13px;
+    font-weight:850;
+    box-shadow:0 8px 22px rgba(16,24,40,.12);
+  }
+  h2 {
+    color:var(--ink);
+    font-size:clamp(22px,2.4vw,30px);
+    font-weight:800;
+    line-height:1.28;
+    letter-spacing:-.04em;
+  }
+  h3 {
+    color:var(--ink);
+    font-size:19px;
+    font-weight:800;
+    line-height:1.38;
+    letter-spacing:-.025em;
+  }
+  p { color:var(--muted); }
+  strong { color:var(--ink); }
+
+  .panel {
+    padding:28px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:rgba(255,255,255,.88);
+    box-shadow:0 14px 42px rgba(16,24,40,.055);
+  }
+  .three {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
+  }
+  .two {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:16px;
+  }
+
+  .source, .state, .route, .step, .file {
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.86);
+    box-shadow:var(--shadow-sm);
+  }
+  .source {
+    min-height:100%;
+    padding:24px;
+    border-radius:22px;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .source:hover {
+    transform:translateY(-3px);
+    border-color:rgba(37,99,235,.18);
+    box-shadow:0 18px 44px rgba(16,24,40,.07);
+  }
+  .source h3 { margin-bottom:9px; }
+  .source ul {
+    list-style:none;
+    display:grid;
+    gap:9px;
+    margin-top:18px;
+  }
+  .source li {
+    position:relative;
+    padding-left:28px;
+    color:var(--muted);
+    font-size:15px;
+  }
+  .source li::before {
+    content:"";
+    position:absolute;
+    left:2px;
+    top:.45em;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 0 5px rgba(19,185,129,.12);
+  }
+
+  .tag {
+    display:inline-flex;
+    align-items:center;
+    width:max-content;
+    padding:5px 11px;
+    margin-bottom:13px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:850;
+    line-height:1.2;
+    letter-spacing:.01em;
+  }
+  .blue { background:var(--blue-soft); color:#1d4ed8; }
+  .green { background:var(--green-soft); color:var(--green-deep); }
+  .amber { background:var(--amber-soft); color:#92400e; }
+  .purple { background:var(--purple-soft); color:#5b45bd; }
+  .red { background:var(--red-soft); color:#b45309; }
+
+  .before-after {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr);
+    gap:18px;
+    align-items:stretch;
+  }
+  .state {
+    padding:24px;
+    border-radius:22px;
+  }
+  .state.bad { background:linear-gradient(180deg,#fff,#fff8f5); border-color:rgba(194,65,12,.16); }
+  .state.good { background:linear-gradient(180deg,#fff,#f3fdf8); border-color:rgba(19,185,129,.20); }
+  .arrow {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--green-deep);
+    font-size:34px;
+    font-weight:900;
+  }
+  .state-list {
+    display:grid;
+    gap:10px;
+    margin-top:16px;
+  }
+  .state-list div {
+    padding:13px 15px;
+    border-radius:14px;
+    background:rgba(255,255,255,.78);
+    border:1px solid var(--line);
+    color:#475467;
+  }
+
+  .scenario {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:18px;
+  }
+  .route {
+    position:relative;
+    overflow:hidden;
+    padding:26px;
+    border-radius:24px;
+    min-height:280px;
+  }
+  .route::before {
+    content:"";
+    position:absolute;
+    inset:0 0 auto;
+    height:5px;
+    background:var(--line-strong);
+  }
+  .route.a { background:linear-gradient(180deg,#fff,#fff8f5); border-color:rgba(194,65,12,.16); }
+  .route.a::before { background:var(--red); }
+  .route.b { background:linear-gradient(180deg,#fff,#f2fff9); border-color:rgba(19,185,129,.22); }
+  .route.b::before { background:var(--green); }
+  .route-title {
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:15px;
+  }
+  .pill {
+    display:inline-flex;
+    align-items:center;
+    padding:5px 11px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid var(--line);
+    color:#475467;
+    font-size:12px;
+    font-weight:850;
+    white-space:nowrap;
+    box-shadow:var(--shadow-sm);
+  }
+  .route.a .pill { color:#9a3412; background:#fff7ed; border-color:rgba(194,65,12,.18); }
+  .route.b .pill { color:#047857; background:#ecfdf5; border-color:rgba(19,185,129,.22); }
+
+  .score { margin:20px 0 14px; }
+  .score-label {
+    display:flex;
+    justify-content:space-between;
+    color:var(--ink);
+    font-size:14px;
+    font-weight:850;
+    margin-bottom:8px;
+  }
+  .track, .bar {
+    height:10px;
+    border-radius:999px;
+    background:#edf2f7;
+    overflow:hidden;
+  }
+  .track span, .bar span {
+    display:block;
+    height:100%;
+    border-radius:999px;
+    transform-origin:left;
+    animation:grow .95s ease both;
+  }
+  .track.a span { width:12.5%; background:linear-gradient(90deg,#f97316,#c2410c); }
+  .track.b span { width:87.5%; background:linear-gradient(90deg,#34d399,#047857); }
+
+  .evidence {
+    display:grid;
+    gap:9px;
+    margin-top:16px;
+  }
+  .evidence div {
+    padding:11px 13px;
+    border-radius:14px;
+    background:rgba(255,255,255,.78);
+    color:#475467;
+    border:1px solid var(--line);
+  }
+  .tts {
+    margin-top:18px;
+    padding:19px 22px;
+    border-radius:20px;
+    border:1px solid rgba(37,99,235,.18);
+    border-left:5px solid var(--blue);
+    background:linear-gradient(135deg,#eff6ff,#ffffff);
+    color:#17324d;
+    font-size:16px;
+    font-weight:850;
+    box-shadow:0 12px 34px rgba(37,99,235,.06);
+  }
+
+  .pipeline {
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:12px;
+  }
+  .step {
+    min-height:184px;
+    padding:18px;
+    border-radius:20px;
+  }
+  .num {
+    width:32px;
+    height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:#101828;
+    color:#fff;
+    font-size:13px;
+    font-weight:850;
+    margin-bottom:12px;
+  }
+  .step strong {
+    display:block;
+    margin-bottom:7px;
+    color:var(--ink);
+  }
+  .step span { color:var(--muted); font-size:14px; line-height:1.62; }
+
+  .file-grid {
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:14px;
+  }
+  .file {
+    padding:20px;
+    border-radius:20px;
+    min-height:158px;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .file:hover {
+    transform:translateY(-2px);
+    border-color:rgba(19,185,129,.24);
+    box-shadow:0 16px 36px rgba(16,24,40,.06);
+  }
+  .file code {
+    display:inline-block;
+    max-width:100%;
+    margin-bottom:12px;
+    padding:5px 9px;
+    border-radius:10px;
+    background:#f2f4f7;
+    color:#344054;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    font-size:12px;
+    line-height:1.45;
+    white-space:normal;
+    word-break:break-all;
+  }
+  .file strong {
+    display:block;
+    margin-bottom:7px;
+    color:var(--ink);
+    font-size:17px;
+  }
+
+  .tier {
+    display:grid;
+    grid-template-columns:132px minmax(0,1fr) 72px;
+    gap:14px;
+    align-items:center;
+    margin-top:13px;
+  }
+  .tier:first-child { margin-top:0; }
+  .tier strong {
+    color:var(--ink);
+    font-size:14px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  .tier span {
+    color:#475467;
+    font-weight:750;
+    text-align:right;
+  }
+  .preferred { width:5.3%; background:var(--green); }
+  .recommended { width:30.6%; background:#0ea5a4; }
+  .basic { width:59.5%; background:#d97706; }
+  .insufficient { width:4.6%; background:#c2410c; }
+
+  table {
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:#fff;
+  }
+  th, td {
+    padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    text-align:left;
+    vertical-align:top;
+  }
+  th {
+    background:#f8fafc;
+    color:#475467;
+    font-size:12px;
+    font-weight:850;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  tr:last-child td { border-bottom:0; }
+
+  .warning {
+    padding:20px 22px;
+    border-radius:20px;
+    border:1px solid rgba(183,121,31,.20);
+    border-left:5px solid var(--amber);
+    background:linear-gradient(135deg,#fff8eb,#ffffff);
+    color:#694a0a;
+    font-weight:800;
+    box-shadow:0 12px 34px rgba(183,121,31,.06);
+  }
+  footer {
+    margin-top:36px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+    text-align:center;
+    color:var(--subtle);
+    font-size:13px;
+  }
+
+  @keyframes show {
+    from { opacity:0; transform:translateY(14px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes grow {
+    from { transform:scaleX(0); }
+    to { transform:scaleX(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+  }
+  @media (max-width:1040px) {
+    .hero { grid-template-columns:1fr; min-height:auto; }
+    .pipeline { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:920px) {
+    .page { width:min(100% - 28px, 1180px); padding:24px 0 48px; }
+    .hero { padding:28px; border-radius:24px; }
+    .result-board,.three,.two,.before-after,.scenario,.file-grid { grid-template-columns:1fr; }
+    .arrow { min-height:36px; transform:rotate(90deg); }
+    .tier { grid-template-columns:1fr; gap:7px; }
+    .tier span { text-align:left; }
+    table { display:block; overflow-x:auto; white-space:nowrap; }
+  }
+  @media (max-width:560px) {
+    body { font-size:15px; }
+    h1 { font-size:32px; letter-spacing:-.045em; }
+    .lead { font-size:16px; }
+    .hero, .panel, .source, .route { padding:22px; }
+    .pipeline { grid-template-columns:1fr; }
+    .result-board { grid-template-columns:1fr; }
+  }
+  @media print {
+    body { background:#fff; }
+    .page { width:100%; padding:0; }
+    .hero, .panel, .source, .route, .step, .file, .warning, .tts { box-shadow:none; }
+    section { break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow">VoiceGuide Data Merge</span>
+      <h1>좋은 것만 뽑아<br>시나리오용 최종 데이터로 합쳤다</h1>
+      <p class="lead">
+        내 전처리 결과와 팀원 ZIP 2개를 비교해서, 발표와 앱 데모에 바로 쓰기 좋은 형태로 다시 묶었다.
+        핵심은 "가장 짧은 길"이 아니라 "왜 이 길이 더 안전한지 설명할 수 있는 데이터"를 만드는 것이다.
+      </p>
+      <div class="hero-answer">
+        한 줄 결론: 우리 전처리를 기준본으로 두고, 팀원 자료의 GeoJSON·추천등급·화면 구성 장점을 흡수했다.
+      </div>
+    </div>
+    <div class="result-board">
+      <div class="result-card">
+        <strong>기준본</strong>
+        <span>내 전처리 결과<br>A/B 시나리오까지 연결되어 있음</span>
+      </div>
+      <div class="result-card">
+        <strong>채택</strong>
+        <span>GeoJSON, 추천등급, 근거 문구<br>지도/발표에 바로 쓰기 좋음</span>
+      </div>
+      <div class="result-card">
+        <strong>제외</strong>
+        <span>90m 예시<br>우리 시나리오와 직접 연결되지 않음</span>
+      </div>
+      <div class="result-card">
+        <strong>완성</strong>
+        <span>CSV, GeoJSON, JSON, TTS, HTML<br>최종 패키지 생성</span>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">1</span>
+      <h2>세 자료를 이렇게 비교했다</h2>
+    </div>
+    <div class="three">
+      <div class="source">
+        <span class="tag blue">내 전처리</span>
+        <h3>기준본으로 사용</h3>
+        <p>시나리오에 직접 연결된 데이터가 있어서 최종본의 뼈대로 삼았다.</p>
+        <ul>
+          <li>동작구 복지관 후보 정리</li>
+          <li>횡단보도별 보행지원 점수 생성</li>
+          <li>보라매역 → 서울시남부장애인종합복지관 A/B 비교 있음</li>
+        </ul>
+      </div>
+      <div class="source">
+        <span class="tag green">voiceguide_scenario.zip</span>
+        <h3>구조를 가져옴</h3>
+        <p>지도와 발표 설명에 바로 쓰기 좋은 데이터 표현이 있었다.</p>
+        <ul>
+          <li>GeoJSON 지도 파일 구조</li>
+          <li>preferred/recommended 등급 구조</li>
+          <li>support_evidence 근거 문구</li>
+        </ul>
+      </div>
+      <div class="source">
+        <span class="tag amber">voiceguide전처리.zip</span>
+        <h3>화면 구성을 참고</h3>
+        <p>데모 HTML의 흐름과 카드형 대시보드 구성이 보기 좋았다.</p>
+        <ul>
+          <li>단계별 흐름 화면</li>
+          <li>대시보드형 카드 구성</li>
+          <li>앱 시뮬레이터식 설명 방식</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">2</span>
+      <h2>통합 전과 통합 후가 이렇게 달라졌다</h2>
+    </div>
+    <div class="panel">
+      <div class="before-after">
+        <div class="state bad">
+          <h3>통합 전</h3>
+          <div class="state-list">
+            <div>파일은 많지만 어떤 파일을 발표에 써야 할지 헷갈림</div>
+            <div>지도용 파일, 설명용 파일, 앱용 파일이 따로 흩어짐</div>
+            <div>90m 예시처럼 우리 시나리오와 안 맞는 내용이 섞여 있음</div>
+          </div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="state good">
+          <h3>통합 후</h3>
+          <div class="state-list">
+            <div>A/B 비교, 지도, 앱, TTS에 필요한 최종 파일만 남김</div>
+            <div>동작구 횡단보도 1,025건을 같은 점수 기준으로 정리</div>
+            <div>"왜 B 경로를 선택했는지" 바로 설명 가능</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">3</span>
+      <h2>전처리는 이런 흐름으로 완성했다</h2>
+    </div>
+    <div class="panel">
+      <div class="pipeline">
+        <div class="step">
+          <div class="num">1</div>
+          <strong>역할별 분리</strong>
+          <span>복지시설, 횡단보도, 음향신호기, 버튼, 이동지원센터로 나눴다.</span>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <strong>좌표 보정</strong>
+          <span>위도/경도 컬럼이 뒤집힌 문제를 바로잡았다.</span>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <strong>시설 매칭</strong>
+          <span>횡단보도 주변 30m 안의 보행지원시설을 연결했다.</span>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <strong>점수화</strong>
+          <span>보행등, 음향신호기, 버튼, 교통안전시설 근거를 점수로 바꿨다.</span>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <strong>최종 패키징</strong>
+          <span>CSV, GeoJSON, JSON, TTS, HTML로 다시 묶었다.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">4</span>
+      <h2>시나리오에서는 이렇게 쓰인다</h2>
+    </div>
+    <div class="scenario">
+      <div class="route a">
+        <div class="route-title">
+          <h3>A 경로: 최단 후보</h3>
+          <span class="pill">탈락</span>
+        </div>
+        <p>대표 횡단보도 <strong>06-0000016344</strong><br>동작구 신대방동 349-35도</p>
+        <div class="score">
+          <div class="score-label"><span>접근성 점수</span><span>1점</span></div>
+          <div class="track a"><span></span></div>
+        </div>
+        <div class="evidence">
+          <div>보행등 정보 없음</div>
+          <div>음향신호기 정보 없음</div>
+          <div>보행자작동신호기 정보 없음</div>
+        </div>
+      </div>
+      <div class="route b">
+        <div class="route-title">
+          <h3>B 경로: 설명 가능한 안전 경로</h3>
+          <span class="pill">선택</span>
+        </div>
+        <p>대표 횡단보도 <strong>06-0000032157</strong><br>동작구 신대방동 산112-5도</p>
+        <div class="score">
+          <div class="score-label"><span>접근성 점수</span><span>7점</span></div>
+          <div class="track b"><span></span></div>
+        </div>
+        <div class="evidence">
+          <div>보행등 정보 있음</div>
+          <div>음향신호기 정보 있음</div>
+          <div>보행자작동신호기 정보 있음</div>
+        </div>
+      </div>
+    </div>
+    <div class="tts">
+      사용자 안내문: "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">5</span>
+      <h2>동작구 횡단보도 전체는 이렇게 등급화했다</h2>
+    </div>
+    <div class="panel">
+      <div class="tier">
+        <strong>preferred</strong>
+        <div class="bar"><span class="preferred"></span></div>
+        <span>54건</span>
+      </div>
+      <div class="tier">
+        <strong>recommended</strong>
+        <div class="bar"><span class="recommended"></span></div>
+        <span>314건</span>
+      </div>
+      <div class="tier">
+        <strong>basic</strong>
+        <div class="bar"><span class="basic"></span></div>
+        <span>610건</span>
+      </div>
+      <div class="tier">
+        <strong>insufficient</strong>
+        <div class="bar"><span class="insufficient"></span></div>
+        <span>47건</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">6</span>
+      <h2>최종 파일은 이렇게 쓰면 된다</h2>
+    </div>
+    <div class="file-grid">
+      <div class="file">
+        <code>final_route_comparison.csv</code>
+        <strong>발표 핵심 표</strong>
+        <p>A/B 경로 비교와 B 선택 이유를 보여준다.</p>
+      </div>
+      <div class="file">
+        <code>final_crosswalk_accessibility.csv</code>
+        <strong>횡단보도 점수표</strong>
+        <p>동작구 횡단보도 1,025건의 보행지원시설 점수를 담았다.</p>
+      </div>
+      <div class="file">
+        <code>final_crosswalk_accessibility.geojson</code>
+        <strong>지도 표시용</strong>
+        <p>대시보드 지도 레이어에 바로 올릴 수 있다.</p>
+      </div>
+      <div class="file">
+        <code>final_scenario_dataset.json</code>
+        <strong>앱 연결용</strong>
+        <p>목적지, 추천 횡단보도, A/B 비교, TTS를 한 번에 읽는다.</p>
+      </div>
+      <div class="file">
+        <code>final_tts_guidance.csv</code>
+        <strong>안내 문장</strong>
+        <p>사용자에게 들려줄 문장을 따로 정리했다.</p>
+      </div>
+      <div class="file">
+        <code>final_data_usage.html</code>
+        <strong>설명 자료</strong>
+        <p>팀원이나 교수님에게 전처리 결과를 설명할 때 쓴다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <span class="badge">!</span>
+      <h2>여기까지만 말해야 정확하다</h2>
+    </div>
+    <div class="warning">
+      지금 완료된 것은 "데이터 전처리 + 시나리오용 통합 데이터셋"이다.
+      실제 지도 API로 최단 보행거리와 우회거리를 검증한 단계는 아직 아니다.
+      따라서 발표에서는 공공데이터 기반 안전 경로 후보를 만들었다고 말하는 것이 정확하다.
+    </div>
+  </section>
+
+  <footer>VoiceGuide · 데이터 통합 결과 · 2026-05-24</footer>
+</main>
+</body>
+</html>

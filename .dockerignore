@@ -7,6 +7,7 @@ __pycache__/
 *.db
 *.log
 *.csv
+!data/processed/voiceguide_final/*.csv
 
 # ONNX는 Android 전용 — 서버 불필요
 *.onnx
@@ -18,7 +19,11 @@ models/
 
 # 개발용 폴더
 train/
-data/
+data/*
+!data/processed/
+data/processed/*
+!data/processed/voiceguide_final/
+!data/processed/voiceguide_final/**
 results/
 legacy/
 android/

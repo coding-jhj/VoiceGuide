@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VoiceGuide 확정 데이터 기반 시나리오 초안</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --ink: #17202a;
+      --muted: #5d6875;
+      --line: #d9dee7;
+      --navy: #17324d;
+      --blue: #2457d6;
+      --teal: #087f7a;
+      --green: #247a43;
+      --amber: #a86300;
+      --red: #b83a3a;
+      --shadow: 0 12px 28px rgba(23, 32, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+      line-height: 1.62;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 42px 24px 64px;
+    }
+    header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--teal);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.15;
+    }
+    .lead {
+      max-width: 940px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .summary {
+      margin-top: 24px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      font-size: 19px;
+      font-weight: 800;
+    }
+    section { margin-top: 40px; }
+    h2 {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: 25px;
+      line-height: 1.28;
+    }
+    h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    p { margin: 0; }
+    a {
+      color: var(--blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(23, 32, 42, 0.05);
+    }
+    th, td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #edf2f7;
+      color: var(--navy);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td { color: var(--muted); }
+    td strong { color: var(--ink); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+    .card p { color: var(--muted); }
+    .scenario {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .step {
+      min-height: 150px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin-bottom: 10px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--navy);
+    }
+    .step span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .tag.blue { background: var(--blue); }
+    .tag.green { background: var(--green); }
+    .tag.amber { background: var(--amber); }
+    .tag.red { background: var(--red); }
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      background: #eef4ff;
+      border: 1px solid #c7d8ff;
+      border-radius: 8px;
+      font-weight: 800;
+    }
+    footer {
+      margin-top: 48px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 960px) {
+      main { padding: 28px 16px 44px; }
+      .scenario, .grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">확정 데이터 기반 시나리오</div>
+      <h1>동작구 지하철역에서 복지관까지, 더 안전한 횡단보도를 선택하는 VoiceGuide</h1>
+      <p class="lead">
+        이 시나리오는 “최단 경로 안내”가 아니라, 시각장애인이 건너야 하는 횡단보도를 공공데이터로 비교해 더 설명 가능한 경로를 선택하는 기능에 집중한다.
+        스마트횡단보도 데이터가 확정되지 않은 경우에는 신호등, 음향신호기, 보행자작동신호기, 횡단보도 위치 데이터를 보행지원시설 정보로 묶어 판단한다.
+      </p>
+      <div class="summary">
+        사용자: 서울 동작구 지하철역에서 장애인복지관으로 이동한다. VoiceGuide는 대시보드 지도에 복지관, 이동지원센터, 횡단보도 후보를 표시하고,
+        출발 전 공공데이터로 더 안전한 횡단보도를 선택해 최적 이동경로를 그린다. 이동 중에는 YOLO가 계단, 차량, 사람, 문, 장애물을 실시간 탐지해 TTS/진동으로 즉시 안내한다.
+      </div>
+    </header>
+
+    <section>
+      <h2>핵심 문제와 해결</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>내용</th>
+            <th>VoiceGuide가 보여줄 가치</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>상황</strong></td>
+            <td>시각장애 사용자가 동작구의 지하철역에서 내려 가까운 장애인복지관으로 이동한다.</td>
+            <td>목적지는 서울 복지시설 공공데이터에서 찾고, 이동 중에는 보행 안전 판단을 보완한다.</td>
+          </tr>
+          <tr>
+            <td><strong>문제</strong></td>
+            <td>지도 앱의 최단 경로는 빠르지만, 중간에 보행지원시설 정보가 부족한 횡단보도를 지나게 된다.</td>
+            <td>최단 거리만으로는 시각장애인의 실제 보행 안전을 설명하기 어렵다는 점을 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>해결</strong></td>
+            <td>VoiceGuide가 후보 횡단보도를 비교해 보행지원시설 정보가 있는 경로를 선택하고, 이동 중에는 YOLO로 실제 전방 장애물을 탐지한다.</td>
+            <td>공공데이터는 경로 선택 이유가 되고, YOLO는 현재 눈앞의 위험을 즉시 알려주는 역할을 한다.</td>
+          </tr>
+          <tr>
+            <td><strong>안내</strong></td>
+            <td>“최단 경로보다 90m 더 이동하지만, 보행지원시설 정보가 있는 횡단보도로 안내합니다.”</td>
+            <td>사용자에게 우회 이유를 짧고 명확한 행동 문장으로 전달한다.</td>
+          </tr>
+          <tr>
+            <td><strong>검증</strong></td>
+            <td>대시보드 지도에 복지관/이동지원센터 마커, 횡단보도 후보 A/B, 선택된 최적 이동경로, 선택 이유, 우회 거리, 안내 문장을 표시한다.</td>
+            <td>심사위원이 “어디로 안내했고, 왜 그 경로를 선택했는지”를 지도와 데이터 근거로 확인할 수 있다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>시나리오 흐름</h2>
+      <div class="scenario">
+        <div class="step">
+          <div class="step-number">1</div>
+          <strong>출발지 확인</strong>
+          <span>사용자가 동작구 지하철역에서 앱을 켜고 “복지관으로 가자”고 말한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <strong>목적지 선택</strong>
+          <span>서울 복지시설 데이터에서 동작구 장애인복지관 후보를 찾고, 대시보드 지도에 시설 마커로 표시한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <strong>횡단보도 후보 비교</strong>
+          <span>최단 경로의 횡단보도 A와 우회 경로의 횡단보도 B를 지도에 표시하고 공공데이터로 비교한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <strong>이동 중 YOLO 안내</strong>
+          <span>우회 경로로 이동하는 동안 카메라가 계단, 차량, 사람, 문, 장애물을 탐지해 방향과 거리 중심으로 안내한다.</span>
+        </div>
+        <div class="step">
+          <div class="step-number">5</div>
+          <strong>안전 경로 선택</strong>
+          <span>B가 90m 더 멀지만 보행지원시설 정보가 있어 최적 이동경로로 선택하고 지도에 경로 라인을 그린다.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>대시보드 지도에 표시되는 요소</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>지도 요소</th>
+            <th>표시 내용</th>
+            <th>사용 데이터</th>
+            <th>시나리오 의미</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>출발지</strong></td>
+            <td>동작구 지하철역 현재 위치 마커</td>
+            <td>사용자 GPS</td>
+            <td>사용자가 어디에서 이동을 시작했는지 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>목적지 시설</strong></td>
+            <td>장애인복지관 또는 장애인지역사회재활시설 마커</td>
+            <td>서울시 사회복지시설(장애인지역사회재활시설) 목록</td>
+            <td>복지관 이동 시나리오가 실제 공공데이터 기반 목적지임을 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>대체 지원시설</strong></td>
+            <td>교통약자 이동지원센터 또는 관련 연락처 카드</td>
+            <td>전국교통약자이동지원센터정보표준데이터의 서울 항목</td>
+            <td>이동이 어려울 때 대체 이동 지원을 안내할 수 있음을 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 후보 A/B</strong></td>
+            <td>A는 최단 경로 횡단보도, B는 보행지원시설 정보가 있는 우회 횡단보도로 표시</td>
+            <td>서울 자치구 횡단보도 정보, 교통안전시설물 횡단보도 정보</td>
+            <td>경로 선택이 임의가 아니라 후보 비교 결과임을 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>보행지원시설 레이어</strong></td>
+            <td>음향신호기, 보행자작동신호기, 신호등/교통안전시설 여부</td>
+            <td>서울 음향신호기 정보, 서울 보행자작동신호기 정보, 교통안전시설물 정보</td>
+            <td>왜 특정 횡단보도가 시각장애인에게 더 설명 가능한지 보여준다.</td>
+          </tr>
+          <tr>
+            <td><strong>선택된 최적 이동경로</strong></td>
+            <td>출발지 → 우회 횡단보도 B → 복지관으로 이어지는 경로 라인</td>
+            <td>사용자 GPS, 목적지 시설 좌표, 횡단보도 후보 좌표, 보행지원시설 점수</td>
+            <td>90m 더 걷는 대신 보행지원시설 정보가 있는 경로를 선택했다는 결과를 시각화한다.</td>
+          </tr>
+          <tr>
+            <td><strong>YOLO 실시간 위험</strong></td>
+            <td>이동 중 탐지된 계단, 차량, 사람, 문, 장애물 로그</td>
+            <td>온디바이스 YOLO 탐지 결과</td>
+            <td>선택된 경로를 따라가면서도 현장 장애물을 계속 감지한다는 점을 보여준다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>YOLO와 공공데이터의 역할 분리</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>구분</th>
+            <th>맡는 역할</th>
+            <th>예시</th>
+            <th>대시보드 기록</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>공공데이터</strong></td>
+            <td>출발 전 또는 횡단 전, 어떤 횡단보도를 선택할지 판단한다.</td>
+            <td>“최단 경로보다 90m 더 이동하지만, 보행지원시설 정보가 있는 횡단보도로 안내합니다.”</td>
+            <td>시설 마커, 횡단보도 후보 A/B, 보행지원시설 점수, 우회 거리, 선택된 경로 라인, 데이터 출처</td>
+          </tr>
+          <tr>
+            <td><strong>YOLO 객체 탐지</strong></td>
+            <td>실제 이동 중 눈앞에 나타나는 즉시 위험을 판단한다.</td>
+            <td>“11시 방향 사람입니다.”, “전방 2m 계단입니다.”, “오른쪽 가까이에 차량입니다.”</td>
+            <td>탐지 객체, 방향, 거리, 위험도, TTS 문장, 진동 여부</td>
+          </tr>
+          <tr>
+            <td><strong>통합 판단</strong></td>
+            <td>공공데이터로 선택한 경로를 따라가면서, YOLO가 현장 상황을 계속 보정한다.</td>
+            <td>횡단보도는 안전한 후보로 골랐지만, 현장에서 차량이나 사람이 가까우면 즉시 경고한다.</td>
+            <td>경로 선택 근거 + 실시간 탐지 로그를 같은 세션에 저장</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>경로 비교 예시</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>최단 경로: 횡단보도 A</th>
+            <th>우회 경로: 횡단보도 B</th>
+            <th>판단</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>총 이동거리</strong></td>
+            <td>620m</td>
+            <td>710m</td>
+            <td>B가 90m 더 길다.</td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 정보</strong></td>
+            <td>횡단보도 위치는 확인됨</td>
+            <td>횡단보도 위치와 상세 시설 정보 확인</td>
+            <td>B가 설명 가능한 정보가 많다.</td>
+          </tr>
+          <tr>
+            <td><strong>신호등 정보</strong></td>
+            <td>정보 없음 또는 확인 부족</td>
+            <td>신호등 또는 교통안전시설 정보 있음</td>
+            <td>B에 가산점 부여</td>
+          </tr>
+          <tr>
+            <td><strong>음향신호기</strong></td>
+            <td>정보 없음</td>
+            <td>음향신호기 정보 있음</td>
+            <td>시각장애 보행 보조 관점에서 B 우선</td>
+          </tr>
+          <tr>
+            <td><strong>보행자작동신호기</strong></td>
+            <td>정보 없음</td>
+            <td>정보 있음 또는 후보 데이터 매칭 가능</td>
+            <td>횡단 전 행동 안내 가능</td>
+          </tr>
+          <tr>
+            <td><strong>최종 선택</strong></td>
+            <td>선택하지 않음</td>
+            <td>선택</td>
+            <td>90m 우회하더라도 보행지원시설 근거가 있는 B 경로를 선택한다.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        핵심 안내 문장: “최단 경로보다 90m 더 이동하지만, 보행지원시설 정보가 있는 횡단보도로 안내합니다. 이동 중 전방 장애물은 카메라로 계속 확인합니다.”
+      </div>
+    </section>
+
+    <section>
+      <h2>사용 데이터와 역할</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>역할</th>
+            <th>데이터</th>
+            <th>시나리오에서 쓰는 방식</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>목적지 설정</strong></td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-20429/S/1/datasetView.do">서울시 사회복지시설(장애인지역사회재활시설) 목록</a></td>
+            <td>동작구 주변 복지관/장애인센터 후보를 목적지로 잡고 대시보드 지도에 시설 마커로 표시한다.</td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 후보 추출</strong></td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-22906/S/1/datasetView.do">서울특별시 자치구 횡단보도 정보</a></td>
+            <td>출발지와 목적지 사이에 있는 횡단보도 후보 A/B를 찾는다.</td>
+          </tr>
+          <tr>
+            <td><strong>신호등/교통안전시설 확인</strong></td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15554/S/1/datasetView.do">서울시 교통안전시설물 횡단보도 정보</a></td>
+            <td>횡단보도 주변 교통안전시설 정보를 확인해 보행지원시설 점수에 반영한다.</td>
+          </tr>
+          <tr>
+            <td><strong>시각장애 특화 가산점</strong></td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15543/S/1/datasetView.do">서울시 음향신호기 관련 정보</a></td>
+            <td>음향신호기가 있는 횡단보도는 시각장애 사용자에게 더 설명 가능한 경로로 본다.</td>
+          </tr>
+          <tr>
+            <td><strong>횡단 전 행동 안내</strong></td>
+            <td><a href="https://data.seoul.go.kr/dataList/OA-15545/S/1/datasetView.do">서울시 보행자작동신호기 관련 정보</a></td>
+            <td>보행자 버튼 신호기 정보가 있으면 “버튼 신호기 확인” 같은 안내 문장을 붙인다.</td>
+          </tr>
+          <tr>
+            <td><strong>대체 이동 안내</strong></td>
+            <td><a href="https://www.data.go.kr/tcs/dss/selectStdDataDetailView.do?publicDataPk=15028207">전국교통약자이동지원센터정보표준데이터</a></td>
+            <td>횡단이 어렵거나 사용자가 이동을 포기할 경우, 서울 항목을 필터링해 가까운 이동지원센터 정보를 안내하고 지도/카드에 표시한다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>판단 로직 초안</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>점수 항목</th>
+            <th>예시 배점</th>
+            <th>설명</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>우회 거리</strong></td>
+            <td>-1점 / 50m</td>
+            <td>너무 먼 우회는 피하되, 90m 정도는 보행지원시설이 있으면 허용한다.</td>
+          </tr>
+          <tr>
+            <td><strong>횡단보도 위치 확인</strong></td>
+            <td>+2점</td>
+            <td>공공데이터에서 횡단보도 좌표가 확인되는 경우 기본 점수를 준다.</td>
+          </tr>
+          <tr>
+            <td><strong>신호등/교통안전시설 정보</strong></td>
+            <td>+3점</td>
+            <td>신호등 또는 관련 교통안전시설 정보가 있으면 횡단 판단 근거가 강해진다.</td>
+          </tr>
+          <tr>
+            <td><strong>음향신호기</strong></td>
+            <td>+4점</td>
+            <td>시각장애인에게 직접적인 보행지원시설이므로 가장 큰 가산점을 준다.</td>
+          </tr>
+          <tr>
+            <td><strong>보행자작동신호기</strong></td>
+            <td>+2점</td>
+            <td>횡단 전 사용자가 해야 할 행동을 안내할 수 있다.</td>
+          </tr>
+          <tr>
+            <td><strong>YOLO 현장 위험</strong></td>
+            <td>즉시 경고</td>
+            <td>경로 점수와 별개로, 이동 중 계단·차량·사람·문·장애물이 가까우면 TTS/진동으로 바로 안내한다.</td>
+          </tr>
+          <tr>
+            <td><strong>스마트횡단보도</strong></td>
+            <td>+3점</td>
+            <td>확정 데이터 확보 시 가산점으로 추가한다. 현재 초안에서는 신호등/음향신호기/보행자작동신호기 정보로 대체한다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>대시보드 검증 화면</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tag blue">선택 이유</span>
+          <h3>왜 우회했는지</h3>
+          <p>최단 경로보다 90m 길지만, 선택한 횡단보도에 음향신호기와 신호등 정보가 있어 우회했다고 표시한다.</p>
+        </article>
+        <article class="card">
+          <span class="tag green">공공데이터</span>
+          <h3>데이터 출처</h3>
+          <p>복지시설, 횡단보도, 교통안전시설, 음향신호기, 보행자작동신호기 데이터 링크를 함께 표시한다.</p>
+        </article>
+        <article class="card">
+          <span class="tag green">시설 표시</span>
+          <h3>복지관과 지원시설</h3>
+          <p>목적지 복지관, 주변 장애인지역사회재활시설, 이동지원센터 후보를 지도 마커와 정보 카드로 표시한다.</p>
+        </article>
+        <article class="card">
+          <span class="tag blue">최적 경로</span>
+          <h3>선택된 이동경로</h3>
+          <p>출발지에서 보행지원시설 정보가 있는 횡단보도를 거쳐 복지관으로 가는 경로 라인을 지도에 표시한다.</p>
+        </article>
+        <article class="card">
+          <span class="tag amber">안내 문장</span>
+          <h3>사용자에게 말한 내용</h3>
+          <p>경로 선택 안내와 YOLO 실시간 장애물 안내 문장을 함께 로그로 남긴다.</p>
+        </article>
+        <article class="card">
+          <span class="tag red">실시간 탐지</span>
+          <h3>YOLO 위험 로그</h3>
+          <p>계단, 차량, 사람, 문, 장애물 탐지 결과와 위험도, 방향, 거리, 진동 여부를 보여준다.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer>
+      작성 기준일: 2026-05-23 · 서울 동작구 지하철역에서 복지관까지 이동하는 횡단보도 선택 시나리오
+    </footer>
+  </main>
+</body>
+</html>

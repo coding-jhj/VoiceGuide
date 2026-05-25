@@ -48,6 +48,9 @@ data/test_images/**/*.png
 data/test_images/**/*.JPG
 data/test_images/**/*.JPEG
 data/test_images/**/*.PNG
+data/processed/*
+!data/processed/voiceguide_final/
+!data/processed/voiceguide_final/**
 datasets/*
 !datasets/pedestrian_hotspots/
 !datasets/pedestrian_hotspots/**

@@ -23,7 +23,11 @@ remotion-video/
 tools/
 tests/
 docs/
-data/
+data/*
+!data/processed/
+data/processed/*
+!data/processed/voiceguide_final/
+!data/processed/voiceguide_final/**
 models/
 datasets/*
 !datasets/pedestrian_hotspots/

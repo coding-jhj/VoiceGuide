@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>강사님 질문용 데이터 검토</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #fff;
+      --ink: #17202a;
+      --muted: #5f6b7a;
+      --line: #d9dee7;
+      --navy: #18324a;
+      --blue: #2457d6;
+      --teal: #087f7a;
+      --amber: #a86300;
+      --red: #b83a3a;
+      --green: #247a43;
+      --shadow: 0 12px 28px rgba(23, 32, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", "Apple SD Gothic Neo", Arial, sans-serif;
+      line-height: 1.62;
+      letter-spacing: 0;
+    }
+    main {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 42px 24px 64px;
+    }
+    header {
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--line);
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: var(--teal);
+      font-size: 14px;
+      font-weight: 800;
+    }
+    h1 {
+      margin: 0;
+      color: var(--navy);
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.15;
+    }
+    .lead {
+      max-width: 920px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .summary {
+      margin-top: 24px;
+      padding: 20px 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--amber);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      font-size: 19px;
+      font-weight: 800;
+    }
+    section { margin-top: 40px; }
+    h2 {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: 25px;
+      line-height: 1.28;
+    }
+    h3 {
+      margin: 0 0 8px;
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1.35;
+    }
+    p { margin: 0; }
+    a {
+      color: var(--blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 22px rgba(23, 32, 42, 0.05);
+    }
+    .card p, td { color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(23, 32, 42, 0.05);
+    }
+    th, td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #edf2f7;
+      color: var(--navy);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td strong { color: var(--ink); }
+    .tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .tag.amber { background: var(--amber); }
+    .tag.blue { background: var(--blue); }
+    .tag.green { background: var(--green); }
+    .tag.red { background: var(--red); }
+    .callout {
+      margin-top: 18px;
+      padding: 20px 22px;
+      background: #fff7e8;
+      border: 1px solid #efd29c;
+      border-radius: 8px;
+    }
+    ul { margin: 12px 0 0; padding-left: 20px; }
+    li + li { margin-top: 8px; }
+    footer {
+      margin-top: 48px;
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 900px) {
+      main { padding: 28px 16px 44px; }
+      .grid { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">강사님 확인 요청용</div>
+      <h1>신청형 API와 CCTV 관제형 아이디어 검토 질문</h1>
+      <p class="lead">
+        아래 항목은 기능적으로 매력적이지만, 신청형 API이거나 데이터의 최신성·실시간성이 부족하거나,
+        시각장애인 보행 보조 주제에서 벗어날 수 있어 바로 핵심 구현으로 넣지 않는다.
+        공모전 사업계획서의 향후 계획 또는 보조 근거로 넣어도 되는지 강사님께 확인한다.
+      </p>
+      <div class="summary">
+        확인하고 싶은 결론: 핵심 구현은 최신성 문제가 적은 확정 데이터로 만들고, Open API 2개·최신성이 약한 CSV·실시간성이 약한 인구 데이터·CCTV 기반 관제 아이디어는
+        보조 근거 또는 고도화 계획으로 분리해도 되는가?
+      </div>
+    </header>
+
+    <section>
+      <h2>질문 대상 데이터</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>항목</th>
+            <th>현재 판단</th>
+            <th>강사님께 물어볼 질문</th>
+            <th>참고 링크</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>서울시설공단 장애인콜시스템 Open API</strong></td>
+            <td>
+              장애인콜택시와 직접 연결되므로 주제 적합도는 높다.
+              다만 신청형 API라 공모전 기간 내 핵심 구현으로 주장하기에는 위험하다.
+            </td>
+            <td>
+              다운로드 가능한 장애인콜택시 CSV와 교통약자 이동지원센터 표준데이터를 핵심으로 쓰고,
+              이 API는 실서비스 고도화 계획으로 적어도 괜찮은가?
+            </td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-15558/A/1/datasetView.do">Open API</a><br>
+              <a href="https://data.seoul.go.kr/dataList/30/literacyView.do">장애인콜시스템 설명</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울시설공단 장애인콜택시 운영 CSV</strong></td>
+            <td>
+              파일로 받을 수 있어 공공데이터 활용 근거로는 좋지만, 최신 데이터가 아닐 수 있다.
+              또한 탑승내역·대기시간·탑승건수는 “현재 호출 가능 여부”를 알려주는 데이터가 아니라 과거 운영/수요 분석 데이터다.
+            </td>
+            <td>
+              이 데이터를 핵심 기능이 아니라 “서울 장애인콜택시 수요와 대기시간을 분석한 보조 근거”로만 사용해도 되는가?
+              실제 대체 이동 안내는 교통약자 이동지원센터 표준데이터로 처리하는 구성이 맞는가?
+            </td>
+            <td>
+              <a href="https://www.data.go.kr/data/15115859/fileData.do">탑승내역 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15147613/fileData.do">시간대별 대기시간 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15147614/fileData.do">시간대별 탑승건수 CSV</a><br>
+              <a href="https://www.data.go.kr/data/15138243/fileData.do">차량운행상태 종류 CSV</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>서울 실시간 도시데이터 / 실시간 인구 API</strong></td>
+            <td>
+              혼잡도 기반 안내에 좋지만 인증키가 필요하다.
+              현재는 S-DoT 유동인구와 서울 생활인구 다운로드 데이터로 대체 가능하다.
+            </td>
+            <td>
+              실시간 API를 구현하지 않고, 다운로드형 유동인구 데이터로 시나리오를 만든 뒤
+              API는 향후 실시간 고도화 계획으로 넣어도 평가상 괜찮은가?
+            </td>
+            <td>
+              <a href="https://www.data.go.kr/data/15146211/openapi.do">공공데이터포털 API</a><br>
+              <a href="https://data.seoul.go.kr/dataVisual/seoul/guide.do">서울 실시간 도시데이터 안내</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>S-DoT 유동인구 / 서울 생활인구 다운로드 데이터</strong></td>
+            <td>
+              다운로드 데이터라 구현에는 유리하지만, 실시간 데이터가 아니다.
+              따라서 “현재 이 순간 혼잡하다”가 아니라 “이 지역·시간대는 보행자가 많은 경향이 있다” 정도로 표현해야 한다.
+            </td>
+            <td>
+              실시간 혼잡 안내가 아니라 시간대별 혼잡 예측/보조 판단 근거로 사용하면 충분히 설득력 있는가?
+              발표에서 “실시간”이라는 표현을 피하고 “시간대별 보행 수요 근거”라고 말하는 것이 맞는가?
+            </td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-15964/A/1/datasetView.do">S-DoT 유동인구</a><br>
+              <a href="https://data.seoul.go.kr/dataList/OA-14991/S/1/datasetView.do">서울 생활인구</a>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>CCTV·안심 인프라 데이터</strong></td>
+            <td>
+              위험 지역 안전 관제라는 사업 확장성은 있다.
+              하지만 현재 앱의 핵심인 “시각장애인 보행 보조”보다 치안/관제 서비스처럼 보일 수 있다.
+            </td>
+            <td>
+              CCTV 데이터를 핵심 기능이 아니라 사업계획서의 향후 MLOps/관제 확장 계획으로 넣어도 되는가?
+              예: 위험 지역 진입 시 관제 대상으로 등록하고, 위험 지역을 벗어나면 모니터링을 종료하는 방식.
+            </td>
+            <td>
+              <a href="https://data.seoul.go.kr/dataList/OA-21097/F/1/datasetView.do">서울시 자치구 CCTV 설치현황</a><br>
+              <a href="https://data.seoul.go.kr/dataList/OA-20925/A/1/datasetView.do">중구 안심이 CCTV 예시</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>CCTV 향후 계획 표현안</h2>
+      <div class="grid">
+        <article class="card">
+          <span class="tag blue">진입</span>
+          <h3>위험 지역 감지</h3>
+          <p>
+            사용자가 야간 보행 취약 구간, 혼잡 구간, 사고 위험 구간에 들어가면 앱이 위험 구간 진입 이벤트를 서버에 전송한다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag amber">관제</span>
+          <h3>일시적 모니터링</h3>
+          <p>
+            서버는 주변 안전 인프라 데이터와 사용자의 GPS 상태를 확인하고, 위험 구간 안에 있는 동안만 관제 대상으로 본다.
+          </p>
+        </article>
+        <article class="card">
+          <span class="tag green">종료</span>
+          <h3>위험 구간 이탈</h3>
+          <p>
+            사용자가 위험 구간을 벗어나면 모니터링 상태를 종료한다. 계속 추적하는 서비스가 아니라 위험 상황 중심의 일시적 안전 관리로 설명한다.
+          </p>
+        </article>
+      </div>
+      <div class="callout">
+        사업계획서 문장 초안:
+        “향후에는 CCTV·안심 인프라 데이터를 활용해 시각장애인이 위험 지역에 진입했을 때만 일시적으로 관제 상태를 활성화하고,
+        위험 지역을 벗어나면 모니터링을 종료하는 MLOps 기반 안전 운영 체계를 검토한다.”
+      </div>
+    </section>
+
+    <section>
+      <h2>강사님께 그대로 물어볼 문장</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>질문</th>
+            <th>이유</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>신청형 Open API를 실제 구현이 아니라 향후 계획으로 두고, 다운로드형 CSV/ZIP/표준데이터를 핵심 구현으로 잡아도 괜찮을까요?</strong></td>
+            <td>공모전 평가에서 공공데이터 활용을 확실하게 보여주려면 당장 확보 가능한 데이터 중심이 안전하기 때문이다.</td>
+          </tr>
+          <tr>
+            <td><strong>장애인콜택시 CSV는 최신 데이터가 아닐 수 있는데, 핵심 안내가 아니라 과거 수요·대기시간 분석 근거로만 써도 될까요?</strong></td>
+            <td>이 데이터는 “지금 호출 가능”을 말하기 어렵고, 서울 장애인콜택시 이용 패턴을 설명하는 데 더 적합하기 때문이다.</td>
+          </tr>
+          <tr>
+            <td><strong>S-DoT 유동인구와 서울 생활인구는 실시간이 아닌데, “혼잡 예측/시간대별 보행 수요 보정”으로 표현하면 괜찮을까요?</strong></td>
+            <td>실시간 혼잡도라고 말하면 과장이고, 시간대별 위험 보조 근거라고 말하면 더 정직하기 때문이다.</td>
+          </tr>
+          <tr>
+            <td><strong>CCTV 데이터는 시각장애인 보행 보조 주제에서 벗어날 수 있는데, 사업계획서의 향후 관제/MLOps 확장으로만 넣는 방향이 괜찮을까요?</strong></td>
+            <td>치안 앱처럼 보이면 주제가 흐려질 수 있어 표현 범위를 확인해야 한다.</td>
+          </tr>
+          <tr>
+            <td><strong>장애인콜택시 API 대신 교통약자 이동지원센터 표준데이터와 서울시설공단 CSV를 쓰는 구성이 더 설득력 있을까요?</strong></td>
+            <td>직접 안내 데이터와 수요 분석 데이터의 역할을 분리하면 구현 가능성과 시나리오 설득력이 동시에 올라간다.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      작성 기준일: 2026-05-23 · 강사님 확인 전까지 핵심 시나리오에는 포함하지 않는 데이터 정리
+    </footer>
+  </main>
+</body>
+</html>
