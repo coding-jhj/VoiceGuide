@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 
 # ── 모드 결정 ─────────────────────────────────────────────────────────────────
 DATABASE_URL = os.getenv("DATABASE_URL")  # Supabase: postgresql://user:pass@host/db
-DB_PATH      = "voiceguide.db"            # SQLite 로컬 파일
+DB_PATH      = os.getenv("VOICEGUIDE_DB_PATH", "voiceguide.db")  # SQLite 로컬 파일
 _IS_POSTGRES = bool(DATABASE_URL)
 
 _pool = None  # PostgreSQL 커넥션 풀 (Supabase 모드에서만)

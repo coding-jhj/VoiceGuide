@@ -107,6 +107,30 @@ GET /dashboard
 
 ---
 
+## 시나리오용 공공데이터 패키지
+
+발표/데모에서 쓰는 공공데이터 전처리 산출물은 `data/processed/voiceguide_scenario/`에 생성됩니다.
+
+| 파일 | 용도 |
+|---|---|
+| `final_route_comparison.csv` | 보라매역 → 서울시남부장애인종합복지관 A/B 횡단보도 비교 |
+| `final_crosswalk_accessibility.csv` | 동작구 횡단보도 1,025건 보행지원시설 점수표 |
+| `final_crosswalk_accessibility.geojson` | 지도 레이어용 횡단보도 포인트 |
+| `final_scenario_dataset.json` | 앱/발표용 목적지, 추천 횡단보도, TTS 문장 묶음 |
+| `final_tts_guidance.csv` | 사용자 안내 문장 |
+| `final_data_usage.html` | 팀 공유/발표 설명용 HTML |
+
+현재 포함된 최종 데이터는 `preferred` 54건, `recommended` 314건, `basic` 610건, `insufficient` 47건으로 등급화되어 있습니다.
+대표 시나리오는 보라매역에서 서울시남부장애인종합복지관까지 이동할 때 최단 후보 A(`06-0000016344`) 대신 보행등·음향신호기·보행자작동신호기 근거가 있는 B(`06-0000032157`)를 선택하는 흐름입니다.
+
+재생성:
+
+```bash
+python tools/preprocess_voiceguide_scenario_data.py
+```
+
+---
+
 ## 주요 API
 
 | 메서드 | 경로 | 설명 |
@@ -160,8 +184,16 @@ VoiceGuide/
 │       └── policy.py                # policy.json 로더
 │
 ├── templates/dashboard.html         # 실시간 대시보드
+├── data/processed/voiceguide_scenario/
+│   ├── final_route_comparison.csv   # 시나리오 A/B 비교표
+│   ├── final_crosswalk_accessibility.csv
+│   ├── final_crosswalk_accessibility.geojson
+│   ├── final_scenario_dataset.json
+│   ├── final_tts_guidance.csv
+│   └── final_data_usage.html
 ├── tests/                           # pytest 테스트
 ├── tools/simulator.py               # 데모용 GPS 동선 시뮬레이터
+├── tools/preprocess_voiceguide_scenario_data.py
 ├── Dockerfile
 └── requirements.txt
 ```

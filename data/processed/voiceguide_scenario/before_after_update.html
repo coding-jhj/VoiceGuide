@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceGuide 데이터 반영 전후 비교</title>
+<style>
+  :root {
+    --bg:#eef3f8;
+    --paper:#ffffff;
+    --ink:#142033;
+    --muted:#5c6c80;
+    --line:#d8e1ec;
+    --blue:#2563eb;
+    --teal:#0a8a76;
+    --green:#16824c;
+    --red:#c23b3b;
+    --amber:#a76300;
+    --soft-blue:#eef4ff;
+    --soft-green:#edf9f3;
+    --soft-red:#fff1f1;
+    --soft-amber:#fff7e8;
+    --shadow:0 12px 32px rgba(20,32,51,.09);
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI","Noto Sans KR","Apple SD Gothic Neo",Arial,sans-serif;
+    line-height:1.65;
+    word-break:keep-all;
+  }
+  main { max-width:1180px; margin:0 auto; padding:36px 20px 64px; }
+  header, section {
+    margin-bottom:24px;
+    padding:28px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:var(--paper);
+    box-shadow:var(--shadow);
+  }
+  .eyebrow {
+    color:var(--teal);
+    font-size:12px;
+    font-weight:900;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  h1 { margin:10px 0 14px; font-size:42px; line-height:1.15; letter-spacing:0; }
+  h2 { margin:0 0 16px; font-size:24px; letter-spacing:0; }
+  h3 { margin:0 0 8px; font-size:18px; letter-spacing:0; }
+  p { margin:0; color:var(--muted); }
+  code {
+    display:inline-block;
+    padding:3px 7px;
+    border-radius:6px;
+    background:#edf2f7;
+    color:#23344d;
+    font-family:Consolas,"SFMono-Regular",Menlo,monospace;
+    font-size:13px;
+  }
+  .lead { max-width:850px; font-size:18px; }
+  .summary {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-top:22px;
+  }
+  .metric {
+    min-height:116px;
+    padding:18px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fbfcfe;
+  }
+  .metric strong { display:block; font-size:30px; line-height:1.1; }
+  .metric span { display:block; margin-top:8px; color:var(--muted); font-size:14px; }
+  .compare {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+  }
+  .panel {
+    padding:22px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fbfcfe;
+  }
+  .before { background:var(--soft-red); border-color:#efcaca; }
+  .after { background:var(--soft-green); border-color:#bae2c8; }
+  .label {
+    display:inline-flex;
+    align-items:center;
+    padding:4px 10px;
+    margin-bottom:12px;
+    border-radius:999px;
+    color:#fff;
+    font-size:12px;
+    font-weight:900;
+  }
+  .label.before-label { background:var(--red); }
+  .label.after-label { background:var(--green); }
+  .item-list { display:grid; gap:10px; margin-top:14px; }
+  .item {
+    padding:12px 14px;
+    border:1px solid rgba(216,225,236,.82);
+    border-radius:10px;
+    background:rgba(255,255,255,.74);
+    color:var(--muted);
+  }
+  .item strong { color:var(--ink); }
+  table {
+    width:100%;
+    border-collapse:collapse;
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  th, td {
+    padding:13px 14px;
+    border-bottom:1px solid var(--line);
+    text-align:left;
+    vertical-align:top;
+  }
+  th {
+    background:#f5f8fc;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:900;
+    text-transform:uppercase;
+  }
+  tr:last-child td { border-bottom:0; }
+  .tier-row {
+    display:grid;
+    grid-template-columns:150px 1fr 82px 82px;
+    gap:12px;
+    align-items:center;
+    margin-top:10px;
+  }
+  .bar {
+    height:12px;
+    border-radius:999px;
+    background:#e5ebf2;
+    overflow:hidden;
+  }
+  .bar span { display:block; height:100%; border-radius:999px; }
+  .preferred { background:var(--green); }
+  .recommended { background:var(--teal); }
+  .basic { background:var(--amber); }
+  .insufficient { background:var(--red); }
+  .notice {
+    padding:16px 18px;
+    border:1px solid #edce90;
+    border-left:6px solid var(--amber);
+    border-radius:12px;
+    background:var(--soft-amber);
+    color:#654200;
+    font-weight:800;
+  }
+  .verification {
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:12px;
+  }
+  .check {
+    padding:16px;
+    border:1px solid #bae2c8;
+    border-radius:12px;
+    background:var(--soft-green);
+    color:#105235;
+    font-weight:800;
+  }
+  footer { margin-top:26px; text-align:center; color:var(--muted); font-size:13px; }
+  @media (max-width:900px) {
+    main { padding:22px 14px 48px; }
+    h1 { font-size:32px; }
+    .summary, .compare, .verification { grid-template-columns:1fr; }
+    .tier-row { grid-template-columns:1fr; gap:6px; }
+    table { display:block; overflow-x:auto; white-space:nowrap; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">VoiceGuide Data Update</div>
+    <h1>수정 전과 수정 후 데이터 반영 비교</h1>
+    <p class="lead">
+      README처럼 실제 앱/발표에서 사용할 계획에 맞춰, 다운로드 폴더의 최종 데이터 4개를
+      프로젝트 데이터 패키지에 반영한 전후 차이를 정리했다.
+    </p>
+    <div class="summary">
+      <div class="metric">
+        <strong>4개</strong>
+        <span>새 최종 원본 파일 반영</span>
+      </div>
+      <div class="metric">
+        <strong>1,025건</strong>
+        <span>동작구 횡단보도 점수표 유지</span>
+      </div>
+      <div class="metric">
+        <strong>8m</strong>
+        <span>A/B 경로 거리 차이</span>
+      </div>
+      <div class="metric">
+        <strong>3개</strong>
+        <span>TTS 이벤트와 진동 패턴</span>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <h2>한눈에 보는 변경점</h2>
+    <div class="compare">
+      <div class="panel before">
+        <span class="label before-label">수정 전</span>
+        <h3>이전 자동 생성 산출물 기준</h3>
+        <div class="item-list">
+          <div class="item"><strong>파일 구성</strong><br>최종 파일명은 있었지만 데이터 구조가 단순했고 일부 legacy 파일과 설명 자료가 따로 움직였다.</div>
+          <div class="item"><strong>경로 비교</strong><br>A/B 관리번호와 8m 시나리오는 맞췄지만, 거리 세부 컬럼과 선택 이유 컬럼이 부족했다.</div>
+          <div class="item"><strong>횡단보도 등급</strong><br><code>preferred 252</code>, <code>recommended 11</code>, <code>basic 762</code>, <code>insufficient 0</code></div>
+          <div class="item"><strong>B 경로 근거</strong><br>B 횡단보도의 보행자작동신호기 정보가 빠져 있어 안내문이 보수적으로 생성됐다.</div>
+          <div class="item"><strong>TTS</strong><br>안전 경로 선택 이유 중심의 단일 안내 문장에 가까웠다.</div>
+        </div>
+      </div>
+      <div class="panel after">
+        <span class="label after-label">수정 후</span>
+        <h3>사용자가 준 최종 데이터 기준</h3>
+        <div class="item-list">
+          <div class="item"><strong>파일 구성</strong><br>다운로드의 <code>final_*</code> 4개를 그대로 넣고, legacy 파일명과 ZIP까지 같은 기준으로 맞췄다.</div>
+          <div class="item"><strong>경로 비교</strong><br><code>approx_distance_m</code>, <code>distance_delta_vs_shortest_m</code>, <code>final_selection_reason</code>을 포함한다.</div>
+          <div class="item"><strong>횡단보도 등급</strong><br><code>preferred 54</code>, <code>recommended 314</code>, <code>basic 610</code>, <code>insufficient 47</code></div>
+          <div class="item"><strong>B 경로 근거</strong><br>보행등, 음향신호기, 보행자작동신호기 근거가 모두 있는 안전 경로로 표시된다.</div>
+          <div class="item"><strong>TTS</strong><br>경로 선택, 횡단보도 접근, 실시간 탐지의 3개 이벤트와 진동 패턴을 제공한다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>파일별 수정 전후</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>파일</th>
+          <th>수정 전</th>
+          <th>수정 후</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>final_route_comparison.csv</code></td>
+          <td>A/B 비교는 있었지만 필드가 단순했다.</td>
+          <td>시작지, 목적지, 대표 횡단보도, 거리, 점수, 우선순위, 선택 이유까지 포함한다.</td>
+        </tr>
+        <tr>
+          <td><code>final_crosswalk_accessibility.csv</code></td>
+          <td>보행지원시설 점수와 기본 근거 중심이었다.</td>
+          <td>근접 음향신호기/버튼 ID와 거리까지 포함한 최종 점수표가 됐다.</td>
+        </tr>
+        <tr>
+          <td><code>final_scenario_dataset.json</code></td>
+          <td>목적지, 추천 횡단보도, demo pair 중심이었다.</td>
+          <td>TTS guidance와 더 풍부한 A/B 경로 객체를 포함한다.</td>
+        </tr>
+        <tr>
+          <td><code>final_tts_guidance.csv</code></td>
+          <td>선택 이유 안내 중심이었다.</td>
+          <td>route_selected, crosswalk_approach, realtime_detection 세 이벤트로 분리됐다.</td>
+        </tr>
+        <tr>
+          <td><code>final_crosswalk_accessibility.geojson</code></td>
+          <td>이전 CSV 기준 지도 포인트였다.</td>
+          <td>최신 CSV 1,025건 기준으로 다시 생성했다.</td>
+        </tr>
+        <tr>
+          <td><code>voiceguide_scenario.zip</code></td>
+          <td>이전 산출물 묶음이었다.</td>
+          <td>README에서 쓰는 최종 파일 6개와 summary를 담은 공유용 ZIP으로 갱신했다.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>등급 분포 변화</h2>
+    <div class="tier-row">
+      <strong>preferred</strong>
+      <div class="bar"><span class="preferred" style="width:5.3%"></span></div>
+      <span>전 252</span>
+      <span>후 54</span>
+    </div>
+    <div class="tier-row">
+      <strong>recommended</strong>
+      <div class="bar"><span class="recommended" style="width:30.6%"></span></div>
+      <span>전 11</span>
+      <span>후 314</span>
+    </div>
+    <div class="tier-row">
+      <strong>basic</strong>
+      <div class="bar"><span class="basic" style="width:59.5%"></span></div>
+      <span>전 762</span>
+      <span>후 610</span>
+    </div>
+    <div class="tier-row">
+      <strong>insufficient</strong>
+      <div class="bar"><span class="insufficient" style="width:4.6%"></span></div>
+      <span>전 0</span>
+      <span>후 47</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>대표 시나리오 변화</h2>
+    <div class="compare">
+      <div class="panel before">
+        <span class="label before-label">수정 전</span>
+        <h3>B 경로 안내가 보수적이었다</h3>
+        <p>
+          <code>06-0000032157</code>은 선택 경로였지만, 생성 데이터 기준으로는
+          보행자작동신호기 근거가 빠져 있어 음향신호기와 보행등 중심으로 안내했다.
+        </p>
+      </div>
+      <div class="panel after">
+        <span class="label after-label">수정 후</span>
+        <h3>B 경로가 명확한 선택 경로가 됐다</h3>
+        <p>
+          <code>06-0000032157</code>은 최단 후보보다 약 8m 더 이동하지만,
+          보행등, 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내된다.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>검증 결과</h2>
+    <div class="verification">
+      <div class="check">다운로드 원본 4개와 repo 파일 SHA256 해시 일치</div>
+      <div class="check">CSV 1,025건과 GeoJSON feature 1,025개 확인</div>
+      <div class="check"><code>pytest tests/test_preprocess_voiceguide_scenario_data.py</code> 통과</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="notice">
+      현재 거리값은 지도 경로 API로 계산한 실제 보행거리 검증값이 아니라,
+      대표 횡단보도 경유 직선거리 합 기반의 데모값이다.
+    </div>
+  </section>
+
+  <footer>VoiceGuide · 데이터 반영 전후 비교 · data/processed/voiceguide_scenario</footer>
+</main>
+</body>
+</html>

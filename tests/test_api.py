@@ -1,5 +1,10 @@
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"  # Windows OpenMP 라이브러리 충돌 방지
+import tempfile
+from pathlib import Path
+
+_TEST_DB_DIR = tempfile.TemporaryDirectory(prefix="voiceguide-api-test-")
+os.environ["VOICEGUIDE_DB_PATH"] = str(Path(_TEST_DB_DIR.name) / "voiceguide_test.db")
 
 from fastapi.testclient import TestClient
 from src.api.main import app

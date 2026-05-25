@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VoiceGuide ??? ?? ??</title>
+<style>
+  body { margin:0; background:#eef3f8; color:#142033; font-family:'Segoe UI','Noto Sans KR',Arial,sans-serif; line-height:1.65; word-break:keep-all; }
+  main { max-width:1100px; margin:0 auto; padding:36px 20px 64px; }
+  section, header { margin-bottom:24px; padding:26px; background:#fff; border:1px solid #d8e1ec; border-radius:16px; box-shadow:0 10px 28px rgba(20,32,51,.08); }
+  h1 { margin:8px 0 14px; font-size:42px; line-height:1.15; }
+  h2 { margin:0 0 14px; font-size:24px; }
+  h3 { margin:0 0 8px; }
+  p { color:#5c6c80; }
+  .eyebrow { color:#0a8a76; font-size:12px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .card { padding:18px; border:1px solid #d8e1ec; border-radius:12px; background:#fbfcfe; }
+  .route-a { background:#fff1f1; border-color:#efcaca; }
+  .route-b { background:#edf9f3; border-color:#bae2c8; }
+  .metric { display:grid; grid-template-columns:160px 1fr 80px; gap:12px; align-items:center; margin:10px 0; }
+  .bar { height:12px; background:#e5ebf2; border-radius:999px; overflow:hidden; }
+  .bar span { display:block; height:100%; border-radius:999px; }
+  code { padding:3px 7px; border-radius:6px; background:#edf2f7; }
+  .notice { padding:16px 18px; border-left:6px solid #a76300; border-radius:12px; background:#fff7e8; color:#654200; font-weight:800; }
+  @media (max-width:760px) { .grid { grid-template-columns:1fr; } h1 { font-size:32px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">VoiceGuide Final Scenario Data</div>
+    <h1>????? ?? ???? ?? ??? ?? ??</h1>
+    <p>?????? ??????????????? ???? ??? ????, ?? ??????? ???TTS ????? ???? ??? ???? ???.</p>
+  </header>
+  <section>
+    <h2>A/B ?? ??</h2>
+    <div class="grid">
+      <div class="card route-a"><h3>A: 최단 후보 경로</h3><p><strong>06-0000016344</strong><br>동작구 신대방동 349-35도</p><p>?? 817m ? ?? 1? ? basic</p><p>최단 후보지만 보행등, 음향신호기, 보행자작동신호기 정보가 없어 선택하지 않음</p></div>
+      <div class="card route-b"><h3>B: 설명 가능한 안전 경로</h3><p><strong>06-0000032157</strong><br>동작구 신대방동 산112-5도</p><p>?? 825m ? ?? 7? ? preferred</p><p>약 8m 더 이동하지만 보행등, 음향신호기, 보행자작동신호기 근거가 있어 선택</p></div>
+    </div>
+    <p class="notice">??? ???: ?최단 후보보다 약 8미터 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다.?</p>
+  </section>
+  <section>
+    <h2>???? ?? ??</h2>
+    <div class="metric"><strong>preferred</strong><div class="bar"><span style="width:5.3%;background:#16824c"></span></div><span>54?</span></div><div class="metric"><strong>recommended</strong><div class="bar"><span style="width:30.6%;background:#0a8a76"></span></div><span>314?</span></div><div class="metric"><strong>basic</strong><div class="bar"><span style="width:59.5%;background:#a76300"></span></div><span>610?</span></div><div class="metric"><strong>insufficient</strong><div class="bar"><span style="width:4.6%;background:#c23b3b"></span></div><span>47?</span></div>
+  </section>
+  <section>
+    <h2>?? ??</h2>
+    <div class="grid">
+      <div class="card"><code>final_route_comparison.csv</code><p>A/B ?? ??? ?? ??</p></div>
+      <div class="card"><code>final_crosswalk_accessibility.csv</code><p>??? ???? 1,025? ???</p></div>
+      <div class="card"><code>final_crosswalk_accessibility.geojson</code><p>?? ???? ???</p></div>
+      <div class="card"><code>final_scenario_dataset.json</code><p>? ??? ?? JSON</p></div>
+      <div class="card"><code>final_tts_guidance.csv</code><p>TTS ??? ?? ??</p></div>
+      <div class="card"><code>final_data_usage.html</code><p>??/?? ?? ??</p></div>
+    </div>
+  </section>
+  <section><div class="notice">?? ??? ?? ?? API? ??? ?? ???? ?? ???? ? ?? ?????.</div></section>
+</main>
+</body>
+</html>

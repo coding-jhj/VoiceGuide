@@ -1,0 +1,4 @@
+﻿sequence,event,tts_text,vibration
+1,route_selected,"최단 후보보다 약 8미터 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다.",short
+2,crosswalk_approach,전방에 보행지원시설 정보가 있는 횡단보도가 있습니다. 신호 안내를 확인하며 건너세요.,medium
+3,realtime_detection,이동 중 전방 장애물은 카메라로 계속 확인합니다.,none

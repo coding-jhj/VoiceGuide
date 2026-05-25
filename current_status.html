@@ -1,417 +1,542 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoiceGuide 프로젝트 현재 상황 보고서</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #0b0f19;
-            --card-bg: rgba(22, 28, 45, 0.6);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #f3f4f6;
-            --text-secondary: #9ca3af;
-            --accent-primary: #6366f1;
-            --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --info: #3b82f6;
-            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            --font-title: 'Outfit', var(--font-main);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceGuide MVP 현재 상태</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --surface-soft: #eef4f2;
+      --text: #17202a;
+      --muted: #667085;
+      --line: #d9dee7;
+      --green: #16735f;
+      --blue: #2459a6;
+      --orange: #a15c00;
+      --red: #b42318;
+      --shadow: 0 16px 40px rgba(25, 38, 60, 0.08);
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            font-family: var(--font-main);
-            line-height: 1.6;
-            padding: 2rem;
-            min-height: 100vh;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
-            background-attachment: fixed;
-        }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, "Noto Sans KR", sans-serif;
+      line-height: 1.6;
+    }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+    .page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
 
-        /* Header */
-        header {
-            text-align: center;
-            margin-bottom: 3rem;
-            padding-bottom: 2rem;
-            border-bottom: 1px solid var(--card-border);
-        }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 28px;
+      align-items: center;
+      padding: 28px 0 36px;
+    }
 
-        h1 {
-            font-family: var(--font-title);
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-        }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 700;
+    }
 
-        .subtitle {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-            font-weight: 400;
-        }
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
 
-        .meta-info {
-            display: inline-block;
-            margin-top: 1rem;
-            padding: 0.4rem 1rem;
-            background-color: rgba(255, 255, 255, 0.05);
-            border-radius: 9999px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            border: 1px solid var(--card-border);
-        }
+    .lead {
+      max-width: 660px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
 
-        /* Grid System */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
+    .hero-panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
 
-        @media (max-width: 900px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
+    .hero-panel img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      background: #dfe7ef;
+    }
 
-        /* Cards */
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 2rem;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
+    .hero-caption {
+      padding: 14px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.1);
-            border-color: rgba(99, 102, 241, 0.2);
-        }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
 
-        .card-full {
-            grid-column: span 2;
-        }
+    .stat {
+      min-height: 116px;
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(25, 38, 60, 0.04);
+    }
 
-        @media (max-width: 900px) {
-            .card-full {
-                grid-column: span 1;
-            }
-        }
+    .stat strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 24px;
+      line-height: 1.1;
+    }
 
-        .card h2 {
-            font-family: var(--font-title);
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            color: var(--text-primary);
-        }
+    .stat span {
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-        .card h2::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 1.25rem;
-            background: var(--accent-gradient);
-            border-radius: 2px;
-        }
+    section {
+      margin-top: 28px;
+    }
 
-        /* Lists and Badges */
-        ul {
-            list-style: none;
-        }
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
 
-        li {
-            margin-bottom: 1.2rem;
-            position: relative;
-            padding-left: 1.5rem;
-        }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
 
-        li::before {
-            content: "•";
-            position: absolute;
-            left: 0;
-            color: var(--accent-primary);
-            font-weight: bold;
-            font-size: 1.2rem;
-            top: -2px;
-        }
+    .card {
+      padding: 22px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(25, 38, 60, 0.04);
+    }
 
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
 
-        .badge-success { background-color: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
-        .badge-warning { background-color: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
-        .badge-danger { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
-        .badge-info { background-color: rgba(59, 130, 246, 0.15); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.3); }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
 
-        /* Architecture Flow */
-        .flow-diagram {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
 
-        .flow-step {
-            background-color: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+    .step {
+      min-height: 150px;
+      padding: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      position: relative;
+    }
 
-        .flow-title {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
+    .step::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -8px;
+      width: 14px;
+      height: 14px;
+      border-top: 2px solid var(--line);
+      border-right: 2px solid var(--line);
+      transform: translateY(-50%) rotate(45deg);
+      background: var(--bg);
+    }
 
-        .flow-desc {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
+    .step:last-child::after {
+      display: none;
+    }
 
-        .arrow {
-            text-align: center;
-            color: var(--accent-primary);
-            font-size: 1.2rem;
-            margin: -0.5rem 0;
-        }
+    .step-number {
+      display: inline-flex;
+      width: 28px;
+      height: 28px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      border-radius: 50%;
+      background: var(--surface-soft);
+      color: var(--green);
+      font-weight: 700;
+    }
 
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-        }
+    .step strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
 
-        th, td {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--card-border);
-        }
+    .step span {
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-        th {
-            font-weight: 600;
-            color: var(--text-secondary);
-            background-color: rgba(255, 255, 255, 0.02);
-        }
+    .list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
 
-        tr:hover td {
-            background-color: rgba(255, 255, 255, 0.01);
-        }
+    .list li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px;
+      background: #fbfcfd;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
 
-        code {
-            font-family: Consolas, Monaco, "Andale Monaco", monospace;
-            background-color: rgba(255, 255, 255, 0.08);
-            padding: 0.15rem 0.4rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            color: #ec4899;
-        }
-    </style>
+    .badge {
+      flex: 0 0 auto;
+      min-width: 66px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .done {
+      background: #e8f5f0;
+      color: var(--green);
+    }
+
+    .doing {
+      background: #e8effb;
+      color: var(--blue);
+    }
+
+    .todo {
+      background: #fff3df;
+      color: var(--orange);
+    }
+
+    .risk {
+      background: #fff0ef;
+      color: var(--red);
+    }
+
+    .item-title {
+      display: block;
+      font-weight: 700;
+    }
+
+    .item-desc {
+      display: block;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(25, 38, 60, 0.04);
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f3f7;
+      color: #344054;
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      padding: 2px 6px;
+      background: #eef1f5;
+      border-radius: 4px;
+      color: #24415f;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 0.92em;
+    }
+
+    .note {
+      margin-top: 16px;
+      padding: 18px;
+      background: #102a43;
+      color: #e6edf5;
+      border-radius: 8px;
+    }
+
+    .note strong {
+      color: #ffffff;
+    }
+
+    footer {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 900px) {
+      header,
+      .summary,
+      .grid,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .step::after {
+        display: none;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>VoiceGuide Current Status Report</h1>
-            <p class="subtitle">시각장애인 보행 보조 AI 음성 안내 서비스 현재 상황 및 정규화 과제</p>
-            <div class="meta-info">기준일시: 2026년 5월 20일 (업데이트 완료) | 아키텍처: 온디바이스 우선(On-Device First)</div>
-        </header>
+  <main class="page">
+    <header>
+      <div>
+        <p class="eyebrow">VoiceGuide MVP Status</p>
+        <h1>시각장애 보행 보조 AI 음성 안내 앱</h1>
+        <p class="lead">
+          VoiceGuide는 스마트폰 카메라로 앞쪽 장애물을 인식하고, 서버를 기다리지 않고
+          기기 안에서 바로 음성 안내와 진동 경고를 제공하는 Android MVP입니다.
+        </p>
+      </div>
+      <figure class="hero-panel">
+        <img src="docs/image/architecture-overview.png" alt="VoiceGuide 아키텍처 개요 이미지">
+        <figcaption class="hero-caption">온디바이스 탐지, 로컬 안내, 서버 기록/대시보드로 역할을 나눈 구조</figcaption>
+      </figure>
+    </header>
 
-        <div class="grid">
-            <!-- 1. 아키텍처 구조 -->
-            <div class="card">
-                <h2>시스템 아키텍처 흐름</h2>
-                <div class="flow-diagram">
-                    <div class="flow-step">
-                        <div>
-                            <span class="flow-title">1. Android 온디바이스 탐지</span>
-                            <div class="flow-desc">CameraX 스트림 + TFLite YOLO 추론 (yolo26n)</div>
-                        </div>
-                        <span class="badge badge-success">로컬 처리</span>
-                    </div>
-                    <div class="arrow">↓</div>
-                    <div class="flow-step">
-                        <div>
-                            <span class="flow-title">2. 데이터 프레임 트래킹 & 안정화</span>
-                            <div class="flow-desc">MvpPipeline (IoU 추적, 3프레임 Vote, EMA 보정)</div>
-                        </div>
-                        <span class="badge badge-success">로컬 처리</span>
-                    </div>
-                    <div class="arrow">↓</div>
-                    <div class="flow-step">
-                        <div>
-                            <span class="flow-title">3. 안내 출력 및 서버 통신</span>
-                            <div class="flow-desc">음성 안내(TTS)/진동 즉시 수행 & 서버 JSON 업로드</div>
-                        </div>
-                        <span class="badge badge-info">네트워크</span>
-                    </div>
-                    <div class="arrow">↓</div>
-                    <div class="flow-step">
-                        <div>
-                            <span class="flow-title">4. 서버 상태 동기화 및 대시보드</span>
-                            <div class="flow-desc">FastAPI 상태 수신, GPS 이력 저장, SSE 브로드캐스트</div>
-                        </div>
-                        <span class="badge badge-info">서버/DB</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. 해결 예정인 핵심 버그 및 이슈 -->
-            <div class="card">
-                <h2>핵심 버그 및 과제 상태</h2>
-                <ul>
-                    <li>
-                        <strong>"물체 없음" 전송 과부하 방지</strong>
-                        <span class="badge badge-success">조치 완료</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            감지 객체가 없을 때 Android 앱이 서버로 지속 전송하던 <code>POST /detect</code> 요청을 로컬에서 가로채 성공 처리함으로써 과부하를 원천 차단했습니다.
-                        </div>
-                    </li>
-                    <li>
-                        <strong>GPS 시뮬레이션 및 프라이버시 보호</strong>
-                        <span class="badge badge-success">조치 완료</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            보안과 시연 편의를 위해 GPS 수집 권한을 제거하고 업로드를 기본 차단(<code>ENABLE_ANDROID_GPS_UPLOAD = false</code>)했습니다. 데모용 이동 동선은 <code>simulator.py</code>를 통해 원격 주입합니다.
-                        </div>
-                    </li>
-                    <li>
-                        <strong>방향 안내 및 캘리브레이션 불일치</strong>
-                        <span class="badge badge-warning">보완 필요</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            Android 앱 측에 5~7시 회피 행동을 추가하고 서버에 동적 캘리브레이션을 연동했으나, <strong>앱 내에서 거리를 보정할 때 클래스명(<code>classKo</code>) 누락으로 항상 기본값(0.12)으로 거리를 도출하는 문제</strong>가 잔존합니다.
-                        </div>
-                    </li>
-                    <li>
-                        <strong>DB 병목 및 서버 빌드 경량화</strong>
-                        <span class="badge badge-success">조치 완료</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            PostgreSQL 커넥션 누수 차단 및 불필요한 ML 의존성(torch/ultralytics) 배포본 제외 작업을 완료했습니다.
-                        </div>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- 3. 엔드포인트 구현 상태 -->
-            <div class="card card-full">
-                <h2>FastAPI 서버 주요 엔드포인트 구현 현황</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>메서드/경로</th>
-                            <th>역할</th>
-                            <th>DB 연동 테이블</th>
-                            <th>상태</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>POST /detect</code></td>
-                            <td>Android 객체 JSON 수집 (주요 업로드 경로)</td>
-                            <td><code>detection_events</code>, <code>detections</code></td>
-                            <td><span class="badge badge-success">활성화</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>POST /detect_json</code></td>
-                            <td>구형 포맷 수신 및 임시 이력 저장</td>
-                            <td><code>recent_detections</code></td>
-                            <td><span class="badge badge-info">호환용</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>POST /gps</code></td>
-                            <td>기기 실시간 GPS 수집 및 이력 기록</td>
-                            <td><code>gps_history</code></td>
-                            <td><span class="badge badge-success">활성화</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /api/policy</code></td>
-                            <td>클라이언트 설정 파일(동적 캘리브레이션 값) 배포</td>
-                            <td>- (<code>policy.json</code>)</td>
-                            <td><span class="badge badge-success">활성화</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /history/{session_id}</code></td>
-                            <td>대시보드 노출용 최근 24시간 탐지 요약 이력 제공</td>
-                            <td><code>detection_events</code></td>
-                            <td><span class="badge badge-success">활성화</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>GET /events/{session_id}</code></td>
-                            <td>실시간 대시보드 이벤트 SSE 스트림</td>
-                            <td>-</td>
-                            <td><span class="badge badge-success">활성화</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- 4. 향후 최적화 로드맵 -->
-            <div class="card card-full">
-                <h2>향후 최적화 및 보완 로드맵 (Roadmap)</h2>
-                <ul>
-                    <li>
-                        <strong>앱(클라이언트) 측 캘리브레이션 매개변수 연동 보완</strong> <span class="badge badge-danger">우선순위: 매우 높음</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.1rem;">
-                            <code>MvpPipeline.kt</code>, <code>SentenceBuilder.kt</code> 내 거리 보정 및 출력 메서드 호출 시 물체의 클래스 이름을 인자로 명시하여, 온디바이스 거리 산정이 정확히 수행되도록 개선합니다.
-                        </div>
-                    </li>
-                    <li>
-                        <strong>방향 안내 템플릿 자연어 동기화</strong> <span class="badge badge-warning">우선순위: 보통</span>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.1rem;">
-                            서버의 <code>templates.py</code> 파일 내 5~7시 방향 텍스트 매핑 명칭을 Android 클라이언트 기준("오른쪽 아래", "바로 뒤", "왼쪽 아래")으로 맞추어 일관성을 유지합니다.
-                        </div>
-                    </li>
-                    <li>
-                        <strong>Android 기기 TFLite 양자화 (FP16/INT8)</strong>: CPU/GPU 추론 가속화를 통한 FPS 상승 및 기기 발열 완화.
-                    </li>
-                    <li>
-                        <strong>Gzip 압축 미들웨어 적용</strong>: 대시보드 통신 및 이벤트 전송 시 데이터 크기를 최소화하여 패킷 비용 및 렌더링 지연 감소.
-                    </li>
-                    <li>
-                        <strong>Multi-stage Docker 빌드 적용</strong>: 프로덕션 Docker 이미지 용량을 최소화하여 배포 리드타임 감축 및 Cloud Run 기동 안정성 극대화.
-                    </li>
-                </ul>
-            </div>
-        </div>
+    <div class="summary" aria-label="MVP 핵심 요약">
+      <div class="stat">
+        <strong>On-device</strong>
+        <span>TFLite YOLO로 휴대폰에서 직접 객체를 탐지합니다.</span>
+      </div>
+      <div class="stat">
+        <strong>즉시 안내</strong>
+        <span>SentenceBuilder가 로컬에서 문장을 만들고 TTS로 말합니다.</span>
+      </div>
+      <div class="stat">
+        <strong>실시간 기록</strong>
+        <span>FastAPI 서버가 탐지, GPS, 대시보드 데이터를 저장합니다.</span>
+      </div>
+      <div class="stat">
+        <strong>오프라인 대응</strong>
+        <span>서버가 없어도 기본 음성 안내와 진동은 동작합니다.</span>
+      </div>
     </div>
+
+    <section>
+      <h2>MVP가 하는 일</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>보행 중 장애물 안내</h3>
+          <p>카메라 화면에서 사람, 차량, 의자 같은 객체를 탐지하고 위치와 위험도를 계산해 짧은 한국어 문장으로 안내합니다.</p>
+        </article>
+        <article class="card">
+          <h3>찾기와 질문 모드</h3>
+          <p>"의자 찾아줘", "지금 뭐가 있어?" 같은 음성 명령을 받아 현재 인식된 객체를 기준으로 답변합니다.</p>
+        </article>
+        <article class="card">
+          <h3>진동 패턴 경고</h3>
+          <p>위험도가 높아질수록 SHORT, DOUBLE, URGENT 패턴으로 구분해 사용자가 위험 정도를 빠르게 느끼도록 설계했습니다.</p>
+        </article>
+        <article class="card">
+          <h3>보호자/관리자 대시보드</h3>
+          <p>서버에 저장된 탐지 이벤트와 GPS 이력을 실시간 대시보드에서 확인할 수 있습니다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>처리 흐름</h2>
+      <div class="flow" aria-label="VoiceGuide 처리 흐름">
+        <div class="step">
+          <span class="step-number">1</span>
+          <strong>CameraX 입력</strong>
+          <span>Android 카메라 프레임을 받아 분석 대상으로 넘깁니다.</span>
+        </div>
+        <div class="step">
+          <span class="step-number">2</span>
+          <strong>TFLite YOLO 탐지</strong>
+          <span>서버가 아니라 휴대폰에서 객체 탐지를 수행합니다.</span>
+        </div>
+        <div class="step">
+          <span class="step-number">3</span>
+          <strong>MVP 안정화</strong>
+          <span>중복 제거, 3프레임 vote, IoU tracking, EMA로 흔들림을 줄입니다.</span>
+        </div>
+        <div class="step">
+          <span class="step-number">4</span>
+          <strong>안내와 기록</strong>
+          <span>로컬 TTS/진동을 먼저 실행하고, 서버에는 JSON과 GPS를 저장합니다.</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>현재 구현 상태</h2>
+      <ul class="list">
+        <li>
+          <span class="badge done">완료</span>
+          <span>
+            <span class="item-title">Android 온디바이스 탐지</span>
+            <span class="item-desc">CameraX, TFLite 모델, 중복 제거, vote, MvpPipeline 안정화 흐름이 연결되어 있습니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge done">완료</span>
+          <span>
+            <span class="item-title">로컬 음성 안내</span>
+            <span class="item-desc">서버 응답을 기다리지 않고 Android 내부에서 한국어 안내 문장을 생성합니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge done">완료</span>
+          <span>
+            <span class="item-title">FastAPI 서버와 DB 저장</span>
+            <span class="item-desc"><code>/detect</code>, <code>/detect_json</code>, <code>/gps</code>, <code>/events</code>, <code>/history</code> 경로가 구현되어 있습니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge doing">진행</span>
+          <span>
+            <span class="item-title">거리와 방향 안내 품질 개선</span>
+            <span class="item-desc">bbox 면적 기반 거리 추정과 방향 문구를 실제 보행 환경에 맞게 더 다듬는 단계입니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge todo">다음</span>
+          <span>
+            <span class="item-title">실기기 성능 검증</span>
+            <span class="item-desc">모델별 FPS, 발열, TTS 중복 발화, 서버 업로드 간격을 실제 Android 기기에서 확인해야 합니다.</span>
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>주요 API</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>API</th>
+            <th>역할</th>
+            <th>현재 상태</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>POST /detect</code></td>
+            <td>Android 탐지 결과를 서버에 저장하고 tracker를 갱신합니다.</td>
+            <td><span class="badge done">완료</span></td>
+          </tr>
+          <tr>
+            <td><code>POST /detect_json</code></td>
+            <td>최근 탐지 상태를 저장하는 호환 경로입니다.</td>
+            <td><span class="badge done">완료</span></td>
+          </tr>
+          <tr>
+            <td><code>POST /gps</code></td>
+            <td>사용자 위치와 이동 경로를 대시보드에 반영합니다.</td>
+            <td><span class="badge done">완료</span></td>
+          </tr>
+          <tr>
+            <td><code>GET /api/policy</code></td>
+            <td>Android와 서버가 공유하는 탐지 정책을 배포합니다.</td>
+            <td><span class="badge done">완료</span></td>
+          </tr>
+          <tr>
+            <td><code>GET /events/{session_id}</code></td>
+            <td>SSE로 대시보드에 실시간 이벤트를 전송합니다.</td>
+            <td><span class="badge done">완료</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>남은 핵심 과제</h2>
+      <ul class="list">
+        <li>
+          <span class="badge risk">중요</span>
+          <span>
+            <span class="item-title">실제 보행 환경에서 안내 정확도 검증</span>
+            <span class="item-desc">거리 추정, 방향 표현, 위험도 기준이 사용자가 이해하기 쉬운지 테스트가 필요합니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge risk">중요</span>
+          <span>
+            <span class="item-title">TTS와 진동 빈도 조절</span>
+            <span class="item-desc">너무 자주 말하거나 울리지 않도록 쿨다운과 긴급 예외 조건을 실기기에서 조정해야 합니다.</span>
+          </span>
+        </li>
+        <li>
+          <span class="badge todo">다음</span>
+          <span>
+            <span class="item-title">모델 경량화와 성능 튜닝</span>
+            <span class="item-desc">FP16/INT8 모델, GPU/XNNPACK fallback, 업로드 샘플링으로 FPS와 발열을 개선합니다.</span>
+          </span>
+        </li>
+      </ul>
+
+      <div class="note">
+        <strong>한 줄 요약:</strong>
+        현재 MVP는 "휴대폰에서 바로 보고, 바로 말해주는 보행 보조 앱"까지 구현되어 있고,
+        다음 단계는 실제 사용자 환경에서 안내 품질과 성능을 안정화하는 것입니다.
+      </div>
+    </section>
+
+    <footer>
+      기준일: 2026-05-22 · 대상 파일: <code>current_status.html</code>
+    </footer>
+  </main>
 </body>
 </html>

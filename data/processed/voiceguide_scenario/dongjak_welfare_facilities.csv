@@ -1,0 +1,10 @@
+﻿facility_name,facility_code,facility_type,facility_detail_type,district,address,phone,is_primary_destination_candidate,geocode_status
+삼성소리샘복지관,C5102,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 양녕로30길 19-4 (상도동),,Y,address_only_needs_geocoding
+서울시남부장애인종합복지관,C0455,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20나길 40 (신대방동),,Y,address_only_needs_geocoding
+서울시립발달장애인복지관,A5108,(장애인복지시설) 장애인복지관,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20나길 33 (신대방동),,Y,address_only_needs_geocoding
+서울특별시시각장애인등생활지원센터,C8664,(장애인복지시설) 장애인생활이동지원센터,장애인지역사회재활시설,동작구,"서울특별시 동작구 상도로 216 (상도동, 인경빌딩)",,Y,address_only_needs_geocoding
+동작구 수어통역센터,C7718,(장애인복지시설) 수어(수화)통역센터,장애인지역사회재활시설,동작구,서울특별시 동작구 만양로3길 14 (노량진동),,N,address_only_needs_geocoding
+디딤돌주간보호센터,C7904,(장애인복지시설) 장애인주간보호시설,장애인지역사회재활시설,동작구,서울특별시 동작구 대방동7길,,N,address_only_needs_geocoding
+보라매주간보호센터,C1498,(장애인복지시설) 장애인주간보호시설,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20나길 33 (신대방동),,N,address_only_needs_geocoding
+사랑손주간보호센터,C1572,(장애인복지시설) 장애인주간보호시설,장애인지역사회재활시설,동작구,서울특별시 동작구 사당로 90 (사당동),,N,address_only_needs_geocoding
+서울남부주간보호센터,C1471,(장애인복지시설) 장애인주간보호시설,장애인지역사회재활시설,동작구,서울특별시 동작구 여의대방로20길 33 (신대방동),,N,address_only_needs_geocoding
