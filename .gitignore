@@ -38,6 +38,9 @@ build/
 .venv/
 venv/
 
+# Node dependencies
+node_modules/
+
 # macOS
 .DS_Store
 
