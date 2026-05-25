@@ -1394,6 +1394,32 @@ function applyAccessibleMapStyle() {
       }
     }, beforeLabelLayer);
   }
+  if (!map.getLayer('vg-building-labels') && map.getSource('openmaptiles')) {
+    map.addLayer({
+      id: 'vg-building-labels',
+      type: 'symbol',
+      source: 'openmaptiles',
+      'source-layer': 'building',
+      minzoom: 16,
+      filter: ['any', ['has', 'name:ko'], ['has', 'name:nonlatin'], ['has', 'name']],
+      layout: {
+        'text-field': ['coalesce', ['get', 'name:ko'], ['get', 'name:nonlatin'], ['get', 'name']],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 16, 10, 18, 12],
+        'text-max-width': 8,
+        'text-anchor': 'center',
+        'symbol-placement': 'point',
+        'text-allow-overlap': false
+      },
+      paint: {
+        'text-color': '#354052',
+        'text-halo-color': 'rgba(255,255,255,0.86)',
+        'text-halo-width': 1.2
+      }
+    }, beforeLabelLayer);
+  }
+  const transitClassFilter = ['!', ['in', ['get', 'class'], ['literal', ['bus', 'rail', 'airport', 'public_transport']]]];
+  const transitSubclassFilter = ['!', ['in', ['get', 'subclass'], ['literal', ['bus_stop', 'tram_stop', 'railway_station', 'subway', 'station', 'transport']]]];
   for (const layer of style.layers) {
     const sourceLayer = String(layer['source-layer'] || '').toLowerCase();
     if (layer.type === 'fill-extrusion') {
@@ -1404,6 +1430,11 @@ function applyAccessibleMapStyle() {
       map.setLayoutProperty(layer.id, 'visibility', 'none');
       continue;
     }
+    if (/^poi_r\d+/.test(layer.id)) {
+      const baseFilter = layer.filter ? [layer.filter] : [];
+      map.setFilter(layer.id, ['all', ...baseFilter, transitClassFilter, transitSubclassFilter]);
+      continue;
+    }
     if (layer.id === 'building' && layer.type === 'fill') {
       map.setLayoutProperty(layer.id, 'visibility', 'visible');
       map.setPaintProperty(layer.id, 'fill-color', '#d8ded4');
@@ -1411,12 +1442,7 @@ function applyAccessibleMapStyle() {
       map.setPaintProperty(layer.id, 'fill-opacity', 0.72);
       continue;
     }
-    const shouldHideLabel = layer.type === 'symbol' && (
-      sourceLayer === 'transportation_name' ||
-      sourceLayer === 'housenumber' ||
-      sourceLayer === 'address' ||
-      sourceLayer === 'building_name'
-    );
+    const shouldHideLabel = layer.type === 'symbol' && sourceLayer === 'transportation_name';
     if (shouldHideLabel) {
       map.setLayoutProperty(layer.id, 'visibility', 'none');
     }
