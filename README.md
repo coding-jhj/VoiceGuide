@@ -38,7 +38,31 @@ Android CameraX
 
 ---
 
-## 지금 동작하는 것
+## 주요 기능
+
+| 영역 | 기능 |
+|---|---|
+| 온디바이스 AI | 카메라 프레임은 기기 내부에서만 추론하며 서버로 전송하지 않습니다. |
+| 커스텀 모델 | COCO 80개 클래스에 계단·문 등 보행 위험 요소를 보강했습니다. |
+| 위험 선행 알림 | 긴급 위험 감지 시 진동/비프음을 먼저 출력하고 음성 안내를 이어갑니다. |
+| 찾기 모드 | “의자 찾아줘”, “가방 어디 있어”처럼 대상 물체의 방향과 거리를 안내합니다. |
+| 주변 확인 | “지금 뭐가 있어?” 요청에 현재 프레임과 최근 추적 상태를 요약합니다. |
+| 공공데이터 지도 | 사고다발구역, 횡단보도 접근성, 보행지원시설 근거를 대시보드에 표시합니다. |
+
+---
+
+### 앱 모드
+
+| 모드 | 음성 예시 | 동작 |
+|---|---|---|
+| 장애물 | “앞에 뭐 있어”, “길 어때” | 위험도 상위 장애물을 즉시 안내 |
+| 찾기 | “의자 찾아줘”, “가방 어디 있어” | 찾는 물체의 방향·거리 안내 |
+| 주변 확인 | “지금 뭐가 있어”, “현재 상황 알려줘” | 현재 프레임과 최근 tracker 상태 요약 |
+| 물건 확인 | “손에 든 게 뭐야”, “바로 앞 뭐야” | 가까운 물체를 우선 답변 |
+
+---
+
+## 현재 구현 상태
 
 | 기능 | 상태 | 설명 |
 |---|---:|---|
@@ -53,97 +77,7 @@ Android CameraX
 
 ---
 
-## 주요 기능
-
-| 영역 | 기능 |
-|---|---|
-| 온디바이스 AI | 카메라 프레임은 기기 내부에서만 추론하며 서버로 전송하지 않습니다. |
-| 커스텀 모델 | COCO 80개 클래스에 계단·문 등 보행 위험 요소를 보강했습니다. |
-| 위험 선행 알림 | 긴급 위험 감지 시 진동/비프음을 먼저 출력하고 음성 안내를 이어갑니다. |
-| 찾기 모드 | “의자 찾아줘”, “가방 어디 있어”처럼 대상 물체의 방향과 거리를 안내합니다. |
-| 주변 확인 | “지금 뭐가 있어?” 요청에 현재 프레임과 최근 추적 상태를 요약합니다. |
-| 공공데이터 지도 | 사고다발구역, 횡단보도 접근성, 보행지원시설 근거를 대시보드에 표시합니다. |
-
----
-
-## 앱 모드
-
-| 모드 | 음성 예시 | 동작 |
-|---|---|---|
-| 장애물 | “앞에 뭐 있어”, “길 어때” | 위험도 상위 장애물을 즉시 안내 |
-| 찾기 | “의자 찾아줘”, “가방 어디 있어” | 찾는 물체의 방향·거리 안내 |
-| 주변 확인 | “지금 뭐가 있어”, “현재 상황 알려줘” | 현재 프레임과 최근 tracker 상태 요약 |
-| 물건 확인 | “손에 든 게 뭐야”, “바로 앞 뭐야” | 가까운 물체를 우선 답변 |
-
----
-
-## 빠른 시작
-
-### 서버 실행
-
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
-```
-
-서버에는 YOLO 모델이 필요하지 않습니다. 모델 추론은 Android 기기에서 수행합니다.
-
-### Android 앱 실행
-
-1. Android Studio에서 `android/` 폴더 열기
-2. Gradle Sync
-3. USB 기기 연결 및 USB 디버깅 활성화
-4. Run (`Shift+F10`)
-5. 앱 설정에서 서버 URL 입력
-
-```powershell
-cd android
-.\gradlew.bat assembleDebug
-```
-
-### 테스트
-
-```bash
-python -m pytest tests/ -v -m "not integration"
-```
-
-최종 공공데이터/API 검증:
-
-```bash
-python -m pytest tests/test_api.py tests/test_voiceguide_final_dataset.py
-```
-
----
-
-## 배포
-
-현재 Cloud Run 서비스:
-
-```text
-https://voiceguide-1063164560758.asia-northeast3.run.app
-```
-
-주요 화면:
-
-```text
-GET /health
-GET /dashboard
-GET /voiceguide-final/summary
-GET /voiceguide-final/crosswalks.geojson
-GET /voiceguide-final/data-usage.html
-```
-
-배포 예시:
-
-```powershell
-cd C:\VoiceGuide\VoiceGuide
-gcloud run deploy voiceguide --source . --region asia-northeast3 --project project-d9b26ccb-c174-4820-b16
-```
-
----
-
-## 공공데이터 시나리오
+## 공공데이터 활용 시나리오
 
 최종 발표/데모용 데이터는 `data/processed/voiceguide_final/`에 있습니다.
 
@@ -194,40 +128,6 @@ python tools/build_voiceguide_final_dataset.py
 
 ---
 
-## 주요 API
-
-| 메서드 | 경로 | 설명 |
-|---|---|---|
-| `POST` | `/detect` | 탐지 결과 JSON 수신, DB 저장, tracker 업데이트 |
-| `POST` | `/detect_json` | 구형 호환 탐지 JSON 수신 |
-| `POST` | `/question` | 최근 tracker/DB 상태 기반 주변 확인 응답 |
-| `POST` | `/gps` | Android 위치 업데이트 |
-| `GET` | `/api/policy` | Android 정책 동기화, ETag 캐싱 |
-| `GET` | `/status/{session_id}` | 세션 현재 상태 |
-| `GET` | `/events/{session_id}` | SSE 실시간 스트림 |
-| `GET` | `/history/{session_id}` | 세션별 탐지 이력 |
-| `GET` | `/heatmap/{session_id}` | 위험 히트맵 |
-| `GET` | `/routes/{session_id}` | 저장된 GPS 경로 |
-| `GET` | `/pedestrian-hotspots/nearby` | GPS 기반 보행자 사고다발구역 |
-| `GET` | `/voiceguide-final/summary` | 최종 시나리오 요약 |
-| `GET` | `/voiceguide-final/crosswalks.geojson` | 횡단보도 접근성 GeoJSON |
-| `GET` | `/voiceguide-final/data-usage.html` | 데이터 활용 근거 HTML |
-| `GET` | `/dashboard` | 실시간 대시보드 |
-
----
-
-## 관련 문서
-
-| 문서 | 위치 | 내용 |
-|---|---|---|
-| 현재 상황 보고서 | `docs/reports/current_status.html` | 시스템 아키텍처, 핵심 이슈, 서버 엔드포인트, 로드맵 |
-| 모델 튜닝 이슈 분석 | `docs/reports/model_tuning_issue.html` | 파인튜닝 모델 오인식 원인과 개선 방향 |
-| 디버그 리포트 | `docs/debug_report.md` | 서버·트래커·대시보드 디버깅 기록 |
-| 상태 보고서 | `docs/status/CURRENT_STATUS_REPORT.md` | Markdown 기반 프로젝트 상태 요약 |
-| 최종 데이터 설명 | `data/processed/voiceguide_final/README.md` | 최종 공공데이터 산출물 기준과 주의사항 |
-
----
-
 ## 프로젝트 구조
 
 ```text
@@ -275,6 +175,33 @@ VoiceGuide/
 
 ---
 
+## 빠른 시작
+
+### 서버 실행
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
+
+서버에는 YOLO 모델이 필요하지 않습니다. 모델 추론은 Android 기기에서 수행합니다.
+
+### Android 앱 실행
+
+1. Android Studio에서 `android/` 폴더 열기
+2. Gradle Sync
+3. USB 기기 연결 및 USB 디버깅 활성화
+4. Run (`Shift+F10`)
+5. 앱 설정에서 서버 URL 입력
+
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+---
+
 ## 환경 변수
 
 | 변수 | 기본값 | 설명 |
@@ -282,6 +209,81 @@ VoiceGuide/
 | `DATABASE_URL` | SQLite | PostgreSQL/Supabase 연결 URL |
 | `API_KEY` | 없음 | Bearer 또는 `X-API-Key` 인증 |
 | `PORT` | `8000` | 서버 포트 |
+
+---
+
+## 테스트
+
+```bash
+python -m pytest tests/ -v -m "not integration"
+```
+
+최종 공공데이터/API 검증:
+
+```bash
+python -m pytest tests/test_api.py tests/test_voiceguide_final_dataset.py
+```
+
+---
+
+## 배포
+
+현재 Cloud Run 서비스:
+
+```text
+https://voiceguide-1063164560758.asia-northeast3.run.app
+```
+
+주요 화면:
+
+```text
+GET /health
+GET /dashboard
+GET /voiceguide-final/summary
+GET /voiceguide-final/crosswalks.geojson
+GET /voiceguide-final/data-usage.html
+```
+
+배포 예시:
+
+```powershell
+cd C:\VoiceGuide\VoiceGuide
+gcloud run deploy voiceguide --source . --region asia-northeast3 --project project-d9b26ccb-c174-4820-b16
+```
+
+---
+
+## 주요 API
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `POST` | `/detect` | 탐지 결과 JSON 수신, DB 저장, tracker 업데이트 |
+| `POST` | `/detect_json` | 구형 호환 탐지 JSON 수신 |
+| `POST` | `/question` | 최근 tracker/DB 상태 기반 주변 확인 응답 |
+| `POST` | `/gps` | Android 위치 업데이트 |
+| `GET` | `/api/policy` | Android 정책 동기화, ETag 캐싱 |
+| `GET` | `/status/{session_id}` | 세션 현재 상태 |
+| `GET` | `/events/{session_id}` | SSE 실시간 스트림 |
+| `GET` | `/history/{session_id}` | 세션별 탐지 이력 |
+| `GET` | `/heatmap/{session_id}` | 위험 히트맵 |
+| `GET` | `/routes/{session_id}` | 저장된 GPS 경로 |
+| `GET` | `/pedestrian-hotspots/nearby` | GPS 기반 보행자 사고다발구역 |
+| `GET` | `/voiceguide-final/summary` | 최종 시나리오 요약 |
+| `GET` | `/voiceguide-final/crosswalks.geojson` | 횡단보도 접근성 GeoJSON |
+| `GET` | `/voiceguide-final/data-usage.html` | 데이터 활용 근거 HTML |
+| `GET` | `/dashboard` | 실시간 대시보드 |
+
+---
+
+## 관련 문서
+
+| 문서 | 위치 | 내용 |
+|---|---|---|
+| 현재 상황 보고서 | `docs/reports/current_status.html` | 시스템 아키텍처, 핵심 이슈, 서버 엔드포인트, 로드맵 |
+| 모델 튜닝 이슈 분석 | `docs/reports/model_tuning_issue.html` | 파인튜닝 모델 오인식 원인과 개선 방향 |
+| 디버그 리포트 | `docs/debug_report.md` | 서버·트래커·대시보드 디버깅 기록 |
+| 상태 보고서 | `docs/status/CURRENT_STATUS_REPORT.md` | Markdown 기반 프로젝트 상태 요약 |
+| 최종 데이터 설명 | `data/processed/voiceguide_final/README.md` | 최종 공공데이터 산출물 기준과 주의사항 |
 
 ---
 
