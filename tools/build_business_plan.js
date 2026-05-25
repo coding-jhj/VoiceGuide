@@ -497,6 +497,41 @@ function svgUserJourney() {
 </svg>`;
 }
 
+// ── SVG 사회적 가치 Before/After ─────────────────────────────
+function svgSocialImpact() {
+  const w = 680, h = 280;
+  const cols = [
+    { label: "흰지팡이만\n사용 시", items: ["상체 장애물 감지 불가", "돌발 상황 대처 어려움", "반복 경로만 이동 가능", "보조인 없이 장거리 불안", "인프라 부재 시 위험 노출"], color: "#C0392B", icon: "✗" },
+    { label: "VoiceGuide\n도입 후",  items: ["82종 장애물 실시간 안내", "방향·거리 음성 경고 즉시", "안전 최적 경로 자동 추천", "완전 핸즈프리 독립 보행", "오프라인 100% 기능 유지"], color: "#27AE60", icon: "✓" },
+  ];
+  const colW = (w - 60) / 2;
+  let svg = "";
+  cols.forEach((col, ci) => {
+    const x = 20 + ci * (colW + 20);
+    svg += `<rect x="${x}" y="40" width="${colW}" height="${h - 50}" fill="${col.color}" fill-opacity="0.06" stroke="${col.color}" stroke-width="2" rx="8"/>`;
+    const lines = col.label.split("\n");
+    lines.forEach((ln, li) => {
+      svg += `<text x="${x + colW/2}" y="${52 + li * 18}" font-size="13" font-weight="bold" fill="${col.color}" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+    col.items.forEach((item, ii) => {
+      const iy = 96 + ii * 36;
+      svg += `<rect x="${x + 10}" y="${iy - 14}" width="${colW - 20}" height="28" fill="${col.color}" fill-opacity="0.10" rx="4"/>`;
+      svg += `<text x="${x + 28}" y="${iy + 5}" font-size="11" fill="${col.color}" font-family="Arial" font-weight="bold">${col.icon}</text>`;
+      svg += `<text x="${x + 44}" y="${iy + 5}" font-size="11" fill="#333" font-family="Arial">${item}</text>`;
+    });
+  });
+  // center arrow
+  const cx = w / 2;
+  svg += `<rect x="${cx - 22}" y="${h/2 - 22}" width="44" height="44" fill="white" stroke="#CCC" stroke-width="1" rx="22"/>`;
+  svg += `<text x="${cx}" y="${h/2 + 7}" font-size="20" fill="#1A3E6B" font-family="Arial" text-anchor="middle">→</text>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white" rx="8"/>
+  <text x="${w/2}" y="22" font-size="14" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">VoiceGuide 도입 전후 보행 환경 변화</text>
+  ${svg}
+</svg>`;
+}
+
 // ── SVG KPI 행 (숫자 + 라벨 카드, 인포카드 대체) ──────────────
 function svgKpiRow({ stats, width = 680, height = 130 }) {
   const n = stats.length;
@@ -1973,6 +2008,13 @@ function section6() {
         )
       ),
     ], { w: 9072, cols: [1600, 5000, 2472] }),
+
+    sp(160),
+    subTitle("VoiceGuide 도입 전후 보행 환경 변화"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgSocialImpact(), 572, 235)],
+    }),
     pb(),
   ];
 }
