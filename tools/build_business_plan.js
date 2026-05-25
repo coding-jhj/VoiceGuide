@@ -363,6 +363,195 @@ function svgDataPipeline() {
 </svg>`;
 }
 
+// ── SVG 팀원 기여 분야 매트릭스 ──────────────────────────────
+function svgTeamMatrix() {
+  const w = 680, h = 210;
+  const members = ["정환주", "임명광", "김재현"];
+  const areas = ["Android/앱", "AI 모델", "서버/GCP", "UX/기획", "데이터/문서"];
+  // 0=없음 1=협력(light) 2=주담당(dark)
+  const matrix = [
+    [2, 1, 1, 0, 0],
+    [1, 2, 2, 0, 0],
+    [0, 0, 0, 2, 2],
+  ];
+  const colors = { 0: "#F5F5F5", 1: "#AED6F1", 2: "#1A3E6B" };
+  const textCol = { 0: "#BBB", 1: "#1A3E6B", 2: "white" };
+  const labels = { 0: "", 1: "협력", 2: "주담당" };
+  const colW = Math.floor((w - 110) / areas.length);
+  const rowH = 36;
+  let svg = "";
+  // header row
+  areas.forEach((a, ci) => {
+    const x = 110 + ci * colW;
+    svg += `<rect x="${x}" y="0" width="${colW - 2}" height="30" fill="#1A3E6B" rx="3"/>`;
+    svg += `<text x="${x + colW/2 - 1}" y="20" font-size="9" fill="white" font-family="Arial" text-anchor="middle">${a}</text>`;
+  });
+  // member rows
+  members.forEach((m, ri) => {
+    const y = 34 + ri * (rowH + 4);
+    svg += `<rect x="0" y="${y}" width="106" height="${rowH}" fill="#2E86AB" rx="3"/>`;
+    svg += `<text x="53" y="${y + rowH/2 + 4}" font-size="11" fill="white" font-family="Arial" font-weight="bold" text-anchor="middle">${m}</text>`;
+    areas.forEach((_, ci) => {
+      const x = 110 + ci * colW;
+      const val = matrix[ri][ci];
+      svg += `<rect x="${x}" y="${y}" width="${colW - 2}" height="${rowH}" fill="${colors[val]}" rx="3"/>`;
+      if (val > 0) svg += `<text x="${x + colW/2 - 1}" y="${y + rowH/2 + 4}" font-size="9" fill="${textCol[val]}" font-family="Arial" text-anchor="middle">${labels[val]}</text>`;
+    });
+  });
+  // legend
+  const ly = 34 + 3 * (rowH + 4) + 8;
+  [[colors[2], "주담당"], [colors[1], "협력"]].forEach(([c, l], i) => {
+    const lx = 110 + i * 100;
+    svg += `<rect x="${lx}" y="${ly}" width="14" height="14" fill="${c}" rx="2"/>`;
+    svg += `<text x="${lx + 18}" y="${ly + 11}" font-size="9" fill="#555" font-family="Arial">${l}</text>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white"/>
+  ${svg}
+</svg>`;
+}
+
+// ── SVG MVP 달성 현황 도넛 + 리스트 ──────────────────────────
+function svgMvpProgress() {
+  const w = 680, h = 210;
+  const features = [
+    "장애물 탐지 (82클래스)", "위험도 진동 패턴", "한국어 TTS 음성 안내",
+    "핸즈프리 음성 명령", "3프레임 투표 필터", "IoU+EMA 추적",
+    "서버 전송/DB 저장", "실시간 대시보드", "오프라인 동작",
+  ];
+  const done = features.length;
+  const total = features.length;
+  const pct = Math.round(done / total * 100);
+  // left: donut
+  const cx = 110, cy = h / 2, r = 70, sw = 18;
+  const circ = 2 * Math.PI * r;
+  const arc = circ * pct / 100;
+  let donut = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#EEE" stroke-width="${sw}"/>`;
+  donut += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#27AE60" stroke-width="${sw}" stroke-dasharray="${arc} ${circ - arc}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>`;
+  donut += `<text x="${cx}" y="${cy - 8}" font-size="22" font-weight="bold" fill="#27AE60" font-family="Arial" text-anchor="middle">${pct}%</text>`;
+  donut += `<text x="${cx}" y="${cy + 14}" font-size="10" fill="#555" font-family="Arial" text-anchor="middle">완료</text>`;
+  donut += `<text x="${cx}" y="${cy + 28}" font-size="9" fill="#888" font-family="Arial" text-anchor="middle">${done}/${total} 기능</text>`;
+  // right: feature list
+  let list = "";
+  features.forEach((f, i) => {
+    const col = i < 5 ? 0 : 1;
+    const row2 = i < 5 ? i : i - 5;
+    const x = 220 + col * 230;
+    const y = 20 + row2 * 34;
+    list += `<rect x="${x}" y="${y}" width="210" height="26" fill="#F0FFF4" rx="4"/>`;
+    list += `<text x="${x + 10}" y="${y + 17}" font-size="10" fill="#27AE60" font-family="Arial" font-weight="bold">✓</text>`;
+    list += `<text x="${x + 24}" y="${y + 17}" font-size="9.5" fill="#333" font-family="Arial">${f}</text>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white"/>
+  ${donut}
+  ${list}
+</svg>`;
+}
+
+// ── SVG 기술 핵심 수치 그리드 ────────────────────────────────
+function svgTechNumbers() {
+  const w = 680, h = 200;
+  const stats = [
+    { val: "30ms", label: "온디바이스 추론\n레이턴시", color: "#1A3E6B" },
+    { val: "82종", label: "YOLO 탐지\n객체 클래스", color: "#E67E22" },
+    { val: "39.5%", label: "TFLite 모델\nmAP 정확도", color: "#27AE60" },
+    { val: "4단계", label: "햅틱 진동\n위험도 패턴", color: "#8E44AD" },
+    { val: "100%", label: "오프라인\n동작 보장", color: "#2E86AB" },
+    { val: "D=FH/h", label: "단안 카메라\n거리 추정 공식", color: "#C0392B" },
+  ];
+  const cols = 3, rows = 2;
+  const cw = Math.floor(w / cols) - 8;
+  const ch = Math.floor(h / rows) - 8;
+  let svg = "";
+  stats.forEach((s, i) => {
+    const col = i % cols, row2 = Math.floor(i / cols);
+    const x = col * (cw + 8) + 4;
+    const y = row2 * (ch + 8) + 4;
+    svg += `<rect x="${x}" y="${y}" width="${cw}" height="${ch}" fill="${s.color}" fill-opacity="0.08" stroke="${s.color}" stroke-width="1.5" rx="6"/>`;
+    svg += `<text x="${x + cw/2}" y="${y + ch*0.42}" font-size="22" font-weight="bold" fill="${s.color}" font-family="Arial" text-anchor="middle">${s.val}</text>`;
+    s.label.split("\n").forEach((ln, li) => {
+      svg += `<text x="${x + cw/2}" y="${y + ch*0.42 + 18 + li*14}" font-size="9.5" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white"/>
+  ${svg}
+</svg>`;
+}
+
+// ── SVG 경쟁 차별점 4카드 ────────────────────────────────────
+function svgDiffCards() {
+  const w = 680, h = 220;
+  const cards = [
+    { title: "온디바이스 AI", sub: "vs 클라우드 의존", badge: "AI", color: "#1A3E6B", desc: "서버 없이 30ms\n즉시 추론" },
+    { title: "자동 실시간 감지", sub: "vs 수동 캡처", badge: "AUTO", color: "#E67E22", desc: "앱 실행만으로\n24시간 자동 경보" },
+    { title: "완전 핸즈프리", sub: "vs 화면 조작 필요", badge: "STT", color: "#27AE60", desc: "음성 명령 4가지\n모드 전환" },
+    { title: "한국어 특화", sub: "vs 범용 영어 서비스", badge: "KR", color: "#8E44AD", desc: "방향·거리·객체\n한국어 경고문" },
+  ];
+  const n = cards.length, pad = 10;
+  const cw = Math.floor((w - (n + 1) * pad) / n);
+  let svg = "";
+  cards.forEach((c, i) => {
+    const x = pad + i * (cw + pad);
+    svg += `<rect x="${x}" y="8" width="${cw}" height="${h - 16}" fill="${c.color}" fill-opacity="0.07" stroke="${c.color}" stroke-width="1.5" rx="8"/>`;
+    svg += `<rect x="${x}" y="8" width="${cw}" height="4" fill="${c.color}" rx="3"/>`;
+    svg += `<rect x="${x + cw/2 - 18}" y="20" width="36" height="22" fill="${c.color}" rx="4"/>`;
+    svg += `<text x="${x + cw/2}" y="36" font-size="10" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${c.badge}</text>`;
+    svg += `<text x="${x + cw/2}" y="62" font-size="10.5" font-weight="bold" fill="${c.color}" font-family="Arial" text-anchor="middle">${c.title}</text>`;
+    svg += `<text x="${x + cw/2}" y="76" font-size="8.5" fill="#888" font-family="Arial" text-anchor="middle">${c.sub}</text>`;
+    c.desc.split("\n").forEach((ln, li) => {
+      svg += `<text x="${x + cw/2}" y="${100 + li * 18}" font-size="10" fill="#333" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white"/>
+  ${svg}
+</svg>`;
+}
+
+// ── SVG 경쟁사 대비 스코어 수평 비교 ─────────────────────────
+function svgCompetitorScore() {
+  const w = 680, h = 260;
+  const dims = [
+    { label: "자동 실시간 감지", vg: 95, bme: 20, ms: 40 },
+    { label: "온디바이스 독립성", vg: 100, bme: 10, ms: 15 },
+    { label: "핸즈프리 조작성", vg: 95, bme: 50, ms: 55 },
+    { label: "한국어 특화", vg: 95, bme: 30, ms: 25 },
+    { label: "프라이버시 보호", vg: 100, bme: 20, ms: 20 },
+    { label: "공공데이터 연동", vg: 90, bme: 0, ms: 0 },
+  ];
+  const legend = [
+    { label: "VoiceGuide", color: "#1A3E6B" },
+    { label: "Be My Eyes", color: "#E67E22" },
+    { label: "Seeing AI", color: "#95A5A6" },
+  ];
+  const marginL = 140, marginR = 20, barH = 8, rowH = 34;
+  const maxW = w - marginL - marginR;
+  let svg = `<text x="${w/2}" y="16" font-size="11" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">경쟁사 대비 핵심 역량 스코어</text>`;
+  dims.forEach((d, i) => {
+    const y = 28 + i * rowH;
+    svg += `<text x="${marginL - 6}" y="${y + barH * 1.5 + 4}" font-size="9" fill="#333" font-family="Arial" text-anchor="end">${d.label}</text>`;
+    [[d.vg, "#1A3E6B"], [d.bme, "#E67E22"], [d.ms, "#95A5A6"]].forEach(([val, col], bi) => {
+      const bw = Math.round(maxW * val / 100);
+      const by = y + bi * (barH + 2);
+      svg += `<rect x="${marginL}" y="${by}" width="${bw}" height="${barH}" fill="${col}" opacity="0.85" rx="2"/>`;
+      if (val > 5) svg += `<text x="${marginL + bw + 3}" y="${by + barH - 1}" font-size="7.5" fill="${col}" font-family="Arial">${val}</text>`;
+    });
+  });
+  // legend
+  const ly = 28 + dims.length * rowH + 8;
+  legend.forEach((l, i) => {
+    const lx = marginL + i * 160;
+    svg += `<rect x="${lx}" y="${ly}" width="12" height="8" fill="${l.color}" rx="2"/>`;
+    svg += `<text x="${lx + 16}" y="${ly + 8}" font-size="9" fill="#555" font-family="Arial">${l.label}</text>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white"/>
+  ${svg}
+</svg>`;
+}
+
 // ── SVG 팀 스택 가로 막대 ─────────────────────────────────────
 function svgTeamStack() {
   const w = 680, h = 200;
@@ -1008,7 +1197,13 @@ function section1() {
       spacing: { before: 60, after: 80 },
       children: [svgImage(svgTeamStack(), 572, 168)],
     }),
-    pb(),
+
+    sp(140),
+    subTitle("팀원별 기여 분야 매트릭스"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgTeamMatrix(), 572, 178)],
+    }),
   ];
 }
 
@@ -1510,7 +1705,38 @@ function section3() {
       spacing: { before: 60, after: 80 },
       children: [svgImage(svgPerfBar(), 572, 168)],
     }),
-    pb(),
+
+    sp(140),
+    subTitle("MVP 기능 달성 현황"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgMvpProgress(), 572, 178)],
+    }),
+
+    sp(140),
+    subTitle("핵심 기술 수치 요약"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgTechNumbers(), 572, 170)],
+    }),
+
+    sp(140),
+    subTitle("활용 공공데이터 및 연계 기능"),
+    tbl([
+      row(hc("데이터셋", { w: 2800 }), hc("제공기관", { w: 2400 }), hc("VoiceGuide 활용 목적", { w: 3872 })),
+      ...[
+        ["사회서비스 제공기관 정보", "한국사회보장정보원", "실증 복지관 위치 매핑 및 경로 안내"],
+        ["장애인편의시설 현황", "한국사회보장정보원", "접근성 코스 설계 및 위험도 평가"],
+        ["중앙부처복지서비스", "한국사회보장정보원", "정보통신보조기기 정책 연계"],
+        ["등록장애인 현황 통계", "보건복지부", "지역별 잠재 사용자 규모 분석"],
+        ["보행자 사고다발구역", "경찰청", "위험 경로 우선순위 설정"],
+        ["횡단보도 접근성 데이터", "서울시", "안전 최적 경로 추천 알고리즘 입력"],
+      ].map(([ds, org, use]) => row(
+        cell(ds, { bg: C.light, bold: true, w: 2800 }),
+        cell(org, { w: 2400, color: C.midgray }),
+        cell(use, { w: 3872 }),
+      )),
+    ], { w: 9072, cols: [2800, 2400, 3872] }),
   ];
 }
 
@@ -1604,6 +1830,20 @@ function section4() {
         )
       ),
     ], { w: 9072, cols: [2000, 2500, 2500, 2072] }),
+
+    sp(140),
+    subTitle("VoiceGuide 핵심 경쟁 차별점"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgDiffCards(), 572, 185)],
+    }),
+
+    sp(140),
+    subTitle("경쟁사 대비 핵심 역량 스코어"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgCompetitorScore(), 572, 218)],
+    }),
     pb(),
   ];
 }
@@ -2015,7 +2255,34 @@ function section6() {
       spacing: { before: 60, after: 80 },
       children: [svgImage(svgSocialImpact(), 572, 235)],
     }),
-    pb(),
+
+    sp(140),
+    subTitle("파급효과 정량 목표 지표"),
+    new Paragraph({
+      spacing: { before: 60, after: 60 },
+      children: [svgImage(svgKpiRow({
+        stats: [
+          { value: "40%↓", label: "보행 돌발\n사고율 경감", color: "#C0392B" },
+          { value: "30%↑", label: "자립 보행\n비율 향상", color: "#27AE60" },
+          { value: "25만", label: "국내 잠재\n수혜자 수", color: "#1A3E6B" },
+          { value: "50곳", label: "2년차 복지관\n도입 목표", color: "#E67E22" },
+        ],
+      }), 572, 110)],
+    }),
+
+    sp(120),
+    tbl([
+      row(hc("파급 영역", { w: 2000 }), hc("현재 문제", { w: 3200 }), hc("VoiceGuide 기여 목표", { w: 3872 })),
+      ...[
+        ["보행 안전", "연간 시각장애인 보행 사고 다수 발생", "사고율 40% 이상 경감, 충돌 전 사전 인지 제공"],
+        ["독립성", "보조인 동행 의존, 이동 자율성 낮음", "완전 핸즈프리로 단독 외출 가능 인구 30% 확대"],
+        ["인프라·정책", "점자블록 재설치 수천억 소요, 위험구간 데이터 부재", "스마트폰 앱으로 인프라 공백 보완 + 비식별 로그 지자체 제공"],
+      ].map(([area, problem, goal]) => row(
+        cell(area, { bg: C.light, bold: true, w: 2000 }),
+        cell(problem, { w: 3200, color: C.midgray }),
+        cell(goal, { w: 3872, bold: true, color: C.safe }),
+      )),
+    ], { w: 9072, cols: [2000, 3200, 3872] }),
   ];
 }
 
