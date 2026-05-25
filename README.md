@@ -216,6 +216,18 @@ python tools/build_voiceguide_final_dataset.py
 
 ---
 
+## 관련 문서
+
+| 문서 | 위치 | 내용 |
+|---|---|---|
+| 현재 상황 보고서 | `docs/reports/current_status.html` | 시스템 아키텍처, 핵심 이슈, 서버 엔드포인트, 로드맵 |
+| 모델 튜닝 이슈 분석 | `docs/reports/model_tuning_issue.html` | 파인튜닝 모델 오인식 원인과 개선 방향 |
+| 디버그 리포트 | `docs/debug_report.md` | 서버·트래커·대시보드 디버깅 기록 |
+| 상태 보고서 | `docs/status/CURRENT_STATUS_REPORT.md` | Markdown 기반 프로젝트 상태 요약 |
+| 최종 데이터 설명 | `data/processed/voiceguide_final/README.md` | 최종 공공데이터 산출물 기준과 주의사항 |
+
+---
+
 ## 프로젝트 구조
 
 ```text
@@ -250,6 +262,11 @@ VoiceGuide/
 │
 ├── templates/dashboard.html
 ├── data/processed/voiceguide_final/
+├── docs/
+│   ├── reports/
+│   │   ├── current_status.html
+│   │   └── model_tuning_issue.html
+│   └── status/
 ├── tools/
 ├── tests/
 ├── Dockerfile
