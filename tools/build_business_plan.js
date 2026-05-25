@@ -145,7 +145,7 @@ function svgDonutChart({ title, slices, size = 320 }) {
 // ── 수직 막대 차트 ────────────────────────────────────────────
 function svgVerticalBar({ title, bars, width = 500, height = 300, yMax = 100, yLabel = "%" }) {
   // bars: [{label, value, color}]
-  const marginL = 50, marginR = 20, marginT = 50, marginB = 60;
+  const marginL = 50, marginR = 20, marginT = 60, marginB = 60;
   const chartW = width - marginL - marginR;
   const chartH = height - marginT - marginB;
   const bw = Math.floor((chartW / bars.length) * 0.6);
@@ -236,7 +236,7 @@ function svgArchDiagram() {
 
 // ── SVG 타임라인 ──────────────────────────────────────────────
 function svgTimeline() {
-  const w = 700, h = 200;
+  const w = 700, h = 220;
   const phases = [
     { label: "1단계 MVP", period: "현재~1개월", goal: "TFLite 추론 안정화\n위험도 규칙 완성", color: "#1A3E6B" },
     { label: "2단계 파일럿", period: "1~3개월", goal: "복지관 3곳 MOU\n사용자 20인 테스트", color: "#2E75B6" },
@@ -244,24 +244,24 @@ function svgTimeline() {
     { label: "4단계 확장", period: "6개월+", goal: "스마트 글래스\n해외시장 진출", color: "#27AE60" },
   ];
   const step = w / phases.length;
-  const cy = 90;
+  const cy = 100;
 
   let items = "";
   phases.forEach((p, i) => {
     const cx = step * i + step / 2;
     // connector line
     if (i < phases.length - 1) {
-      items += `<line x1="${cx + 20}" y1="${cy}" x2="${cx + step - 20}" y2="${cy}" stroke="#CCC" stroke-width="2" marker-end="url(#arrowTL)"/>`;
+      items += `<line x1="${cx + 24}" y1="${cy}" x2="${cx + step - 24}" y2="${cy}" stroke="#CCC" stroke-width="2" marker-end="url(#arrowTL)"/>`;
     }
     // circle
-    items += `<circle cx="${cx}" cy="${cy}" r="18" fill="${p.color}"/>`;
-    items += `<text x="${cx}" y="${cy + 5}" font-size="11" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${i+1}</text>`;
+    items += `<circle cx="${cx}" cy="${cy}" r="22" fill="${p.color}"/>`;
+    items += `<text x="${cx}" y="${cy + 6}" font-size="13" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${i+1}</text>`;
     // phase label above
-    items += `<text x="${cx}" y="${cy - 28}" font-size="12" font-weight="bold" fill="${p.color}" font-family="Arial" text-anchor="middle">${p.label}</text>`;
-    items += `<text x="${cx}" y="${cy - 14}" font-size="10" fill="#999" font-family="Arial" text-anchor="middle">${p.period}</text>`;
+    items += `<text x="${cx}" y="${cy - 34}" font-size="13" font-weight="bold" fill="${p.color}" font-family="Arial" text-anchor="middle">${p.label}</text>`;
+    items += `<text x="${cx}" y="${cy - 18}" font-size="11" fill="#999" font-family="Arial" text-anchor="middle">${p.period}</text>`;
     // goal below
     p.goal.split("\n").forEach((ln, li) => {
-      items += `<text x="${cx}" y="${cy + 32 + li*14}" font-size="10" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+      items += `<text x="${cx}" y="${cy + 36 + li*15}" font-size="11" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
     });
   });
 
@@ -272,7 +272,7 @@ function svgTimeline() {
     </marker>
   </defs>
   <rect width="${w}" height="${h}" fill="white" rx="8"/>
-  <text x="${w/2}" y="18" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">중장기 발전 로드맵</text>
+  <text x="${w/2}" y="22" font-size="14" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">중장기 발전 로드맵</text>
   ${items}
 </svg>`;
 }
@@ -359,6 +359,140 @@ function svgDataPipeline() {
     </marker>
   </defs>
   <rect width="${w}" height="${h+40}" fill="white" rx="8"/>
+  ${items}
+</svg>`;
+}
+
+// ── SVG 팀 스택 가로 막대 ─────────────────────────────────────
+function svgTeamStack() {
+  const w = 680, h = 200;
+  const skills = [
+    { label: "Android / Kotlin", val: 90, color: "#1A3E6B", member: "정환주" },
+    { label: "TFLite / YOLO AI", val: 88, color: "#2E75B6", member: "임명광" },
+    { label: "FastAPI / GCP",    val: 82, color: "#E67E22", member: "임명광" },
+    { label: "UX / 공공데이터",  val: 85, color: "#7D3C98", member: "김재현" },
+    { label: "사업기획 / 문서화", val: 88, color: "#27AE60", member: "김재현" },
+  ];
+  const marginL = 160, marginR = 80, marginT = 30, marginB = 20;
+  const chartW = w - marginL - marginR;
+  const rowH = Math.floor((h - marginT - marginB) / skills.length);
+  const barH = Math.min(22, rowH - 8);
+
+  let items = "";
+  skills.forEach((s, i) => {
+    const y = marginT + i * rowH + (rowH - barH) / 2;
+    const bw = (s.val / 100) * chartW;
+    items += `<rect x="${marginL}" y="${y}" width="${bw}" height="${barH}" fill="${s.color}" rx="3" opacity="0.85"/>`;
+    items += `<text x="${marginL - 8}" y="${y + barH/2 + 4}" font-size="11" fill="#444" font-family="Arial" text-anchor="end">${s.label}</text>`;
+    items += `<text x="${marginL + bw + 6}" y="${y + barH/2 + 4}" font-size="10" fill="${s.color}" font-family="Arial" font-weight="bold">${s.val}%</text>`;
+    items += `<text x="${w - marginR + 4}" y="${y + barH/2 + 4}" font-size="9" fill="#AAA" font-family="Arial">${s.member}</text>`;
+  });
+
+  // grid
+  let grid = "";
+  [25, 50, 75, 100].forEach(v => {
+    const x = marginL + (v / 100) * chartW;
+    grid += `<line x1="${x}" y1="${marginT - 5}" x2="${x}" y2="${h - marginB}" stroke="#EEE" stroke-width="1"/>`;
+    grid += `<text x="${x}" y="${marginT - 8}" font-size="9" fill="#CCC" font-family="Arial" text-anchor="middle">${v}%</text>`;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white" rx="8"/>
+  <text x="${w/2}" y="18" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">팀 핵심 기술 역량 커버리지</text>
+  ${grid}${items}
+</svg>`;
+}
+
+// ── SVG 성능 검증 KPI 바 차트 ────────────────────────────────
+function svgPerfBar() {
+  const w = 680, h = 200;
+  const metrics = [
+    { label: "응답지연\n0.5초 이하", value: 90, unit: "목표달성", color: "#2E75B6" },
+    { label: "탐지정확도\n85% 이상", value: 85, unit: "85%", color: "#27AE60" },
+    { label: "배터리·발열\n문제 없음", value: 78, unit: "기준 만족", color: "#E67E22" },
+    { label: "음성피로도\n20% 감소", value: 80, unit: "20%↓", color: "#7D3C98" },
+    { label: "오프라인\n100% 유지", value: 100, unit: "100%", color: "#1A3E6B" },
+  ];
+  const marginL = 20, marginR = 20, marginT = 60, marginB = 50;
+  const chartW = w - marginL - marginR;
+  const chartH = h - marginT - marginB;
+  const n = metrics.length;
+  const bw = Math.floor(chartW / n * 0.55);
+  const gap = chartW / n;
+  const yScale = v => chartH - (v / 100) * chartH;
+
+  let bars = "", xlabels = "", grid = "";
+
+  [25, 50, 75, 100].forEach(v => {
+    const y = marginT + yScale(v);
+    grid += `<line x1="${marginL}" y1="${y}" x2="${marginL + chartW}" y2="${y}" stroke="#EEE" stroke-width="1"/>`;
+    grid += `<text x="${marginL - 4}" y="${y + 4}" font-size="9" fill="#BBB" font-family="Arial" text-anchor="end">${v}</text>`;
+  });
+
+  metrics.forEach((m, i) => {
+    const x = marginL + i * gap + (gap - bw) / 2;
+    const barY = marginT + yScale(m.value);
+    const barH = chartH - yScale(m.value);
+    bars += `<rect x="${x}" y="${barY}" width="${bw}" height="${barH}" fill="${m.color}" rx="3" opacity="0.85"/>`;
+    // value label above bar — clamp so it doesn't go above chart top
+    const labelY = Math.max(marginT - 6, barY - 5);
+    bars += `<text x="${x + bw/2}" y="${labelY}" font-size="10" font-weight="bold" fill="${m.color}" font-family="Arial" text-anchor="middle">${m.unit}</text>`;
+    m.label.split("\n").forEach((ln, li) => {
+      xlabels += `<text x="${x + bw/2}" y="${marginT + chartH + 14 + li * 13}" font-size="10" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white" rx="8"/>
+  <text x="${w/2}" y="22" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">성능 검증 목표 시각화</text>
+  <line x1="${marginL}" y1="${marginT}" x2="${marginL}" y2="${marginT+chartH}" stroke="#CCC" stroke-width="1.5"/>
+  <line x1="${marginL}" y1="${marginT+chartH}" x2="${marginL+chartW}" y2="${marginT+chartH}" stroke="#CCC" stroke-width="1.5"/>
+  ${grid}${bars}${xlabels}
+</svg>`;
+}
+
+// ── SVG 사용자 여정 플로우 (Before/After VoiceGuide) ──────────
+function svgUserJourney() {
+  const w = 700, h = 200;
+  const stages = ["출발 전", "보행 중", "위험 회피", "도착 후"];
+  const before = ["경로 정보\n흩어져 있음", "흰지팡이만\n의존", "위험 원인\n불명확", "복지서비스\n정보 부족"];
+  const after =  ["복지기관\n데이터 안내", "전방 객체\n음성 경고", "방향+객체\n즉시 안내", "복지서비스\n연계 안내"];
+  const n = stages.length;
+  const colW = w / n;
+  const rowH = 60;
+  const y0 = 30, y1 = 90, y2 = 155;
+
+  let items = "";
+  stages.forEach((s, i) => {
+    const cx = colW * i + colW / 2;
+    // Stage header
+    items += `<rect x="${colW*i+4}" y="${y0-4}" width="${colW-8}" height="24" fill="#1A3E6B" rx="4"/>`;
+    items += `<text x="${cx}" y="${y0+13}" font-size="12" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${s}</text>`;
+    // Arrow between stages
+    if (i < n - 1) {
+      items += `<line x1="${colW*(i+1)-10}" y1="${y0+8}" x2="${colW*(i+1)+4}" y2="${y0+8}" stroke="#CCC" stroke-width="1.5" marker-end="url(#arrowUJ)"/>`;
+    }
+    // Before row
+    items += `<rect x="${colW*i+4}" y="${y1-4}" width="${colW-8}" height="${rowH}" fill="#FFEAEA" rx="4" stroke="#C0392B" stroke-width="0.5"/>`;
+    before[i].split("\n").forEach((ln, li) => {
+      items += `<text x="${cx}" y="${y1+18+li*14}" font-size="10" fill="#C0392B" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+    // After row
+    items += `<rect x="${colW*i+4}" y="${y2-4}" width="${colW-8}" height="${rowH}" fill="#E8F8F0" rx="4" stroke="#27AE60" stroke-width="0.5"/>`;
+    after[i].split("\n").forEach((ln, li) => {
+      items += `<text x="${cx}" y="${y2+18+li*14}" font-size="10" fill="#1A5A40" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h+20}">
+  <defs>
+    <marker id="arrowUJ" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#CCC"/>
+    </marker>
+  </defs>
+  <rect width="${w}" height="${h+20}" fill="white" rx="8"/>
+  <text x="4" y="${y1+14}" font-size="10" fill="#C0392B" font-family="Arial" font-weight="bold" transform="rotate(-90,8,${y1+rowH/2})">Before</text>
+  <text x="4" y="${y2+14}" font-size="10" fill="#27AE60" font-family="Arial" font-weight="bold" transform="rotate(-90,8,${y2+rowH/2})">After</text>
   ${items}
 </svg>`;
 }
@@ -723,13 +857,11 @@ function planSummary() {
           bullet("사회서비스 제공기관 정보 검색 (한국사회보장정보원) → 실증 복지관 매핑"),
           bullet("장애인편의시설 현황 (한국사회보장정보원) → 필드 테스트 코스 설계"),
           bullet("중앙부처복지서비스 (한국사회보장정보원) → 정보통신보조기기 정책 기획"),
-          bullet("등록장애인 수 (보건복지부) → 지역별 잠재 고객 규모 분석 및 마케팅 전략 수립"),
-          bullet("보행자 사고다발구역 (경찰청) → 대시보드 위험 지도 레이어"),
-          bullet("횡단보도 접근성 데이터 (서울시) → 경로 추천 시나리오"),
+          bullet("등록장애인 수 (보건복지부) → 지역별 잠재 고객 규모 분석"),
+          bullet("보행자 사고다발구역 (경찰청) / 횡단보도 접근성 (서울시) → 경로 추천·위험지도"),
         ], { w: 7072 }),
       ),
     ], { w: 9072, cols: [2000, 7072] }),
-    pb(),
   ];
 }
 
@@ -797,7 +929,7 @@ function section1() {
       ),
       row(
         cell("기획·UX 검증", { bg: C.purple, bold: true, w: 2000 }),
-        cell("기획·UX 담당은 시각장애인 보행 상황, 음성 경고 피로도, 공공데이터 활용 시나리오를 독립적으로 검증", { w: 7072 }),
+        cell("기획·UX 담당은 보행 상황, 경고 피로도, 공공데이터 시나리오를 독립 검증", { w: 7072 }),
       ),
       row(
         cell("스프린트", { bg: C.orange, bold: true, w: 2000 }),
@@ -834,6 +966,13 @@ function section1() {
         cell("6개월 로드맵, PoC 제안 구조", { w: 3272 }),
       ),
     ], { w: 9072, cols: [2200, 3600, 3272] }),
+
+    sp(120),
+    subTitle("팀 개발 스택 및 기술 커버리지"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgTeamStack(), 572, 168)],
+    }),
     pb(),
   ];
 }
@@ -1103,6 +1242,13 @@ function section2() {
         )
       ),
     ], { w: 9072, cols: [1600, 2200, 2200, 3072] }),
+
+    sp(120),
+    subTitle("사용자 여정 Before / After VoiceGuide"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgUserJourney(), 589, 185)],
+    }),
     pb(),
   ];
 }
@@ -1322,6 +1468,13 @@ function section3() {
         )
       ),
     ], { w: 9072, cols: [2200, 4000, 2872] }),
+
+    sp(120),
+    subTitle("성능 목표 시각화"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgPerfBar(), 572, 168)],
+    }),
     pb(),
   ];
 }
@@ -1589,14 +1742,14 @@ function section5() {
       ),
     ], { w: 9072, cols: [1400, 2200, 3472, 2000] }),
 
-    sp(140),
+    sp(80),
     subTitle("중장기 발전 로드맵 타임라인"),
     new Paragraph({
-      spacing: { before: 60, after: 80 },
-      children: [svgImage(svgTimeline(), 589, 168)],
+      spacing: { before: 40, after: 60 },
+      children: [svgImage(svgTimeline(), 589, 200)],
     }),
 
-    sp(140),
+    sp(80),
     subTitle("중장기 발전 단계 로드맵 (상세)"),
     tbl([
       row(
