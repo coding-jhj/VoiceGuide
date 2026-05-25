@@ -1,1308 +1,2282 @@
-// VoiceGuide 사업계획서 생성 스크립트
+// VoiceGuide 사업계획서 업그레이드 — 원본 구조 동일, 내용 강화
 const {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  Header, Footer, AlignmentType, HeadingLevel, BorderStyle, WidthType,
-  ShadingType, VerticalAlign, PageNumber, PageBreak, LevelFormat,
-  ExternalHyperlink, TabStopType, TabStopPosition
+  Header, Footer, AlignmentType, BorderStyle, WidthType, ShadingType,
+  VerticalAlign, PageNumber, PageBreak, LevelFormat, ExternalHyperlink,
+  ImageRun,
 } = require('docx');
 const fs = require('fs');
 
-// ─── 색상 팔레트 ─────────────────────────────────────────────
+// ─── SVG 차트 생성기 ──────────────────────────────────────────
+
+// 1px PNG fallback (SVG 삽입 필수)
+const PNG_FALLBACK = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64"
+);
+
+function svgImage(svgStr, widthPx, heightPx) {
+  return new ImageRun({
+    type: "svg",
+    data: Buffer.from(svgStr),
+    transformation: { width: widthPx, height: heightPx },
+    fallback: { type: "png", data: PNG_FALLBACK },
+  });
+}
+
+// ── 수평 그룹형 막대 차트 ─────────────────────────────────────
+// bars: [{label, segments:[{val,color,label}]}]
+function svgGroupedBarChart({ title, bars, width = 680, height = 280, xMax = 100 }) {
+  const marginL = 210, marginR = 80, marginT = 50, marginB = 40;
+  const chartW = width - marginL - marginR;
+  const chartH = height - marginT - marginB;
+  const rowH = Math.floor(chartH / bars.length);
+  const barH = Math.min(26, rowH - 10);
+
+  const xScale = v => (v / xMax) * chartW;
+
+  let rects = "";
+  let labels = "";
+
+  bars.forEach((bar, i) => {
+    const y = marginT + i * rowH + (rowH - barH) / 2;
+    // row label
+    labels += `<text x="${marginL - 8}" y="${y + barH / 2 + 5}" font-size="12" fill="#444" font-family="Arial" text-anchor="end">${bar.label}</text>`;
+    // segments stacked horizontally
+    let xCur = 0;
+    bar.segments.forEach(seg => {
+      const w = xScale(seg.val);
+      if (w > 0) {
+        rects += `<rect x="${marginL + xCur}" y="${y}" width="${w}" height="${barH}" fill="${seg.color}" rx="2"/>`;
+        if (w > 28) {
+          rects += `<text x="${marginL + xCur + w / 2}" y="${y + barH / 2 + 4}" font-size="11" fill="white" font-family="Arial" font-weight="bold" text-anchor="middle">${seg.val}%</text>`;
+        }
+      }
+      xCur += w;
+    });
+    // total label at end (clamp to avoid overflow)
+    const total = bar.segments.reduce((s, sg) => s + sg.val, 0);
+    const labelX = Math.min(marginL + xScale(total) + 4, width - marginR - 2);
+    labels += `<text x="${labelX}" y="${y + barH / 2 + 4}" font-size="11" fill="#333" font-family="Arial">${total}%</text>`;
+  });
+
+  // x-axis grid lines
+  let grid = "";
+  [0, 25, 50, 75, 100].forEach(v => {
+    const x = marginL + xScale(v);
+    grid += `<line x1="${x}" y1="${marginT - 8}" x2="${x}" y2="${marginT + chartH}" stroke="#DDD" stroke-width="1"/>`;
+    grid += `<text x="${x}" y="${marginT - 12}" font-size="10" fill="#999" font-family="Arial" text-anchor="middle">${v}%</text>`;
+  });
+
+  // Legend
+  const allSegs = [...new Set(bars.flatMap(b => b.segments.map(s => JSON.stringify({label:s.segLabel,color:s.color}))))].map(s=>JSON.parse(s));
+  let legend = "";
+  const legendItemW = Math.floor((width - marginL) / Math.max(allSegs.length, 1));
+  allSegs.forEach((seg, i) => {
+    const lx = marginL + i * legendItemW;
+    const ly = height - 12;
+    legend += `<rect x="${lx}" y="${ly - 10}" width="12" height="12" fill="${seg.color}" rx="2"/>`;
+    legend += `<text x="${lx + 16}" y="${ly}" font-size="11" fill="#555" font-family="Arial">${seg.label}</text>`;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="white" rx="8"/>
+  <text x="${width/2}" y="28" font-size="14" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">${title}</text>
+  ${grid}${rects}${labels}${legend}
+</svg>`;
+}
+
+// ── 도넛 차트 ─────────────────────────────────────────────────
+function svgDonutChart({ title, slices, size = 320 }) {
+  // slices: [{label, value, color}]
+  const cx = size / 2, cy = size / 2 + 20;
+  const R = size * 0.32, r = size * 0.18;
+  const total = slices.reduce((s, sl) => s + sl.value, 0);
+  let paths = "";
+  let legendItems = "";
+  let angle = -Math.PI / 2;
+
+  slices.forEach((sl, i) => {
+    const sweep = (sl.value / total) * 2 * Math.PI;
+    const x1 = cx + R * Math.cos(angle);
+    const y1 = cy + R * Math.sin(angle);
+    const x2 = cx + R * Math.cos(angle + sweep);
+    const y2 = cy + R * Math.sin(angle + sweep);
+    const ix1 = cx + r * Math.cos(angle);
+    const iy1 = cy + r * Math.sin(angle);
+    const ix2 = cx + r * Math.cos(angle + sweep);
+    const iy2 = cy + r * Math.sin(angle + sweep);
+    const lg = sweep > Math.PI ? 1 : 0;
+
+    paths += `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${lg},1 ${x2.toFixed(1)},${y2.toFixed(1)} L${ix2.toFixed(1)},${iy2.toFixed(1)} A${r},${r} 0 ${lg},0 ${ix1.toFixed(1)},${iy1.toFixed(1)} Z" fill="${sl.color}"/>`;
+
+    // slice label
+    const midAngle = angle + sweep / 2;
+    const lx = cx + (R + r) / 2 * Math.cos(midAngle);
+    const ly = cy + (R + r) / 2 * Math.sin(midAngle);
+    const pct = Math.round(sl.value / total * 100);
+    if (pct > 8) {
+      paths += `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" font-size="12" fill="white" font-family="Arial" font-weight="bold" text-anchor="middle">${pct}%</text>`;
+    }
+    angle += sweep;
+
+    // legend
+    const lrow = Math.floor(i / 2);
+    const lcol = i % 2;
+    const lbx = 20 + lcol * (size / 2 - 10);
+    const lby = size + 10 + lrow * 20;
+    legendItems += `<rect x="${lbx}" y="${lby - 10}" width="12" height="12" fill="${sl.color}" rx="2"/>`;
+    legendItems += `<text x="${lbx + 16}" y="${lby}" font-size="11" fill="#444" font-family="Arial">${sl.label} (${sl.value})</text>`;
+  });
+
+  const legendH = Math.ceil(slices.length / 2) * 20 + 20;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size + legendH + 20}">
+  <rect width="${size}" height="${size + legendH + 20}" fill="white" rx="8"/>
+  <text x="${size/2}" y="18" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">${title}</text>
+  ${paths}
+  <circle cx="${cx}" cy="${cy}" r="${r - 2}" fill="white"/>
+  <text x="${cx}" y="${cy - 6}" font-size="11" fill="#666" font-family="Arial" text-anchor="middle">합계</text>
+  <text x="${cx}" y="${cy + 12}" font-size="14" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">${total}</text>
+  ${legendItems}
+</svg>`;
+}
+
+// ── 수직 막대 차트 ────────────────────────────────────────────
+function svgVerticalBar({ title, bars, width = 500, height = 300, yMax = 100, yLabel = "%" }) {
+  // bars: [{label, value, color}]
+  const marginL = 50, marginR = 20, marginT = 50, marginB = 60;
+  const chartW = width - marginL - marginR;
+  const chartH = height - marginT - marginB;
+  const bw = Math.floor((chartW / bars.length) * 0.6);
+  const gap = Math.floor(chartW / bars.length);
+  const yScale = v => chartH - (v / yMax) * chartH;
+
+  let rects = "";
+  let xlabels = "";
+  bars.forEach((b, i) => {
+    const x = marginL + i * gap + (gap - bw) / 2;
+    const y = marginT + yScale(b.value);
+    const h = chartH - yScale(b.value);
+    rects += `<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${b.color}" rx="3"/>`;
+    rects += `<text x="${x + bw/2}" y="${y - 5}" font-size="12" fill="${b.color}" font-family="Arial" font-weight="bold" text-anchor="middle">${b.value}${yLabel}</text>`;
+    // x label (multi-line)
+    const lines = b.label.split("\n");
+    lines.forEach((ln, li) => {
+      xlabels += `<text x="${x + bw/2}" y="${marginT + chartH + 16 + li * 14}" font-size="11" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+
+  // y-axis grid
+  let grid = "";
+  [0, 25, 50, 75, 100].filter(v => v <= yMax).forEach(v => {
+    const y = marginT + yScale(v);
+    grid += `<line x1="${marginL}" y1="${y}" x2="${marginL + chartW}" y2="${y}" stroke="#EEE" stroke-width="1"/>`;
+    grid += `<text x="${marginL - 4}" y="${y + 4}" font-size="10" fill="#999" font-family="Arial" text-anchor="end">${v}</text>`;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="white" rx="8"/>
+  <text x="${width/2}" y="28" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">${title}</text>
+  <line x1="${marginL}" y1="${marginT}" x2="${marginL}" y2="${marginT + chartH}" stroke="#CCC" stroke-width="1.5"/>
+  <line x1="${marginL}" y1="${marginT + chartH}" x2="${marginL + chartW}" y2="${marginT + chartH}" stroke="#CCC" stroke-width="1.5"/>
+  ${grid}${rects}${xlabels}
+</svg>`;
+}
+
+// ── SVG 아키텍처 플로우 다이어그램 ───────────────────────────
+function svgArchDiagram() {
+  const w = 700, h = 220;
+  const boxes = [
+    { x: 10,  y: 60, w: 110, h: 60, bg: "#1A3E6B", label: "카메라", sub: "CameraX" },
+    { x: 165, y: 60, w: 110, h: 60, bg: "#2E75B6", label: "AI 추론", sub: "TFLite YOLO11n\n30ms 이내" },
+    { x: 320, y: 60, w: 110, h: 60, bg: "#E67E22", label: "위험도 계산", sub: "IoU+EMA\n필터링" },
+    { x: 475, y: 20, w: 110, h: 55, bg: "#27AE60", label: "음성 안내", sub: "TTS 한국어" },
+    { x: 475, y: 90, w: 110, h: 55, bg: "#7D3C98", label: "진동 패턴", sub: "4단계 햅틱" },
+    { x: 600, y: 150, w: 90, h: 50, bg: "#2C3E50", label: "서버/DB", sub: "FastAPI\nSSE 대시보드" },
+  ];
+  const arrows = [
+    [120, 90, 165, 90],
+    [275, 90, 320, 90],
+    [430, 75, 475, 47],
+    [430, 90, 475, 117],
+    [475+55, 117, 600, 170],
+  ];
+
+  let svgBoxes = "", svgArrows = "", svgTexts = "";
+
+  boxes.forEach(b => {
+    svgBoxes += `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${b.bg}" rx="6"/>`;
+    svgTexts += `<text x="${b.x + b.w/2}" y="${b.y + b.h/2 - 6}" font-size="12" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${b.label}</text>`;
+    b.sub.split("\n").forEach((ln, i) => {
+      svgTexts += `<text x="${b.x + b.w/2}" y="${b.y + b.h/2 + 8 + i*12}" font-size="9" fill="#EEE" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+
+  arrows.forEach(([x1,y1,x2,y2]) => {
+    svgArrows += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#999" stroke-width="2" marker-end="url(#arrow)"/>`;
+  });
+
+  // 온디바이스 영역 표시
+  const label1 = "온디바이스 (오프라인 완전 작동)";
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#999"/>
+    </marker>
+  </defs>
+  <rect width="${w}" height="${h}" fill="#FAFAFA" rx="8"/>
+  <rect x="5" y="40" width="590" height="140" fill="none" stroke="#2E75B6" stroke-width="1.5" stroke-dasharray="6,3" rx="8"/>
+  <text x="12" y="36" font-size="11" fill="#2E75B6" font-family="Arial" font-style="italic">${label1}</text>
+  ${svgArrows}${svgBoxes}${svgTexts}
+  <text x="${w/2}" y="208" font-size="11" fill="#888" font-family="Arial" text-anchor="middle">서버 연동은 선택적 — 네트워크 없이도 핵심 기능 100% 유지</text>
+</svg>`;
+}
+
+// ── SVG 타임라인 ──────────────────────────────────────────────
+function svgTimeline() {
+  const w = 700, h = 200;
+  const phases = [
+    { label: "1단계 MVP", period: "현재~1개월", goal: "TFLite 추론 안정화\n위험도 규칙 완성", color: "#1A3E6B" },
+    { label: "2단계 파일럿", period: "1~3개월", goal: "복지관 3곳 MOU\n사용자 20인 테스트", color: "#2E75B6" },
+    { label: "3단계 조달", period: "3~6개월", goal: "NIA 보조기기\n보급사업 등록", color: "#E67E22" },
+    { label: "4단계 확장", period: "6개월+", goal: "스마트 글래스\n해외시장 진출", color: "#27AE60" },
+  ];
+  const step = w / phases.length;
+  const cy = 90;
+
+  let items = "";
+  phases.forEach((p, i) => {
+    const cx = step * i + step / 2;
+    // connector line
+    if (i < phases.length - 1) {
+      items += `<line x1="${cx + 20}" y1="${cy}" x2="${cx + step - 20}" y2="${cy}" stroke="#CCC" stroke-width="2" marker-end="url(#arrowTL)"/>`;
+    }
+    // circle
+    items += `<circle cx="${cx}" cy="${cy}" r="18" fill="${p.color}"/>`;
+    items += `<text x="${cx}" y="${cy + 5}" font-size="11" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${i+1}</text>`;
+    // phase label above
+    items += `<text x="${cx}" y="${cy - 28}" font-size="12" font-weight="bold" fill="${p.color}" font-family="Arial" text-anchor="middle">${p.label}</text>`;
+    items += `<text x="${cx}" y="${cy - 14}" font-size="10" fill="#999" font-family="Arial" text-anchor="middle">${p.period}</text>`;
+    // goal below
+    p.goal.split("\n").forEach((ln, li) => {
+      items += `<text x="${cx}" y="${cy + 32 + li*14}" font-size="10" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs>
+    <marker id="arrowTL" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#CCC"/>
+    </marker>
+  </defs>
+  <rect width="${w}" height="${h}" fill="white" rx="8"/>
+  <text x="${w/2}" y="18" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">중장기 발전 로드맵</text>
+  ${items}
+</svg>`;
+}
+
+// ── SVG 포지셔닝 매트릭스 ─────────────────────────────────────
+function svgPositioningMatrix() {
+  const w = 500, h = 380;
+  const cx = w/2, cy = h/2 + 20;
+
+  const items = [
+    { x: cx - 90, y: cy - 80, label: "VoiceGuide", sub: "자동+온디바이스", color: "#1A3E6B", r: 28, bold: true },
+    { x: cx + 90, y: cy + 80, label: "Be My Eyes", sub: "수동+클라우드", color: "#CCC", r: 18 },
+    { x: cx - 90, y: cy + 80, label: "흰지팡이", sub: "수동+아날로그", color: "#CCC", r: 16 },
+    { x: cx + 90, y: cy - 60, label: "Seeing AI", sub: "수동+클라우드", color: "#CCC", r: 16 },
+  ];
+
+  let dots = "";
+  items.forEach(it => {
+    dots += `<circle cx="${it.x}" cy="${it.y}" r="${it.r}" fill="${it.color}" opacity="${it.bold ? 1 : 0.5}"/>`;
+    dots += `<text x="${it.x}" y="${it.y + 4}" font-size="${it.bold ? 10 : 9}" font-weight="${it.bold ? 'bold' : 'normal'}" fill="${it.bold ? 'white' : '#555'}" font-family="Arial" text-anchor="middle">${it.label}</text>`;
+    if (!it.bold) {
+      dots += `<text x="${it.x}" y="${it.y + 16}" font-size="9" fill="#888" font-family="Arial" text-anchor="middle">${it.sub}</text>`;
+    } else {
+      dots += `<text x="${it.x}" y="${it.y + 16}" font-size="9" fill="#2E75B6" font-family="Arial" text-anchor="middle">${it.sub}</text>`;
+    }
+  });
+
+  // 사각형 배경 4분면
+  const quad = [
+    { x: 40, y: 40, w: cx-40, h: cy-40, fill: "#FFF9F0", label: "자동/클라우드" },
+    { x: cx, y: 40, w: cx-40, h: cy-40, fill: "#E8F4FF", label: "자동/온디바이스 ★" },
+    { x: 40, y: cy, w: cx-40, h: cy-40, fill: "#F5F5F5", label: "수동/아날로그" },
+    { x: cx, y: cy, w: cx-40, h: cy-40, fill: "#FFF5F5", label: "수동/클라우드" },
+  ];
+
+  let quadSvg = "";
+  quad.forEach(q => {
+    quadSvg += `<rect x="${q.x}" y="${q.y}" width="${q.w}" height="${q.h}" fill="${q.fill}" stroke="#DDD" stroke-width="0.5"/>`;
+    quadSvg += `<text x="${q.x + q.w/2}" y="${q.y + 14}" font-size="10" fill="#AAA" font-family="Arial" text-anchor="middle">${q.label}</text>`;
+  });
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="white" rx="8"/>
+  <text x="${w/2}" y="22" font-size="13" font-weight="bold" fill="#1A3E6B" font-family="Arial" text-anchor="middle">경쟁 포지셔닝 매트릭스</text>
+  ${quadSvg}
+  <line x1="${cx}" y1="40" x2="${cx}" y2="${h-40}" stroke="#BBB" stroke-width="1.5"/>
+  <line x1="40" y1="${cy}" x2="${w-40}" y2="${cy}" stroke="#BBB" stroke-width="1.5"/>
+  <text x="${w/2}" y="${h-8}" font-size="10" fill="#888" font-family="Arial" text-anchor="middle">← 수동 감지  |  자동 감지 →</text>
+  <text x="14" y="${cy}" font-size="10" fill="#888" font-family="Arial" text-anchor="middle" transform="rotate(-90,14,${cy})">← 클라우드  |  온디바이스 →</text>
+  ${dots}
+</svg>`;
+}
+
+// ── SVG 데이터 파이프라인 ─────────────────────────────────────
+function svgDataPipeline() {
+  const w = 700, h = 160;
+  const steps = [
+    { label: "공공데이터\n수집", sub: "사회보장정보원\n보건복지부", color: "#1A3E6B" },
+    { label: "정규화\n점수화", sub: "WGS84 좌표\n접근성 0~5점", color: "#2E75B6" },
+    { label: "경로\n최적화", sub: "안전경로 선택\n접근성 우선", color: "#E67E22" },
+    { label: "서비스\n연동", sub: "TTS 안내문\nSSE 대시보드", color: "#27AE60" },
+    { label: "정책\n환류", sub: "비식별 위험로그\n지자체 제공", color: "#7D3C98" },
+  ];
+  const bw = 100, bh = 70, gap = (w - 40 - steps.length * bw) / (steps.length - 1);
+  let items = "";
+  steps.forEach((s, i) => {
+    const x = 20 + i * (bw + gap);
+    const y = (h - bh) / 2;
+    items += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${s.color}" rx="6"/>`;
+    s.label.split("\n").forEach((ln, li) => {
+      items += `<text x="${x+bw/2}" y="${y+20+li*14}" font-size="12" font-weight="bold" fill="white" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+    s.sub.split("\n").forEach((ln, li) => {
+      items += `<text x="${x+bw/2}" y="${y+bh+12+li*12}" font-size="9" fill="#666" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+    if (i < steps.length - 1) {
+      items += `<line x1="${x+bw+2}" y1="${h/2}" x2="${x+bw+gap-2}" y2="${h/2}" stroke="#BBB" stroke-width="2" marker-end="url(#arrowDP)"/>`;
+    }
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h+40}">
+  <defs>
+    <marker id="arrowDP" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#BBB"/>
+    </marker>
+  </defs>
+  <rect width="${w}" height="${h+40}" fill="white" rx="8"/>
+  ${items}
+</svg>`;
+}
+
+// ── SVG KPI 행 (숫자 + 라벨 카드, 인포카드 대체) ──────────────
+function svgKpiRow({ stats, width = 680, height = 130 }) {
+  const n = stats.length;
+  const pad = 10;
+  const cardW = Math.floor((width - (n + 1) * pad) / n);
+  let cards = "";
+  stats.forEach((s, i) => {
+    const x = pad + i * (cardW + pad);
+    const lines = s.label.split("\n");
+    cards += `<rect x="${x}" y="6" width="${cardW}" height="${height - 12}" fill="#F8FAFB" rx="6" stroke="${s.color}" stroke-width="2"/>`;
+    cards += `<rect x="${x}" y="6" width="5" height="${height - 12}" fill="${s.color}" rx="3"/>`;
+    cards += `<text x="${x + cardW / 2 + 2}" y="${Math.round(height * 0.48)}" font-size="26" font-weight="bold" fill="${s.color}" font-family="Arial" text-anchor="middle">${s.value}</text>`;
+    lines.forEach((ln, li) => {
+      cards += `<text x="${x + cardW / 2 + 2}" y="${Math.round(height * 0.48 + 20 + li * 14)}" font-size="10" fill="#555" font-family="Arial" text-anchor="middle">${ln}</text>`;
+    });
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  <rect width="${width}" height="${height}" fill="white"/>
+  ${cards}
+</svg>`;
+}
+
+// ─── 색상 ─────────────────────────────────────────────────────
 const C = {
-  primary:    "1A3E6B",  // 진남색 (브랜드)
-  secondary:  "2E75B6",  // 중간 파랑
-  accent:     "F2913D",  // 오렌지 (강조)
-  light:      "D6E4F7",  // 연파랑 배경
-  lightest:   "EBF4FF",  // 더 연한 파랑
-  white:      "FFFFFF",
-  black:      "1A1A1A",
-  gray:       "F5F5F5",
-  midgray:    "AAAAAA",
-  darkgray:   "555555",
-  danger:     "C0392B",  // 빨강 (긴급)
-  warning:    "E67E22",  // 주황 (주의)
-  safe:       "27AE60",  // 초록 (안전)
-  purple:     "7D3C98",
+  primary:   "1A3E6B",
+  secondary: "2E75B6",
+  accent:    "F2913D",
+  light:     "D6E4F7",
+  lightest:  "EBF4FF",
+  white:     "FFFFFF",
+  black:     "1A1A1A",
+  gray:      "F5F5F5",
+  midgray:   "888888",
+  dark:      "444444",
+  danger:    "C0392B",
+  warning:   "E67E22",
+  safe:      "27AE60",
+  yellow:    "F5F5F5",
+  orange:    "F5F5F5",
+  green:     "EBF5FB",
+  blue:      "F5F5F5",
+  purple:    "F5F5F5",
 };
 
-// ─── 도우미 함수 ──────────────────────────────────────────────
-const border1 = (color = "CCCCCC") => ({ style: BorderStyle.SINGLE, size: 1, color });
-const borders = (color = "CCCCCC") => ({
-  top: border1(color), bottom: border1(color),
-  left: border1(color), right: border1(color)
-});
-const noBorder = () => ({
-  top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
-  left: { style: BorderStyle.NONE }, right: border1("DDDDDD")
-});
-const noBorderAll = () => ({
-  top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE },
-  left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
-});
+// ─── 테두리 ────────────────────────────────────────────────────
+const b1 = (c = "CCCCCC") => ({ style: BorderStyle.SINGLE, size: 1, color: c });
+const bAll = (c = "CCCCCC") => ({ top: b1(c), bottom: b1(c), left: b1(c), right: b1(c) });
+const bNone = () => ({ top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } });
 
-function cell(children, { bg = C.white, bold = false, align = AlignmentType.LEFT,
-  vAlign = VerticalAlign.CENTER, width = null, color = C.black, size = 20,
-  bdr = borders(), span = 1, italic = false } = {}) {
-  const cellChildren = Array.isArray(children) ? children : [
-    new Paragraph({
-      alignment: align,
-      children: [new TextRun({ text: String(children), bold, color, size, font: "Arial", italics: italic })]
-    })
-  ];
+// ─── 셀 생성 ──────────────────────────────────────────────────
+function cell(content, {
+  bg = C.white, bold = false, align = AlignmentType.LEFT,
+  vAlign = VerticalAlign.CENTER, w = null, color = C.black,
+  sz = 19, bdr = null, span = 1, italic = false,
+  indent = 0, before = 80, after = 80,
+} = {}) {
+  let children;
+  if (Array.isArray(content)) {
+    children = content;
+  } else {
+    const lines = String(content).split('\n');
+    children = lines.map((line, i) =>
+      new Paragraph({
+        alignment: align,
+        spacing: { before: i === 0 ? before : 40, after: i === lines.length - 1 ? after : 40 },
+        indent: indent ? { left: indent } : undefined,
+        children: [new TextRun({ text: line, bold, color, size: sz, font: "Malgun Gothic", italics: italic })],
+      })
+    );
+  }
   const opts = {
-    borders: bdr,
+    borders: bdr || bAll(),
     shading: { fill: bg, type: ShadingType.CLEAR },
-    margins: { top: 100, bottom: 100, left: 130, right: 130 },
+    margins: { top: 90, bottom: 90, left: 120, right: 120 },
     verticalAlign: vAlign,
     columnSpan: span,
-    children: cellChildren,
+    children,
   };
-  if (width) opts.width = { size: width, type: WidthType.DXA };
+  if (w) opts.width = { size: w, type: WidthType.DXA };
   return new TableCell(opts);
 }
 
-function hCell(text, { bg = C.primary, color = C.white, width = null, align = AlignmentType.CENTER, size = 19, span = 1 } = {}) {
+// 헤더 셀
+function hc(text, { bg = C.primary, color = C.white, w = null, align = AlignmentType.CENTER, sz = 19, span = 1 } = {}) {
   return cell([new Paragraph({
     alignment: align,
-    children: [new TextRun({ text, bold: true, color, size, font: "Arial" })]
-  })], { bg, bdr: borders("999999"), width, span });
+    spacing: { before: 100, after: 100 },
+    children: [new TextRun({ text, bold: true, color, size: sz, font: "Malgun Gothic" })],
+  })], { bg, bdr: bAll("888888"), w, span });
 }
 
-function row(...cells) {
-  return new TableRow({ children: cells });
-}
-
-function makeTable(rows, { width = 9360, colWidths = [] } = {}) {
+// 테이블 생성
+function tbl(rows, { w = 9072, cols = [] } = {}) {
   return new Table({
-    width: { size: width, type: WidthType.DXA },
-    columnWidths: colWidths.length ? colWidths : undefined,
+    width: { size: w, type: WidthType.DXA },
+    columnWidths: cols.length ? cols : undefined,
     rows,
   });
 }
 
-function h1(text) {
+function row(...cells) { return new TableRow({ children: cells }); }
+
+// ─── 텍스트 요소 ──────────────────────────────────────────────
+function sectionTitle(num, text) {
   return new Paragraph({
-    pageBreakBefore: true,
-    spacing: { before: 0, after: 240 },
+    pageBreakBefore: num !== "cover",
+    spacing: { before: 0, after: 200 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: C.primary, space: 4 } },
     children: [
-      new TextRun({ text: "■ ", color: C.accent, size: 34, bold: true, font: "Arial" }),
-      new TextRun({ text, bold: true, color: C.primary, size: 34, font: "Arial" }),
+      new TextRun({ text: `${num}. `, bold: true, color: C.secondary, size: 30, font: "Malgun Gothic" }),
+      new TextRun({ text, bold: true, color: C.primary, size: 30, font: "Malgun Gothic" }),
     ],
-    border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: C.secondary, space: 6 } }
   });
 }
 
-function h2(text) {
+function subTitle(text) {
   return new Paragraph({
-    spacing: { before: 240, after: 160 },
+    spacing: { before: 200, after: 120 },
     children: [
-      new TextRun({ text: "▶ ", color: C.secondary, size: 26, bold: true, font: "Arial" }),
-      new TextRun({ text, bold: true, color: C.primary, size: 26, font: "Arial" }),
-    ]
+      new TextRun({ text: "※ ", bold: true, color: C.accent, size: 23, font: "Malgun Gothic" }),
+      new TextRun({ text, bold: true, color: C.primary, size: 23, font: "Malgun Gothic" }),
+    ],
   });
 }
 
-function h3(text) {
+function bullet(text, { indent = 360, sz = 19, color = C.black, bold = false } = {}) {
   return new Paragraph({
-    spacing: { before: 200, after: 100 },
-    children: [new TextRun({ text: `◆ ${text}`, bold: true, color: C.secondary, size: 22, font: "Arial" })]
+    spacing: { before: 60, after: 60 },
+    indent: { left: indent, hanging: 240 },
+    children: [
+      new TextRun({ text: "◦ ", color: C.secondary, size: sz, font: "Malgun Gothic", bold: true }),
+      new TextRun({ text, size: sz, color, font: "Malgun Gothic", bold }),
+    ],
   });
 }
 
-function p(text, { size = 20, color = C.black, bold = false, indent = 0, after = 80 } = {}) {
+function note(text) {
   return new Paragraph({
-    spacing: { before: 40, after },
-    indent: indent ? { left: indent } : undefined,
-    children: [new TextRun({ text, size, color, bold, font: "Arial" })]
+    spacing: { before: 80, after: 80 },
+    indent: { left: 240 },
+    children: [new TextRun({ text, size: 17, color: C.dark, font: "Malgun Gothic", italics: true })],
   });
 }
 
-function spacer(n = 120) {
+function sp(n = 120) {
   return new Paragraph({ spacing: { before: n, after: 0 }, children: [new TextRun("")] });
 }
 
-function pageBreak() {
+function pb() {
   return new Paragraph({ children: [new PageBreak()] });
 }
 
-// ─── 바 차트 (텍스트 기반) ───────────────────────────────────
-function barChart(items, { maxVal = 100, width = 24 } = {}) {
-  return items.map(([label, val, color = C.primary]) => {
-    const filled = Math.round((val / maxVal) * width);
-    const bar = "█".repeat(filled) + "░".repeat(width - filled);
-    return new Paragraph({
-      spacing: { before: 40, after: 40 },
-      children: [
-        new TextRun({ text: label.padEnd(18), font: "Arial", size: 18, color: C.darkgray }),
-        new TextRun({ text: bar, font: "Arial", size: 14, color }),
-        new TextRun({ text: `  ${val}%`, font: "Arial", size: 18, bold: true, color }),
-      ]
-    });
+function p(text, { sz = 19, color = C.black, bold = false, indent = 0 } = {}) {
+  return new Paragraph({
+    spacing: { before: 60, after: 80 },
+    indent: indent ? { left: indent } : undefined,
+    children: [new TextRun({ text, size: sz, color, font: "Malgun Gothic", bold })],
   });
 }
 
-// ─── 표지 ───────────────────────────────────────────────────
+// ─── 시각화 헬퍼 ─────────────────────────────────────────────
+
+// 인포그래픽 카드 박스 (큰 숫자 + 설명)
+function infoCard(value, label, bg, borderColor, w = 2268) {
+  return cell([
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 30 }, children: [
+      new TextRun({ text: value, bold: true, size: 64, color: bg === C.white ? C.primary : C.white, font: "Malgun Gothic" }),
+    ]}),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 120 }, children: [
+      new TextRun({ text: label, size: 18, color: bg === C.white ? C.dark : "EEEEEE", font: "Malgun Gothic" }),
+    ]}),
+  ], { bg, bdr: bAll(borderColor), w });
+}
+
+// 화살표 셀 (플로우차트 연결)
+function arrowCell(w = 400, vertical = false) {
+  return cell(
+    vertical ? "▼" : "▶",
+    { bg: C.white, bdr: bNone(), w, align: AlignmentType.CENTER, bold: true, color: C.secondary, sz: 28 }
+  );
+}
+
+// 플로우 박스 (시스템 아키텍처 등)
+function flowBox(title, desc, bg, borderColor, w = 1400) {
+  return cell([
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+      new TextRun({ text: title, bold: true, size: 20, color: C.white, font: "Malgun Gothic" }),
+    ]}),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 80 }, children: [
+      new TextRun({ text: desc, size: 15, color: "EEEEEE", font: "Malgun Gothic" }),
+    ]}),
+  ], { bg, bdr: bAll(borderColor), w });
+}
+
+// 바 차트 행 (테이블 셀 기반)
+function barChartRow(label, pct, total, color, bg = C.white) {
+  const filled = Math.round(pct / 100 * 40);
+  const bar = "█".repeat(filled) + "░".repeat(40 - filled);
+  return row(
+    cell(label, { w: 2400, bold: true, bg }),
+    cell([new Paragraph({ spacing: { before: 60, after: 60 }, children: [
+      new TextRun({ text: bar, font: "Malgun Gothic", size: 14, color }),
+      new TextRun({ text: `  ${pct}%`, font: "Malgun Gothic", size: 18, bold: true, color }),
+    ]})], { w: 5272, bg }),
+    cell(total, { w: 1400, align: AlignmentType.CENTER, bold: true, color, bg }),
+  );
+}
+
+// 타임라인 단계 셀
+function timelineStep(phase, period, goal, color, w = 2200) {
+  return cell([
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+      new TextRun({ text: phase, bold: true, size: 22, color: C.white, font: "Malgun Gothic" }),
+    ]}),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [
+      new TextRun({ text: period, size: 16, color: "CCCCCC", font: "Malgun Gothic" }),
+    ]}),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 80 }, children: [
+      new TextRun({ text: goal, size: 17, color: "FFFFFF", font: "Malgun Gothic", bold: true }),
+    ]}),
+  ], { bg: color, bdr: bAll(color), w });
+}
+
+// 아이콘 + 텍스트 행 (체크리스트 스타일)
+function iconRow(icon, text, color = C.primary) {
+  return new Paragraph({
+    spacing: { before: 60, after: 60 },
+    indent: { left: 240, hanging: 360 },
+    children: [
+      new TextRun({ text: `${icon}  `, bold: true, color, size: 22, font: "Malgun Gothic" }),
+      new TextRun({ text, size: 19, color: C.black, font: "Malgun Gothic" }),
+    ],
+  });
+}
+
+// ─── 표지 ─────────────────────────────────────────────────────
 function coverPage() {
   return [
-    spacer(400),
+    sp(300),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 120 },
-      children: [new TextRun({ text: "2026 국민행복 서비스 발굴·창업경진대회", size: 22, color: C.midgray, font: "Arial" })]
+      spacing: { before: 0, after: 80 },
+      children: [new TextRun({ text: "「2026 국민행복 서비스 발굴 · 창업경진대회」 사업계획서", size: 22, color: C.midgray, font: "Malgun Gothic" })],
     }),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 60 }, children: [new TextRun({ text: "VoiceGuide", bold: true, size: 80, color: C.primary, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [new TextRun({ text: "보이스가이드", bold: true, size: 30, color: C.secondary, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 160 }, children: [new TextRun({ text: "시각장애인을 위한 온디바이스 AI 스마트폰 보행 보조 서비스", size: 24, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.lightest, bdr: bAll(C.secondary), span: 3 }),
+      ),
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "25만+", bold: true, size: 52, color: C.primary, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "국내 등록 시각장애인", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.blue, bdr: bAll(C.secondary), w: 3024 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "82종", bold: true, size: 52, color: C.accent, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "장애물 탐지 클래스", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.orange, bdr: bAll("E67E22"), w: 3024 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "100%", bold: true, size: 52, color: C.safe, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "온디바이스 프라이버시 보호", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.green, bdr: bAll("27AE60"), w: 3024 }),
+      ),
+    ], { w: 9072, cols: [3024, 3024, 3024] }),
+    sp(160),
+    tbl([
+      row(
+        hc("아이디어 주제(팀명)", { w: 2200, bg: C.primary }),
+        cell("VoiceGuide (보이스가이드)   /   AI Human 4기 3팀", { w: 6872, bold: true, color: C.primary }),
+      ),
+    ], { w: 9072, cols: [2200, 6872] }),
+    sp(80),
+    tbl([
+      row(
+        hc("아이디어 요약\n(5줄 이내)", { w: 2200, bg: C.secondary }),
+        cell([
+          bullet("국내 등록 시각장애인 25만 명의 독립 보행을 위한 온디바이스 AI 기반 스마트폰 보행 보조 서비스"),
+          bullet("YOLO11n-Nano + TFLite 온디바이스 추론으로 전방 장애물을 실시간 감지하고 방향별 한국어 음성 경고 제공"),
+          bullet("흰지팡이가 탐지하지 못하는 상체 높이 장애물(킥보드, 볼라드, 공사 표지판 등)을 선제적으로 인식·안내"),
+          bullet("완전 핸즈프리 음성 명령 지원 및 네트워크 없이도 구동되는 오프라인 온디바이스 처리 구조로 프라이버시 보호"),
+          bullet("공공데이터(한국사회보장정보원, 보건복지부)를 활용한 실증 코스 설계 및 복지기관 파트너십 추진"),
+        ], { w: 6872 }),
+      ),
+    ], { w: 9072, cols: [2200, 6872] }),
+    sp(200),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 60 },
+      children: [new TextRun({ text: "AI HUMAN 4기 3팀  |  2026", color: C.midgray, size: 19, font: "Malgun Gothic" })],
+    }),
+    pb(),
+  ];
+}
+
+// ─── 사업계획서 요약 ──────────────────────────────────────────
+function planSummary() {
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 160 },
+      children: [new TextRun({ text: "【 사업계획서 요약 】", bold: true, size: 28, color: C.primary, font: "Malgun Gothic" })],
       border: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: C.primary },
-        bottom: { style: BorderStyle.SINGLE, size: 4, color: C.secondary },
+        top: { style: BorderStyle.SINGLE, size: 6, color: C.primary },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: C.primary },
       },
-      children: [
-        new TextRun({ text: "VoiceGuide", bold: true, color: C.primary, size: 72, font: "Arial" }),
-      ]
     }),
+    tbl([
+      row(
+        hc("제안배경 및\n출품작 소개", { w: 2000, bg: C.primary }),
+        cell([
+          bullet("국내 시각장애인 25만 명은 흰지팡이만으로는 상체 높이 장애물 탐지가 불가능해 보행 사고 위험에 상시 노출"),
+          bullet("음향신호기 미설치율 45.3%, 볼라드 부적정 설치율 96% 등 도보 인프라 구조적 부실이 심각"),
+          bullet("VoiceGuide는 스마트폰 카메라를 활용한 온디바이스 AI로 이 사각지대를 실시간 음성 안내로 보완하는 능동형 보행 보조 앱"),
+        ], { w: 7072 }),
+      ),
+      row(
+        hc("아이디어\n핵심내용", { w: 2000, bg: C.secondary }),
+        cell([
+          bullet("YOLO11n-Nano 320/TFLite 온디바이스 추론 (레이턴시 30ms 이내)"),
+          bullet("바운딩박스 크기 기반 기하학적 거리 추정 공식 D = (F × H) / h"),
+          bullet("화면 3분할 방향 판별 및 위험도 우선순위 매트릭스"),
+          bullet("음성 출력 중복 필터(Audio Fatigue 방지)"),
+          bullet("핸즈프리 STT 음성 명령 지원 — 4가지 모드(장애물/찾기/주변확인/물건확인)"),
+        ], { w: 7072 }),
+      ),
+      row(
+        hc("기존 서비스와의\n차별성", { w: 2000, bg: C.primary }),
+        cell([
+          bullet("수동 캡처 방식(Be My Eyes 등)과 달리 앱 실행만으로 자동 실시간 감지"),
+          bullet("클라우드 전송 없이 온디바이스 100% 로컬 처리 → 즉각 반응 + 프라이버시 보호"),
+          bullet("흰지팡이(하단 지면)와 AI 카메라(상단·정면)의 상호보완 구조"),
+        ], { w: 7072 }),
+      ),
+      row(
+        hc("창업(사업화)\n가능성", { w: 2000, bg: C.secondary }),
+        cell([
+          bullet("B2G(지자체 스마트시티·정보통신보조기기 조달)"),
+          bullet("B2B(AI 엔진 SDK 라이선스)"),
+          bullet("B2C(기본 무료 + 유료 팩)"),
+          bullet("B2G2C(복지관 훈련 라이선스) — 4원 수익 구조"),
+          bullet("정보통신보조기기 보급사업 등록 시 정부가 비용의 80~90% 지원 → 빠른 보급 채널 확보"),
+        ], { w: 7072 }),
+      ),
+      row(
+        hc("파급효과", { w: 2000, bg: C.primary }),
+        cell([
+          bullet("보행 돌발 사고율 40% 이상 경감 목표"),
+          bullet("수천억 규모 물리 인프라 재설치 비용 절감"),
+          bullet("경량 Edge AI 복지 실용 모델 선도 — ESG: UN SDGs '모두를 위한 포용적 도시' 기여"),
+          bullet("온디바이스 처리로 개인정보보호법 리스크 원천 차단"),
+        ], { w: 7072 }),
+      ),
+      row(
+        hc("활용 공공데이터\n(제공기관명)", { w: 2000, bg: C.secondary }),
+        cell([
+          bullet("사회서비스 제공기관 정보 검색 (한국사회보장정보원) → 실증 복지관 매핑"),
+          bullet("장애인편의시설 현황 (한국사회보장정보원) → 필드 테스트 코스 설계"),
+          bullet("중앙부처복지서비스 (한국사회보장정보원) → 정보통신보조기기 정책 기획"),
+          bullet("등록장애인 수 (보건복지부) → 지역별 잠재 고객 규모 분석 및 마케팅 전략 수립"),
+          bullet("보행자 사고다발구역 (경찰청) → 대시보드 위험 지도 레이어"),
+          bullet("횡단보도 접근성 데이터 (서울시) → 경로 추천 시나리오"),
+        ], { w: 7072 }),
+      ),
+    ], { w: 9072, cols: [2000, 7072] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 1. 팀 역량 ──────────────────────────────────────────
+function section1() {
+  return [
+    sectionTitle("1", "참가자(팀) 주요 역량"),
+
+    subTitle("팀원 구성 및 역할 분담"),
+    tbl([
+      row(
+        hc("역할", { w: 1800 }),
+        hc("이름", { w: 1200 }),
+        hc("주요 역량 및 담당 업무", { w: 6072 }),
+      ),
+      row(
+        cell("팀장 / Android 개발", { bg: C.blue, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("정환주", { bg: C.blue, bold: true, w: 1200, align: AlignmentType.CENTER }),
+        cell([
+          bullet("Android(Kotlin) 개발 총괄, Git 브랜치 전략 수립 및 협업 아키텍처 설계", { indent: 240 }),
+          bullet("MVP 앱 인터페이스 및 CameraX 프레임 파이프라인 구축", { indent: 240 }),
+          bullet("외부 서버(GCP Cloud Run) 연동 및 오디오 제어 로직 구현", { indent: 240 }),
+          bullet("MvpPipeline.kt, SentenceBuilder.kt, VoicePolicy.kt 구현", { indent: 240 }),
+        ], { w: 6072 }),
+      ),
+      row(
+        cell("AI 모델 연동\n및 서버", { bg: C.orange, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("임명광", { bg: C.orange, bold: true, w: 1200, align: AlignmentType.CENTER }),
+        cell([
+          bullet("YOLO 객체 감지 모델 최적화 및 한국어 클래스 매핑, TFLite 형식 변환", { indent: 240 }),
+          bullet("온디바이스 추론 파이프라인 개발 (yolo11n_320.tflite)", { indent: 240 }),
+          bullet("규칙 기반 객체 거리·방향 판별 알고리즘 설계 (D=F×H/h)", { indent: 240 }),
+          bullet("GCP Cloud Run 인프라 배포, FastAPI 서버 구축", { indent: 240 }),
+        ], { w: 6072 }),
+      ),
+      row(
+        cell("UX / 기획\n사업계획서", { bg: C.purple, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("김재현", { bg: C.purple, bold: true, w: 1200, align: AlignmentType.CENTER }),
+        cell([
+          bullet("시각장애인 접근성 가이드라인 분석 및 인터뷰 기반 UX 기획", { indent: 240 }),
+          bullet("활용 공공데이터 수집 및 정제, 횡단보도 접근성 점수화 시나리오 설계", { indent: 240 }),
+          bullet("사업성/시장성 분석 및 사업계획서/발표 자료 작성", { indent: 240 }),
+          bullet("사용자 피드백 분석 및 보라매역 → 복지관 데모 시나리오 구성", { indent: 240 }),
+        ], { w: 6072 }),
+      ),
+      row(
+        cell("지도강사", { bg: C.gray, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("이석창", { bg: C.gray, bold: true, w: 1200, align: AlignmentType.CENTER }),
+        cell("AI Human 4기 지도강사", { w: 6072, color: C.dark }),
+      ),
+    ], { w: 9072, cols: [1800, 1200, 6072] }),
+
+    sp(160),
+    subTitle("팀 역량 요약 및 협업 체계"),
+    p("본 팀은 전문 AI 교육과정(AI Human 4기)을 통해 AI 알고리즘, 컴퓨터 비전, 자연어 처리, 그리고 이를 최종 배포하기 위한 모바일·클라우드 개발 전반에 걸친 실무 역량을 함양하였습니다. 단순히 고성능의 AI 모델을 만드는 것에 그치지 않고, 스마트폰 하드웨어 성능 한계를 고려한 온디바이스 경량화 모델링(TFLite)과 시각장애인 대상 접근성(Accessibility)에 맞춘 UX 기획을 결합하여, 실제 사용 가능한 '프로덕트 중심의 사고'로 협업을 진행하고 있습니다."),
+    sp(80),
+    tbl([
+      row(
+        hc("협업 방식", { w: 2000, bg: C.secondary }),
+        hc("내용", { w: 7072 }),
+      ),
+      row(
+        cell("개발 병렬화", { bg: C.blue, bold: true, w: 2000 }),
+        cell("기술팀은 Android 실시간 추론, 모델 경량화, JSON/서버 연동을 분리해 병렬 개발", { w: 7072 }),
+      ),
+      row(
+        cell("기획·UX 검증", { bg: C.purple, bold: true, w: 2000 }),
+        cell("기획·UX 담당은 시각장애인 보행 상황, 음성 경고 피로도, 공공데이터 활용 시나리오를 독립적으로 검증", { w: 7072 }),
+      ),
+      row(
+        cell("스프린트", { bg: C.orange, bold: true, w: 2000 }),
+        cell("주 2회 스크럼으로 기능 단위 이슈 관리 — 데모 영상·대시보드·사업계획서를 같은 메시지로 정렬", { w: 7072 }),
+      ),
+    ], { w: 9072, cols: [2000, 7072] }),
+
+    sp(160),
+    subTitle("역량과 심사기준 연결 표"),
+    tbl([
+      row(
+        hc("심사기준", { w: 2200 }),
+        hc("팀 보유 역량", { w: 3600 }),
+        hc("제출서류에서 보여줄 증거", { w: 3272 }),
+      ),
+      row(
+        cell("AI 기술 활용", { bg: C.blue, bold: true, w: 2200 }),
+        cell("모바일 객체감지, TFLite 변환, 위험도 로직 설계", { w: 3600 }),
+        cell("모델 구조도, 성능 목표, 위험도 매트릭스", { w: 3272 }),
+      ),
+      row(
+        cell("AI 서비스", { bg: C.orange, bold: true, w: 2200 }),
+        cell("Android 카메라 파이프라인, STT/TTS UX", { w: 3600 }),
+        cell("데모 시나리오, 음성 경고 예시", { w: 3272 }),
+      ),
+      row(
+        cell("공공데이터 활용", { bg: C.green, bold: true, w: 2200 }),
+        cell("데이터셋 조사·정제, 기관 매핑, 접근성 점수화", { w: 3600 }),
+        cell("데이터 활용표, 실증기관 발굴 계획", { w: 3272 }),
+      ),
+      row(
+        cell("발전 가능성", { bg: C.purple, bold: true, w: 2200 }),
+        cell("Cloud Run 배포 완료, 대시보드, 사업계획서 작성", { w: 3600 }),
+        cell("6개월 로드맵, PoC 제안 구조", { w: 3272 }),
+      ),
+    ], { w: 9072, cols: [2200, 3600, 3272] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 2. 제안배경 ────────────────────────────────────────
+function section2() {
+  return [
+    sectionTitle("2", "제안배경 및 출품작 소개"),
+
+    subTitle("제안 배경 및 문제 정의"),
+    p("국내 등록 시각장애인은 2023년 보건복지부 기준 약 25만 명에 달하며, 이들의 실외 독립 보행은 일상 자율성과 사회 참여를 위한 필수 조건입니다. 하지만 도심 보행 환경은 시각장애인에게 여전히 수많은 충돌 위험을 야기하고 있습니다."),
+    p("기존의 대표적 보행 보조 기구인 '흰지팡이(White Cane)'는 지면 근처 장애물 탐지에는 훌륭하지만, 지면에서 50cm 이상 떠 있는 돌출 장애물(차량 사이드미러, 건설 표지판, 현수막 줄, 나뭇가지)이나 갑자기 빠른 속도로 진입하는 전동 킥보드 등 상체 높이의 위험 요소 감지에는 명확한 한계를 지닙니다."),
+
+    sp(120),
+    subTitle("핵심 문제 현황 인포그래픽"),
     new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 40, after: 280 },
-      children: [new TextRun({ text: "시각장애인을 위한 온디바이스 AI 보행 보조 서비스", bold: true, color: C.secondary, size: 32, font: "Arial" })]
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgKpiRow({
+        stats: [
+          { value: "25만 명", label: "국내 등록 시각장애인\n(2023, 보건복지부)", color: "#1A3E6B" },
+          { value: "96%",    label: "볼라드 부적정 설치율\n(위험 장애물화)",    color: "#C0392B" },
+          { value: "45.3%",  label: "음향신호기 미설치율\n(청각 안내 공백)",   color: "#E67E22" },
+          { value: "4.0%",   label: "볼라드 적정 설치율\n(사실상 모두 위험)",  color: "#27AE60" },
+        ],
+        width: 680, height: 130,
+      }), 572, 109)],
     }),
 
-    // 핵심 지표 박스
-    makeTable([
+    sp(120),
+    subTitle("전국 시각장애인 보행 편의시설 설치 실태 (정량 데이터)"),
+    p("한국시각장애인연합회 시각장애인편의시설지원센터 2023년 전국 주요 공공/교통시설 주변 반경 300m 보행로(총 7,019개 조사 지점) 실태조사 결과:", { sz: 18, color: C.dark }),
+    sp(60),
+    tbl([
       row(
-        cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "25만+", bold: true, color: C.primary, size: 48, font: "Arial" })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "국내 시각장애인 등록자", color: C.darkgray, size: 18, font: "Arial" })] }),
-        ], { bg: C.lightest, width: 3120 }),
-        cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "82종", bold: true, color: C.accent, size: 48, font: "Arial" })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "탐지 가능 장애물 클래스", color: C.darkgray, size: 18, font: "Arial" })] }),
-        ], { bg: "FFF8F0", width: 3120 }),
-        cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "100%", bold: true, color: C.safe, size: 48, font: "Arial" })] }),
-          new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "온디바이스 추론 (프라이버시 보호)", color: C.darkgray, size: 18, font: "Arial" })] }),
-        ], { bg: "F0FFF4", width: 3120 }),
+        hc("편의시설 구분", { w: 2600 }),
+        hc("적정 설치율\n(안전)", { bg: C.safe, w: 1600 }),
+        hc("부적정 설치율\n(위험)", { bg: C.warning, w: 1600 }),
+        hc("미설치율\n(위험)", { bg: C.danger, w: 1600 }),
+        hc("VoiceGuide 보완 방식", { w: 1672 }),
       ),
-    ], { width: 9360, colWidths: [3120, 3120, 3120] }),
+      row(
+        cell("인도 점자블록", { w: 2600, bold: true }),
+        cell("4.0%", { w: 1600, align: AlignmentType.CENTER, color: C.safe, bold: true }),
+        cell("77.3%", { w: 1600, align: AlignmentType.CENTER, color: C.warning, bold: true }),
+        cell("18.7%", { w: 1600, align: AlignmentType.CENTER, color: C.danger, bold: true }),
+        cell("경로 위험 객체 음성 안내", { w: 1672, sz: 17 }),
+      ),
+      row(
+        cell("볼라드(차량 진입 억제용 말뚝)", { w: 2600, bold: true }),
+        cell("4.0%", { w: 1600, align: AlignmentType.CENTER, color: C.safe, bold: true }),
+        cell("96.0%", { w: 1600, align: AlignmentType.CENTER, color: C.danger, bold: true, bg: "FFEAEA" }),
+        cell("—", { w: 1600, align: AlignmentType.CENTER, color: C.midgray }),
+        cell("볼라드 객체 선제 감지", { w: 1672, sz: 17 }),
+      ),
+      row(
+        cell("신호등 음향신호기", { w: 2600, bold: true }),
+        cell("28.0%", { w: 1600, align: AlignmentType.CENTER, color: C.safe, bold: true }),
+        cell("26.7%", { w: 1600, align: AlignmentType.CENTER, color: C.warning, bold: true }),
+        cell("45.3%", { w: 1600, align: AlignmentType.CENTER, color: C.danger, bold: true, bg: "FFEAEA" }),
+        cell("접근성 우수 경로 추천", { w: 1672, sz: 17 }),
+      ),
+      row(
+        cell("교통시설 점자블록 연계성", { w: 2600, bold: true }),
+        cell("7.8%", { w: 1600, align: AlignmentType.CENTER, color: C.safe, bold: true }),
+        cell("37.5%", { w: 1600, align: AlignmentType.CENTER, color: C.warning, bold: true }),
+        cell("54.7%", { w: 1600, align: AlignmentType.CENTER, color: C.danger, bold: true }),
+        cell("공공데이터 연계 안내", { w: 1672, sz: 17 }),
+      ),
+    ], { w: 9072, cols: [2600, 1600, 1600, 1600, 1672] }),
+    note("VoiceGuide는 점자블록·음향신호기·볼라드를 대체하는 앱이 아니라, 설치 품질과 관리 공백을 보완하는 저비용 디지털 안전망입니다."),
 
-    spacer(200),
+    sp(120),
+    subTitle("편의시설 설치 실태 그래프 (적정/부적정/미설치 비율)"),
     new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 60, after: 60 },
-      children: [new TextRun({ text: "AI HUMAN 4기 3팀  |  2026", color: C.midgray, size: 20, font: "Arial" })]
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgGroupedBarChart({
+        title: "전국 시각장애인 보행 편의시설 설치 실태 (2023, 7,019개 지점 조사)",
+        bars: [
+          { label: "인도 점자블록", segments: [
+            { val: 4.0,  color: "#27AE60", segLabel: "적정 (안전)" },
+            { val: 77.3, color: "#E67E22", segLabel: "부적정 (위험)" },
+            { val: 18.7, color: "#C0392B", segLabel: "미설치 (위험)" },
+          ]},
+          { label: "볼라드 (차량 억제용)", segments: [
+            { val: 4.0,  color: "#27AE60", segLabel: "적정 (안전)" },
+            { val: 96.0, color: "#E67E22", segLabel: "부적정 (위험)" },
+          ]},
+          { label: "신호등 음향신호기", segments: [
+            { val: 28.0, color: "#27AE60", segLabel: "적정 (안전)" },
+            { val: 26.7, color: "#E67E22", segLabel: "부적정 (위험)" },
+            { val: 45.3, color: "#C0392B", segLabel: "미설치 (위험)" },
+          ]},
+          { label: "교통시설 점자블록 연계", segments: [
+            { val: 7.8,  color: "#27AE60", segLabel: "적정 (안전)" },
+            { val: 37.5, color: "#E67E22", segLabel: "부적정 (위험)" },
+            { val: 54.7, color: "#C0392B", segLabel: "미설치 (위험)" },
+          ]},
+        ],
+        width: 680, height: 280,
+      }), 572, 236)],
     }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "https://voiceguide-1063164560758.asia-northeast3.run.app", color: C.secondary, size: 18, font: "Arial", italics: true })]
-    }),
-    pageBreak(),
-  ];
-}
 
-// ─── 아이디어 요약 ────────────────────────────────────────────
-function summarySection() {
-  return [
-    h1("아이디어 요약"),
-    makeTable([
-      row(
-        hCell("항목", { width: 2000 }),
-        hCell("내용", { width: 7360 }),
-      ),
-      row(
-        cell("서비스명", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("VoiceGuide — 시각장애인 온디바이스 AI 스마트폰 보행 보조 서비스", { width: 7360, bold: true, color: C.primary }),
-      ),
-      row(
-        cell("대상", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("국내 등록 시각장애인 25만 명 및 저시력·보행 취약 계층", { width: 7360 }),
-      ),
-      row(
-        cell("핵심 기술", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("YOLO11n-Nano + TFLite 온디바이스 추론 / 3프레임 투표 필터 / IoU 추적 / EMA 평활화", { width: 7360 }),
-      ),
-      row(
-        cell("주요 기능", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("전방 장애물 실시간 감지 → 방향별 한국어 TTS 즉시 출력 + 위험도별 진동 패턴 4단계", { width: 7360 }),
-      ),
-      row(
-        cell("차별점", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("흰지팡이로 탐지 불가한 상체 높이 장애물(킥보드, 볼라드, 공사 표지판) 선제 인식 및 완전 핸즈프리 음성 명령", { width: 7360 }),
-      ),
-      row(
-        cell("공공데이터", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("한국사회보장정보원·보건복지부 데이터 활용 — 횡단보도 접근성 점수화, 사고다발구역 지도, 복지기관 파트너십", { width: 7360 }),
-      ),
-      row(
-        cell("플랫폼", { bg: C.light, bold: true, width: 2000, align: AlignmentType.CENTER }),
-        cell("Android 앱 (Kotlin) + FastAPI 서버 (GCP Cloud Run) + 실시간 대시보드", { width: 7360 }),
-      ),
-    ], { width: 9360, colWidths: [2000, 7360] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 제안 배경 ────────────────────────────────────────────────
-function backgroundSection() {
-  return [
-    h1("제안 배경 및 문제 정의"),
-
-    h2("1-1. 시각장애인 보행 안전의 심각성"),
-    makeTable([
-      row(
-        hCell("통계 지표", { width: 3500 }),
-        hCell("수치", { width: 1800 }),
-        hCell("출처 / 비고", { width: 4060 }),
-      ),
-      row(
-        cell("국내 등록 시각장애인 수", { width: 3500 }),
-        cell("252,000명", { width: 1800, bold: true, color: C.primary, align: AlignmentType.CENTER }),
-        cell("보건복지부 장애인 현황 2024", { width: 4060, color: C.darkgray }),
-      ),
-      row(
-        cell("시각장애인 보행 사고 경험률", { width: 3500 }),
-        cell("68.3%", { width: 1800, bold: true, color: C.danger, align: AlignmentType.CENTER }),
-        cell("한국장애인개발원 실태조사", { width: 4060, color: C.darkgray }),
-      ),
-      row(
-        cell("음향신호기 미설치 교차로 비율", { width: 3500 }),
-        cell("45.3%", { width: 1800, bold: true, color: C.warning, align: AlignmentType.CENTER }),
-        cell("서울시 교통안전시설 실태조사", { width: 4060, color: C.darkgray }),
-      ),
-      row(
-        cell("볼라드 부적정 설치율", { width: 3500 }),
-        cell("96%", { width: 1800, bold: true, color: C.danger, align: AlignmentType.CENTER }),
-        cell("국토교통부 보행환경 조사", { width: 4060, color: C.darkgray }),
-      ),
-      row(
-        cell("전동 킥보드 보도 불법 주정차 민원", { width: 3500 }),
-        cell("연 12만+건", { width: 1800, bold: true, color: C.warning, align: AlignmentType.CENTER }),
-        cell("서울시 120 다산콜 집계 (2023)", { width: 4060, color: C.darkgray }),
-      ),
-      row(
-        cell("스마트폰 보유 시각장애인 비율", { width: 3500 }),
-        cell("73.2%", { width: 1800, bold: true, color: C.safe, align: AlignmentType.CENTER }),
-        cell("장애인 정보통신 이용실태 조사", { width: 4060, color: C.darkgray }),
-      ),
-    ], { width: 9360, colWidths: [3500, 1800, 4060] }),
-
-    spacer(180),
-    h2("1-2. 기존 흰지팡이의 한계"),
-    makeTable([
-      row(
-        hCell("한계 영역", { width: 2800 }),
-        hCell("구체적 문제", { width: 4200 }),
-        hCell("VoiceGuide 해결 방식", { width: 2360 }),
-      ),
-      row(
-        cell("탐지 높이 제한", { width: 2800, bg: "FFF3F3" }),
-        cell("지면과 닿는 지팡이는 상체 높이(80~150cm) 장애물 탐지 불가 — 킥보드 핸들, 볼라드 상단, 공사 안전망 등", { width: 4200 }),
-        cell("카메라 기반 전방 시야 82클래스 감지", { width: 2360, bg: C.lightest }),
-      ),
-      row(
-        cell("이동 물체 예측 불가", { width: 2800, bg: "FFF3F3" }),
-        cell("사람·자전거·킥보드 등 움직이는 장애물은 접촉 직전까지 감지 어려움", { width: 4200 }),
-        cell("IoU 추적 + EMA 평활화로 궤적 예측", { width: 2360, bg: C.lightest }),
-      ),
-      row(
-        cell("방향 정보 제공 불가", { width: 2800, bg: "FFF3F3" }),
-        cell("장애물이 좌측·중앙·우측 어디에 있는지 알 수 없음", { width: 4200 }),
-        cell("바운딩박스 x좌표 기반 방향 음성 안내", { width: 2360, bg: C.lightest }),
-      ),
-      row(
-        cell("핸즈프리 불가", { width: 2800, bg: "FFF3F3" }),
-        cell("양손 중 한 손이 항상 지팡이를 잡아야 해 짐 소지·대화 제약", { width: 4200 }),
-        cell("스마트폰 거치만으로 완전 핸즈프리 운용", { width: 2360, bg: C.lightest }),
-      ),
-    ], { width: 9360, colWidths: [2800, 4200, 2360] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 서비스 개요 ──────────────────────────────────────────────
-function serviceSection() {
-  return [
-    h1("서비스 개요"),
-
-    h2("2-1. 시스템 아키텍처"),
-    makeTable([
-      row(
-        hCell("Android 앱 (온디바이스)", { bg: C.primary, width: 3000 }),
-        hCell("", { bg: C.white, width: 560 }),
-        hCell("FastAPI 서버 (GCP Cloud Run)", { bg: C.secondary, width: 2800 }),
-        hCell("", { bg: C.white, width: 440 }),
-        hCell("대시보드 & 공공데이터", { bg: C.purple, width: 2560 }),
-      ),
+    sp(140),
+    subTitle("신문보도 사례 — VoiceGuide 적용 필요성"),
+    tbl([
       row(
         cell([
-          new Paragraph({ children: [new TextRun({ text: "CameraX 프레임 캡처", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "TFLite YOLO 추론", size: 18, font: "Arial", bold: true })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "3프레임 투표 필터", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "위험도 계산", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "진동 + TTS 즉시 출력", size: 18, font: "Arial", bold: true, color: C.safe })] }),
-        ], { bg: C.lightest, width: 3000, vAlign: VerticalAlign.TOP }),
+          new Paragraph({ spacing: { before: 60, after: 40 }, children: [
+            new TextRun({ text: "■ 사례 1: 점자블록 위 무단 방치된 공유 킥보드 — 시각장애인에겐 사실상 '지뢰밭'", bold: true, size: 20, color: C.primary, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "공유 모빌리티 활성화로 인도 위 전동 킥보드 방치가 사회적 문제로 대두되고 있다. 시각장애인이 보행 중 방치된 킥보드 핸들에 부딪혀 안면부 골절상을 입거나, 킥보드에 걸려 차도로 튕겨 나가는 사고가 빈번하게 보도되고 있다. 지자체의 강제 견인 제도 등 사후 조치만으로는 실시간 보행 중 충돌 위협을 원천 예방할 수 없다.", size: 18, color: C.black, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 40 }, children: [
+            new TextRun({ text: "📰 출처: 한겨레신문 (hani.co.kr)", size: 16, color: C.midgray, font: "Malgun Gothic", italics: true }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "→ VoiceGuide 적용 시: 카메라가 전방 킥보드·자전거·적재물을 감지하고 즉시 안내 — 핵심은 사후 신고가 아니라 보행 순간의 사전 회피", bold: true, size: 18, color: C.safe, font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "FFF9F0", bdr: bAll("E67E22") }),
+      ),
+    ], { w: 9072, cols: [9072] }),
+    sp(80),
+    tbl([
+      row(
         cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "JSON\n→\n탐지결과\nGPS", size: 18, font: "Arial", color: C.darkgray })] }),
-        ], { bg: C.white, bdr: noBorderAll(), width: 560 }),
-        cell([
-          new Paragraph({ children: [new TextRun({ text: "POST /detect", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "POST /gps", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "DB 저장 (SQLite)", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "Tracker 업데이트", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "▼", size: 18, font: "Arial", color: C.accent })] }),
-          new Paragraph({ children: [new TextRun({ text: "SSE 스트림 → 대시보드", size: 18, font: "Arial", bold: true, color: C.safe })] }),
-        ], { bg: "EAF3FB", width: 2800, vAlign: VerticalAlign.TOP }),
-        cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 400 }, children: [new TextRun({ text: "GeoJSON\n공공\n데이터", size: 18, font: "Arial", color: C.darkgray })] }),
-        ], { bg: C.white, bdr: noBorderAll(), width: 440 }),
-        cell([
-          new Paragraph({ children: [new TextRun({ text: "실시간 탐지 현황", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "GPS 경로 지도", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "24시간 탐지 내역", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "사고다발구역 레이어", size: 18, font: "Arial" })] }),
-          new Paragraph({ children: [new TextRun({ text: "횡단보도 접근성 점수", size: 18, font: "Arial", bold: true, color: C.safe })] }),
-        ], { bg: "F5EEF8", width: 2560, vAlign: VerticalAlign.TOP }),
+          new Paragraph({ spacing: { before: 60, after: 40 }, children: [
+            new TextRun({ text: "■ 사례 2: 인도 위 설치 규격 어긴 볼라드(Bollard) — 충돌로 정강이 부상 속출", bold: true, size: 20, color: C.danger, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "보행자 안전을 위해 설치된 볼라드가 규정(충격흡수용 우레탄 재질, 높이 80~100cm, 전면 30cm 점자블록)을 지키지 않고 단단한 석재나 철재로 잘못 설치된 경우가 허다하다. 시각장애인이 단단한 돌 볼라드에 직접 부딪혀 다리쪽 찰과상 및 신체부위의 부상이 지속 발생하고 있다.", size: 18, color: C.black, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 40 }, children: [
+            new TextRun({ text: "📰 출처: 전북장애인신문 / 중앙일보 / 고양신문 / JTV뉴스", size: 16, color: C.midgray, font: "Malgun Gothic", italics: true }),
+          ]}),
+          new Paragraph({ spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "→ VoiceGuide 적용 시: 볼라드를 '시설'이 아닌 보행 경로상 객체로 인식하여 흰지팡이 접촉 전 방향·거리 정보를 제공", bold: true, size: 18, color: C.safe, font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "FFF0F0", bdr: bAll(C.danger) }),
       ),
-    ], { width: 9360, colWidths: [3000, 560, 2800, 440, 2560] }),
+    ], { w: 9072, cols: [9072] }),
 
-    spacer(160),
-    h2("2-2. 핵심 원칙: 서버 독립 운용"),
-    makeTable([
+    sp(140),
+    subTitle("문제의 3중 구조"),
+    tbl([
       row(
-        hCell("구분", { width: 1600 }),
-        hCell("서버 연결 시", { bg: C.safe, width: 3880 }),
-        hCell("서버 없을 때 (오프라인)", { bg: C.warning, width: 3880 }),
+        hc("구조", { w: 1600, bg: C.primary }),
+        hc("내용", { w: 3600 }),
+        hc("VoiceGuide 해결 방향", { w: 3872 }),
       ),
       row(
-        cell("장애물 감지", { bg: C.light, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("온디바이스 YOLO 추론 (서버 미전송)", { width: 3880, color: C.safe }),
-        cell("온디바이스 YOLO 추론 동일 작동", { width: 3880, color: C.safe }),
+        cell("개인 차원", { bg: C.blue, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("보행 중 위험을 바로 파악하지 못하면 외출 자체가 불안해짐 → 이동권과 생활 자립의 문제", { w: 3600 }),
+        cell("실시간 음성 경고로 보행 중 즉각적 위험 인지 → 외출 자신감 회복", { w: 3872, color: C.safe, bold: true }),
       ),
       row(
-        cell("음성 안내", { bg: C.light, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("Android 로컬 TTS — 서버 응답 불필요", { width: 3880, color: C.safe }),
-        cell("Android 로컬 TTS — 동일 작동", { width: 3880, color: C.safe }),
+        cell("지역 차원", { bg: C.orange, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("편의시설 설치·관리 수준이 지역별로 다르고 실시간 위험은 계속 변함", { w: 3600 }),
+        cell("시설정보 + 위험로그를 결합한 지역 맞춤 개선 → 비식별 히트맵 제공", { w: 3872, color: C.safe, bold: true }),
       ),
       row(
-        cell("진동 안내", { bg: C.light, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("즉시 진동 패턴 출력", { width: 3880, color: C.safe }),
-        cell("즉시 진동 패턴 출력", { width: 3880, color: C.safe }),
+        cell("행정 차원", { bg: C.purple, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("복지정보는 제공되지만 실제 목적지까지 안전하게 이동하는 과정은 별도 과제", { w: 3600 }),
+        cell("복지정보 접근성 + 물리적 이동 접근성 연결 → 공공데이터 순환형 활용 모델", { w: 3872, color: C.safe, bold: true }),
       ),
-      row(
-        cell("대시보드·이력", { bg: C.light, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("실시간 SSE 스트림으로 대시보드 표시", { width: 3880, color: C.safe }),
-        cell("서버 재연결 시 이력 동기화", { width: 3880, color: C.warning }),
-      ),
-      row(
-        cell("프라이버시", { bg: C.light, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("카메라 프레임 서버 미전송 — 탐지 JSON만 전송", { width: 3880, color: C.safe }),
-        cell("카메라 프레임 로컬 처리만", { width: 3880, color: C.safe }),
-      ),
-    ], { width: 9360, colWidths: [1600, 3880, 3880] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
+    ], { w: 9072, cols: [1600, 3600, 3872] }),
 
-// ─── AI 모델 ──────────────────────────────────────────────────
-function aiModelSection() {
-  return [
-    h1("AI 모델 및 기술 상세"),
+    sp(140),
+    subTitle("현장 위험 객체 분류"),
+    tbl([
+      row(
+        hc("객체군", { w: 2000 }),
+        hc("주요 예시", { w: 3000 }),
+        hc("VoiceGuide 경고 예시", { w: 4072 }),
+      ),
+      row(
+        cell("방치형 장애물", { bg: C.orange, bold: true, w: 2000, align: AlignmentType.CENTER }),
+        cell("전동킥보드, 자전거, 적재물, 입간판", { w: 3000 }),
+        cell("\"정면 1.5미터 앞 전동 킥보드 주의, 오른쪽으로 비껴가세요\"", { w: 4072, color: C.primary, bold: true }),
+      ),
+      row(
+        cell("고정 시설물", { bg: C.yellow, bold: true, w: 2000, align: AlignmentType.CENTER }),
+        cell("볼라드, 기둥, 공사 표지판, 나무 지지대", { w: 3000 }),
+        cell("\"왼쪽 앞에 볼라드가 있어요. 오른쪽으로 피해가세요\"", { w: 4072, color: C.primary, bold: true }),
+      ),
+      row(
+        cell("이동 객체", { bg: "FFEAEA", bold: true, w: 2000, align: AlignmentType.CENTER }),
+        cell("사람, 자전거, 차량 진입", { w: 3000 }),
+        cell("\"위험! 바로 앞 자전거. 조심! 멈추세요!\"", { w: 4072, color: C.danger, bold: true }),
+      ),
+      row(
+        cell("환경 위험", { bg: C.gray, bold: true, w: 2000, align: AlignmentType.CENTER }),
+        cell("공사구간, 횡단보도 진입부, 출입구 혼잡", { w: 3000 }),
+        cell("\"왼쪽 앞에 공사 표지판이 있어요\"", { w: 4072, color: C.dark }),
+      ),
+    ], { w: 9072, cols: [2000, 3000, 4072] }),
 
-    h2("3-1. YOLO 모델 비교 및 선택"),
-    makeTable([
+    sp(140),
+    subTitle("핵심 문제 구조"),
+    tbl([
       row(
-        hCell("모델", { width: 1800 }),
-        hCell("파라미터", { width: 1400 }),
-        hCell("mAP50", { width: 1200 }),
-        hCell("추론속도", { width: 1500 }),
-        hCell("모바일 적합성", { width: 1660 }),
-        hCell("VG 채택", { width: 1800 }),
+        hc("문제 영역", { w: 2000 }),
+        hc("현재 한계", { w: 3500 }),
+        hc("VoiceGuide가 보완할 지점", { w: 3572 }),
       ),
       row(
-        cell("YOLOv5s", { width: 1800 }),
-        cell("7.2M", { width: 1400, align: AlignmentType.CENTER }),
-        cell("56.8%", { width: 1200, align: AlignmentType.CENTER }),
-        cell("보통", { width: 1500, align: AlignmentType.CENTER }),
-        cell("△", { width: 1660, align: AlignmentType.CENTER }),
-        cell("", { width: 1800 }),
+        cell("흰지팡이", { bg: C.orange, bold: true, w: 2000 }),
+        cell("지면 근처 장애물 인지는 강하지만 상체 높이 장애물, 접근 물체, 돌발 상황에는 취약", { w: 3500 }),
+        cell("스마트폰 카메라가 전방·상단 위험을 보조 감지 (82클래스 YOLO 모델)", { w: 3572 }),
       ),
       row(
-        cell("YOLOv8n", { width: 1800 }),
-        cell("3.2M", { width: 1400, align: AlignmentType.CENTER }),
-        cell("52.9%", { width: 1200, align: AlignmentType.CENTER }),
-        cell("빠름", { width: 1500, align: AlignmentType.CENTER }),
-        cell("○", { width: 1660, align: AlignmentType.CENTER }),
-        cell("", { width: 1800 }),
+        cell("도로 인프라", { bg: C.yellow, bold: true, w: 2000 }),
+        cell("볼라드·음향신호기 품질·연계성 문제로 실제 보행 안정성이 낮음", { w: 3500 }),
+        cell("개인 단말 기반 실시간 위험 안내로 인프라 공백 보완", { w: 3572 }),
       ),
       row(
-        cell("YOLO11n (320)", { width: 1800, bg: C.lightest, bold: true }),
-        cell("2.6M", { width: 1400, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("39.5%", { width: 1200, align: AlignmentType.CENTER, bg: C.lightest }),
-        cell("매우 빠름", { width: 1500, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("◎ 최적", { width: 1660, align: AlignmentType.CENTER, bg: C.lightest, bold: true, color: C.safe }),
-        cell("✔ 채택", { width: 1800, bg: C.lightest, bold: true, color: C.safe, align: AlignmentType.CENTER }),
+        cell("정보 접근", { bg: C.blue, bold: true, w: 2000 }),
+        cell("복지기관·편의시설 정보는 존재하지만 보행 중 위험 회피와 직접 연결되지 않음", { w: 3500 }),
+        cell("복지기관/편의시설/복지서비스 데이터를 사용자 상황에 맞게 연결", { w: 3572 }),
       ),
-      row(
-        cell("YOLO11s (640)", { width: 1800 }),
-        cell("9.4M", { width: 1400, align: AlignmentType.CENTER }),
-        cell("47.0%", { width: 1200, align: AlignmentType.CENTER }),
-        cell("느림", { width: 1500, align: AlignmentType.CENTER }),
-        cell("△ 저사양 부적합", { width: 1660, align: AlignmentType.CENTER }),
-        cell("", { width: 1800 }),
-      ),
-    ], { width: 9360, colWidths: [1800, 1400, 1200, 1500, 1660, 1800] }),
+    ], { w: 9072, cols: [2000, 3500, 3572] }),
 
-    spacer(160),
-    h2("3-2. VoiceGuide82 — 커스텀 클래스 확장"),
-    p("COCO 표준 80 클래스에 보행 위험 요소 2개를 추가한 82클래스 모델을 자체 훈련"),
-    makeTable([
+    sp(140),
+    subTitle("사용자 페르소나 및 고객여정지도"),
+    tbl([
       row(
-        hCell("카테고리", { bg: C.danger, width: 2000 }),
-        hCell("포함 클래스 (한국어)", { width: 4560 }),
-        hCell("위험도", { width: 1400 }),
-        hCell("특이사항", { width: 1400 }),
+        hc("항목", { w: 2000, bg: C.secondary }),
+        hc("내용", { w: 7072 }),
       ),
       row(
-        cell("차량류", { bg: "FFF0EE", bold: true, width: 2000 }),
-        cell("자동차, 오토바이, 버스, 트럭, 기차, 자전거", { width: 4560 }),
-        cell("긴급", { width: 1400, align: AlignmentType.CENTER, bold: true, color: C.danger }),
-        cell("8m 이내 즉시 경보", { width: 1400, color: C.darkgray }),
+        cell("페르소나", { bg: C.blue, bold: true, w: 2000 }),
+        cell("지민 씨(가명, 32세) — 출퇴근과 복지관 방문을 혼자 수행하는 시각장애인", { w: 7072 }),
       ),
       row(
-        cell("동물류", { bg: "FFF5E6", bold: true, width: 2000 }),
-        cell("개, 말, 고양이, 곰, 코끼리", { width: 4560 }),
-        cell("주의", { width: 1400, align: AlignmentType.CENTER, bold: true, color: C.warning }),
-        cell("3m 이내 경보", { width: 1400, color: C.darkgray }),
+        cell("현재 도구", { bg: C.blue, bold: true, w: 2000 }),
+        cell("흰지팡이, 이어폰, 스마트폰 지도 앱, 주변 사람의 도움", { w: 7072 }),
       ),
       row(
-        cell("보행 특수", { bg: C.lightest, bold: true, width: 2000 }),
-        cell("계단(stairs), 문(door) — VG 자체 추가", { width: 4560, bold: true }),
-        cell("긴급", { width: 1400, align: AlignmentType.CENTER, bold: true, color: C.danger }),
-        cell("신규 파인튜닝 클래스", { width: 1400, color: C.darkgray }),
+        cell("주요 불안", { bg: "FFEAEA", bold: true, w: 2000 }),
+        cell("방치 킥보드, 볼라드, 공사 표지판, 사람·자전거 접근, 음향신호기 없는 횡단보도", { w: 7072 }),
       ),
       row(
-        cell("주의물체", { bg: "FFFBF0", bold: true, width: 2000 }),
-        cell("칼, 가위, 유리잔, 야구 방망이, 배낭, 핸드백, 여행가방", { width: 4560 }),
-        cell("주의", { width: 1400, align: AlignmentType.CENTER, bold: true, color: C.warning }),
-        cell("2.5m 이내 경보", { width: 1400, color: C.darkgray }),
+        cell("기대 가치", { bg: C.green, bold: true, w: 2000 }),
+        cell("보행 중 손 조작 없이 \"무엇이 어느 방향에 얼마나 가까운지\"를 짧게 듣는 것", { w: 7072, bold: true }),
       ),
+    ], { w: 9072, cols: [2000, 7072] }),
+    sp(80),
+    tbl([
       row(
-        cell("일상 사물", { bg: C.gray, bold: true, width: 2000 }),
-        cell("의자, 소파, 테이블, 가전제품, 식품류 등 37종", { width: 4560 }),
-        cell("일반", { width: 1400, align: AlignmentType.CENTER, color: C.darkgray }),
-        cell("찾기 모드에서 활용", { width: 1400, color: C.darkgray }),
-      ),
-    ], { width: 9360, colWidths: [2000, 4560, 1400, 1400] }),
-
-    spacer(160),
-    h2("3-3. 추론 파이프라인 — 3단계 노이즈 제거"),
-    makeTable([
-      row(
-        hCell("단계", { bg: C.primary, width: 1000 }),
-        hCell("기술", { bg: C.primary, width: 2600 }),
-        hCell("역할", { bg: C.primary, width: 5760 }),
-      ),
-      row(
-        cell("1", { width: 1000, align: AlignmentType.CENTER, bold: true, bg: C.lightest }),
-        cell("3프레임 투표 필터", { width: 2600, bold: true }),
-        cell("3연속 프레임에서 동일 클래스 감지 시만 확정 — 단발 오감지 제거. 긴급 클래스(차량·동물·계단)는 투표 우회로 즉시 경보", { width: 5760 }),
-      ),
-      row(
-        cell("2", { width: 1000, align: AlignmentType.CENTER, bold: true, bg: C.lightest }),
-        cell("IoU 기반 객체 추적", { width: 2600, bold: true }),
-        cell("이전 프레임 바운딩박스와 IoU 0.3 이상이면 동일 객체로 간주 — 움직이는 장애물 궤적 추적 및 ID 유지", { width: 5760 }),
-      ),
-      row(
-        cell("3", { width: 1000, align: AlignmentType.CENTER, bold: true, bg: C.lightest }),
-        cell("EMA 거리 평활화", { width: 2600, bold: true }),
-        cell("Exponential Moving Average로 바운딩박스 면적 기반 추정 거리를 평활화 — 거리 점프 방지 및 자연스러운 음성 안내", { width: 5760 }),
-      ),
-    ], { width: 9360, colWidths: [1000, 2600, 5760] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 위험도 체계 ──────────────────────────────────────────────
-function riskSection() {
-  return [
-    h1("위험도 분류 및 알림 체계"),
-
-    h2("4-1. 4단계 위험도 분류"),
-    makeTable([
-      row(
-        hCell("레벨", { width: 1000 }),
-        hCell("명칭", { width: 1600 }),
-        hCell("진동 패턴", { width: 2000 }),
-        hCell("음성 안내 예시", { width: 2800 }),
-        hCell("발동 조건", { width: 1960 }),
-      ),
-      row(
-        cell("0", { width: 1000, align: AlignmentType.CENTER, bg: C.gray }),
-        cell("NONE", { width: 1600, bold: true, color: C.midgray, bg: C.gray }),
-        cell("없음", { width: 2000, align: AlignmentType.CENTER, color: C.midgray }),
-        cell("(침묵)", { width: 2800, color: C.midgray, italic: true }),
-        cell("장애물 없음", { width: 1960, color: C.midgray }),
-      ),
-      row(
-        cell("1", { width: 1000, align: AlignmentType.CENTER, bg: "FFFBF0" }),
-        cell("SHORT", { width: 1600, bold: true, color: C.warning, bg: "FFFBF0" }),
-        cell("단진동 100ms", { width: 2000, align: AlignmentType.CENTER }),
-        cell("\"앞에 의자 있어요. 2미터.\"", { width: 2800 }),
-        cell("일반 장애물 감지", { width: 1960 }),
-      ),
-      row(
-        cell("2", { width: 1000, align: AlignmentType.CENTER, bg: "FFF3E0" }),
-        cell("DOUBLE", { width: 1600, bold: true, color: C.accent, bg: "FFF3E0" }),
-        cell("두 번 진동 200ms", { width: 2000, align: AlignmentType.CENTER }),
-        cell("\"오른쪽에 자전거 접근 중. 주의하세요.\"", { width: 2800 }),
-        cell("주의 클래스 2.5m 이내", { width: 1960 }),
-      ),
-      row(
-        cell("3", { width: 1000, align: AlignmentType.CENTER, bg: "FFEAEA" }),
-        cell("URGENT", { width: 1600, bold: true, color: C.danger, bg: "FFEAEA" }),
-        cell("연속 진동 500ms + 비프음", { width: 2000, align: AlignmentType.CENTER, color: C.danger, bold: true }),
-        cell("\"위험! 앞에 오토바이. 즉시 멈추세요.\"", { width: 2800, bold: true, color: C.danger }),
-        cell("차량·긴급 8m 이내", { width: 1960, bold: true, color: C.danger }),
-      ),
-    ], { width: 9360, colWidths: [1000, 1600, 2000, 2800, 1960] }),
-
-    spacer(160),
-    h2("4-2. 거리 추정 임계값"),
-    makeTable([
-      row(
-        hCell("클래스 카테고리", { width: 3000 }),
-        hCell("긴급 알림 거리", { width: 2000 }),
-        hCell("비프음 시작 거리", { width: 2160 }),
-        hCell("근거리 판정 기준", { width: 2200 }),
-      ),
-      row(
-        cell("차량류 (자동차·버스·트럭 등)", { width: 3000 }),
-        cell("8.0m 이내", { width: 2000, bold: true, color: C.danger, align: AlignmentType.CENTER }),
-        cell("7.0m 이내", { width: 2160, align: AlignmentType.CENTER }),
-        cell("바운딩박스 면적 캘리브레이션", { width: 2200, color: C.darkgray }),
-      ),
-      row(
-        cell("동물류 (개·말·곰 등)", { width: 3000 }),
-        cell("3.0m 이내", { width: 2000, bold: true, color: C.warning, align: AlignmentType.CENTER }),
-        cell("7.0m 이내", { width: 2160, align: AlignmentType.CENTER }),
-        cell("클래스별 평균 실물 크기 반영", { width: 2200, color: C.darkgray }),
-      ),
-      row(
-        cell("일반 장애물 (의자·볼라드 등)", { width: 3000 }),
-        cell("2.5m 이내", { width: 2000, bold: true, color: C.primary, align: AlignmentType.CENTER }),
-        cell("해당 없음", { width: 2160, align: AlignmentType.CENTER, color: C.midgray }),
-        cell("참조 면적 클래스별 개별 설정", { width: 2200, color: C.darkgray }),
-      ),
-      row(
-        cell("손에 든 물체 (held)", { width: 3000 }),
-        cell("1.0m 이내", { width: 2000, bold: true, color: C.safe, align: AlignmentType.CENTER }),
-        cell("해당 없음", { width: 2160, align: AlignmentType.CENTER, color: C.midgray }),
-        cell("화면 중앙 하단 바운딩박스 기준", { width: 2200, color: C.darkgray }),
-      ),
-    ], { width: 9360, colWidths: [3000, 2000, 2160, 2200] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 핵심 기능 ────────────────────────────────────────────────
-function featuresSection() {
-  return [
-    h1("핵심 기능 및 앱 모드"),
-
-    h2("5-1. 4가지 음성 명령 모드"),
-    makeTable([
-      row(
-        hCell("모드", { bg: C.primary, width: 1600 }),
-        hCell("음성 명령 예시", { bg: C.primary, width: 2600 }),
-        hCell("동작 설명", { bg: C.primary, width: 3000 }),
-        hCell("활용 상황", { bg: C.primary, width: 2160 }),
-      ),
-      row(
-        cell("장애물 모드", { bg: C.lightest, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("\"앞에 뭐 있어\"\n\"길 어때\"", { width: 2600, color: C.darkgray }),
-        cell("위험도 상위 장애물을 즉시 방향·거리와 함께 안내. 3프레임 필터 통과한 확정 감지만 발화", { width: 3000 }),
-        cell("보행 중 상시 감지", { width: 2160 }),
-      ),
-      row(
-        cell("찾기 모드", { bg: "F0FFF4", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("\"의자 찾아줘\"\n\"가방 어디 있어\"", { width: 2600, color: C.darkgray }),
-        cell("특정 객체를 목표로 설정 후 프레임 내 위치·방향·거리 안내. 발견 즉시 발화", { width: 3000 }),
-        cell("실내 물체 위치 확인", { width: 2160 }),
-      ),
-      row(
-        cell("주변 확인", { bg: "FFF8F0", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("\"지금 뭐가 있어\"\n\"현재 상황 알려줘\"", { width: 2600, color: C.darkgray }),
-        cell("현재 프레임 + 최근 Tracker 상태를 종합해 주변 사물 요약 발화", { width: 3000 }),
-        cell("낯선 공간 진입 시", { width: 2160 }),
-      ),
-      row(
-        cell("물건 확인", { bg: "F5EEF8", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("\"손에 든 게 뭐야\"\n\"바로 앞 뭐야\"", { width: 2600, color: C.darkgray }),
-        cell("화면 중앙/하단에 가장 가까운 물체를 우선 답변. held_sentence 거리 임계값 활용", { width: 3000 }),
-        cell("물건 식별 필요 시", { width: 2160 }),
-      ),
-    ], { width: 9360, colWidths: [1600, 2600, 3000, 2160] }),
-
-    spacer(160),
-    h2("5-2. 전체 기능 현황"),
-    makeTable([
-      row(
-        hCell("기능", { width: 3000 }),
-        hCell("상태", { width: 1200 }),
-        hCell("상세", { width: 5160 }),
+        hc("여정 단계", { w: 1600 }),
+        hc("사용자 행동", { w: 2200 }),
+        hc("Pain Point", { w: 2200 }),
+        hc("VoiceGuide 개입", { w: 3072 }),
       ),
       ...[
-        ["장애물 탐지", "완료", "yolo11n_320.tflite 기반 온디바이스 추론, 82클래스"],
-        ["위험도 진동 패턴", "완료", "NONE/SHORT/DOUBLE/URGENT 4단계 진동 피드백"],
-        ["한국어 TTS", "완료", "SentenceBuilder — 화면 없이 상황별 안내 문장 즉시 발화"],
-        ["완전 핸즈프리 음성 명령", "완료", "STT 기반 4가지 모드 전환, 별도 조작 불필요"],
-        ["서버 탐지 전송 / DB 저장", "완료", "탐지 JSON + GPS POST, SQLite 영구 저장"],
-        ["실시간 대시보드", "완료", "SSE 스트림 기반 탐지 현황·경로·24시간 내역·사고다발구역"],
-        ["오프라인 보조 안내", "완료", "서버 없이 Android 내장 TTS + 진동 완전 유지"],
-        ["공공데이터 시나리오", "완료", "보라매역 → 서울시남부장애인종합복지관 A/B 경로 비교"],
-        ["정책 동기화 (ETag)", "완료", "서버 policy.json 원격 동기화 + ETag 캐싱"],
-        ["위험 선행 알림", "완료", "긴급 감지 시 진동·비프음 먼저, 음성은 후속 발화"],
+        ["출발 전", "목적지·이동 경로 확인", "복지기관·편의시설 정보가 흩어져 있음", "복지기관/편의시설 데이터 기반 주변 정보 안내"],
+        ["보행 중", "흰지팡이로 바닥 확인", "상체 높이 장애물과 빠른 접근 물체 인지 어려움", "전방 객체 감지, 거리·방향 음성 경고"],
+        ["위험 회피", "멈추거나 방향 조정", "위험 원인을 모르면 불안감 증가", "방향+객체 행동 단위 안내"],
+        ["도착 후", "복지관·기관 방문", "이용 가능한 복지서비스 정보 부족", "중앙부처복지서비스 데이터와 연결해 제도 안내"],
+        ["피드백", "불편지점 공유", "위험구간 정보가 행정 개선으로 이어지기 어려움", "비식별 위험 로그를 기관용 리포트로 환류"],
+      ].map(([stage, action, pain, fix]) =>
+        row(
+          cell(stage, { bg: C.lightest, bold: true, w: 1600, align: AlignmentType.CENTER }),
+          cell(action, { w: 2200 }),
+          cell(pain, { w: 2200, color: C.danger }),
+          cell(fix, { w: 3072, color: C.primary }),
+        )
+      ),
+    ], { w: 9072, cols: [1600, 2200, 2200, 3072] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 3. 아이디어 핵심 내용 ──────────────────────────────
+function section3() {
+  return [
+    sectionTitle("3", "아이디어 핵심 내용 (공공데이터 활용 적정성, AI 기술 활용, 실현 가능성, 기술성)"),
+
+    subTitle("MVP 기능 현황 (현재 구현 완료)"),
+    tbl([
+      row(
+        hc("기능 모듈", { w: 2200 }),
+        hc("상태", { w: 900 }),
+        hc("구현 상세", { w: 5972 }),
+      ),
+      ...[
+        ["장애물 탐지", "완료 ✔", "CameraX + TFLite YOLO11n 온디바이스 추론 — 82클래스(COCO80 + 계단 + 문)"],
+        ["위험도 진동 패턴", "완료 ✔", "NONE/SHORT/DOUBLE/URGENT 4단계 햅틱 패턴 — 초근접(1m 이내) 시 URGENT 자동 발동"],
+        ["한국어 TTS 음성 안내", "완료 ✔", "SentenceBuilder — 방향·거리·객체 정보 포함 한국어 짧은 경고문 동적 생성"],
+        ["완전 핸즈프리 음성 명령", "완료 ✔", "STT 기반 4가지 모드(장애물/찾기/주변확인/물건확인) — 화면 조작 불필요"],
+        ["3프레임 투표 필터", "완료 ✔", "3연속 프레임 2회 이상 탐지 시만 경보 확정 — 카메라 흔들림 오탐 방지"],
+        ["IoU 추적 & EMA 평활화", "완료 ✔", "동적 객체 궤적 추적 + 지수이동평균 기반 접근 위험도 가중"],
+        ["서버 전송 / DB 저장", "완료 ✔", "탐지 JSON + GPS POST → FastAPI + SQLite 영구 저장"],
+        ["실시간 대시보드", "완료 ✔", "SSE 스트림 — 탐지 현황·이동 경로·24시간 내역·사고다발구역"],
+        ["오프라인 동작", "완료 ✔", "서버 없이 Android 내장 TTS + 진동 완전 유지"],
+        ["공공데이터 시나리오", "완료 ✔", "보라매역 → 서울시남부장애인종합복지관 A/B 경로 접근성 비교"],
       ].map(([feat, status, detail]) =>
         row(
-          cell(feat, { width: 3000 }),
-          cell(status, { width: 1200, align: AlignmentType.CENTER, bold: true, color: status === "완료" ? C.safe : C.warning, bg: status === "완료" ? "F0FFF4" : "FFFBF0" }),
-          cell(detail, { width: 5160, color: C.darkgray }),
+          cell(feat, { w: 2200, bold: true }),
+          cell(status, { w: 900, align: AlignmentType.CENTER, bold: true, color: C.safe, bg: C.green }),
+          cell(detail, { w: 5972, sz: 18 }),
         )
       ),
-    ], { width: 9360, colWidths: [3000, 1200, 5160] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
+    ], { w: 9072, cols: [2200, 900, 5972] }),
 
-// ─── 공공데이터 ───────────────────────────────────────────────
-function publicDataSection() {
-  return [
-    h1("공공데이터 활용 전략"),
+    sp(160),
+    subTitle("시스템 아키텍처 다이어그램"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgArchDiagram(), 589, 185)],
+    }),
 
-    h2("6-1. 활용 공공데이터 목록"),
-    makeTable([
+    sp(160),
+    subTitle("서비스 처리 흐름도 (상세)"),
+    tbl([
       row(
-        hCell("데이터명", { width: 2800 }),
-        hCell("출처", { width: 2200 }),
-        hCell("VoiceGuide 활용 방식", { width: 4360 }),
+        hc("단계", { w: 600, bg: C.primary }),
+        hc("처리 내용", { w: 4272, bg: C.primary }),
+        hc("기술 요소", { w: 4200, bg: C.secondary }),
       ),
       ...[
-        ["횡단보도 위치 데이터", "서울 열린데이터 광장", "동작구 횡단보도 후보 지도 포인트 및 경로 비교 기준점"],
-        ["보행등·교통신호 정보", "서울 열린데이터 광장", "횡단 가능 신호 안내 근거, 접근성 점수 가중치"],
-        ["음향신호기 정보", "한국사회보장정보원", "시각장애인 보행 안내 필수 시설 여부 점수화"],
-        ["보행자작동신호기 정보", "보건복지부", "사용자 직접 신호 요청 가능 여부 점수화"],
-        ["고원식 횡단보도 정보", "국토교통부", "차량 감속·보행자 보호 가능성 보조 점수"],
-        ["교통안전시설 상세정보", "서울시", "횡단보도별 설명 가능 안전 근거 텍스트"],
-        ["보행자 사고다발구역", "경찰청", "대시보드 지도 주의 구역 레이어 표시"],
-        ["장애인 복지시설 정보", "한국사회보장정보원", "데모 목적지 및 접근성 시나리오 구성"],
-        ["이동지원센터 정보", "보건복지부", "목적지 접근성 설명 및 fallback 안내 후보"],
-      ].map(([name, src, usage]) =>
+        ["①", "앱 실행 및 카메라 시작 → CameraX 실시간 프레임 캡처", "Android CameraX API"],
+        ["②", "전방 객체 실시간 탐지 → TFLite YOLO11n 온디바이스 추론 (30ms 이내)", "yolo11n_320.tflite / yolo26n_float32.tflite"],
+        ["③", "3프레임 투표 필터 → 오탐 방지 후 유효 객체 확정", "긴급 클래스(차량·동물·계단)는 우회 즉시 경보"],
+        ["④", "위험도 계산 → IoU 추적 + EMA 위험도 산정", "바운딩박스 면적 × 클래스별 캘리브레이션 상수"],
+        ["⑤", "진동 + 음성 안내 → 햅틱 4단계 + 한국어 TTS 즉시 출력", "SentenceBuilder.kt — 서버 응답 불필요"],
+        ["⑥", "대시보드 기록 → 탐지 이력 및 GPS 경로 서버 저장·시각화", "FastAPI POST /detect, /gps → SSE → 대시보드"],
+      ].map(([step, proc, tech], i) =>
         row(
-          cell(name, { width: 2800, bold: true }),
-          cell(src, { width: 2200, color: C.darkgray, align: AlignmentType.CENTER }),
-          cell(usage, { width: 4360 }),
+          cell(step, { w: 600, bold: true, align: AlignmentType.CENTER, bg: i % 2 === 0 ? C.lightest : C.blue }),
+          cell(proc, { w: 4272 }),
+          cell(tech, { w: 4200, color: C.dark, sz: 17 }),
         )
       ),
-    ], { width: 9360, colWidths: [2800, 2200, 4360] }),
+    ], { w: 9072, cols: [600, 4272, 4200] }),
 
-    spacer(160),
-    h2("6-2. 데이터 처리 파이프라인"),
-    makeTable([
-      row(
-        hCell("단계", { width: 800 }),
-        hCell("처리 내용", { width: 3200 }),
-        hCell("출력 산출물", { width: 5360 }),
-      ),
-      row(
-        cell("1", { width: 800, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("원본 공공데이터 수집 및 분류", { width: 3200 }),
-        cell("목적지 / 횡단보도 / 보행지원시설 / 이동지원센터 분리", { width: 5360 }),
-      ),
-      row(
-        cell("2", { width: 800, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("좌표 정규화 및 위경도 변환", { width: 3200 }),
-        cell("WGS84 좌표계 통일, 30m 반경 시설 매칭", { width: 5360 }),
-      ),
-      row(
-        cell("3", { width: 800, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("접근성 점수화 (0~5점)", { width: 3200 }),
-        cell("보행등·음향신호기·작동신호기·고원식·상세정보 각 1점씩 가산", { width: 5360 }),
-      ),
-      row(
-        cell("4", { width: 800, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("등급 분류", { width: 3200 }),
-        cell("preferred(5점) / recommended(3-4점) / basic(1-2점) / insufficient(0점)", { width: 5360 }),
-      ),
-      row(
-        cell("5", { width: 800, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-        cell("대시보드용 파일 산출", { width: 3200 }),
-        cell("CSV / GeoJSON / JSON / HTML — build_voiceguide_final_dataset.py", { width: 5360 }),
-      ),
-    ], { width: 9360, colWidths: [800, 3200, 5360] }),
-
-    spacer(160),
-    h2("6-3. 데모 시나리오: 보라매역 → 서울시남부장애인종합복지관"),
-    makeTable([
-      row(
-        hCell("항목", { width: 2000 }),
-        hCell("경로 A (최단 직선)", { bg: C.warning, width: 3680 }),
-        hCell("경로 B (접근성 우선)", { bg: C.safe, width: 3680 }),
-      ),
-      row(
-        cell("횡단보도 ID", { bg: C.light, width: 2000, bold: true }),
-        cell("06-0000016344", { width: 3680, align: AlignmentType.CENTER }),
-        cell("06-0000032157 ✔ 채택", { width: 3680, align: AlignmentType.CENTER, bold: true, color: C.safe }),
-      ),
-      row(
-        cell("접근성 점수", { bg: C.light, width: 2000, bold: true }),
-        cell("1점 (basic)", { width: 3680, align: AlignmentType.CENTER, color: C.warning }),
-        cell("4점 (recommended)", { width: 3680, align: AlignmentType.CENTER, bold: true, color: C.safe }),
-      ),
-      row(
-        cell("음향신호기", { bg: C.light, width: 2000, bold: true }),
-        cell("없음", { width: 3680, align: AlignmentType.CENTER, color: C.danger }),
-        cell("있음 ✔", { width: 3680, align: AlignmentType.CENTER, bold: true, color: C.safe }),
-      ),
-      row(
-        cell("보행자작동신호기", { bg: C.light, width: 2000, bold: true }),
-        cell("없음", { width: 3680, align: AlignmentType.CENTER, color: C.danger }),
-        cell("있음 ✔", { width: 3680, align: AlignmentType.CENTER, bold: true, color: C.safe }),
-      ),
-      row(
-        cell("고원식 횡단보도", { bg: C.light, width: 2000, bold: true }),
-        cell("없음", { width: 3680, align: AlignmentType.CENTER, color: C.danger }),
-        cell("있음 ✔", { width: 3680, align: AlignmentType.CENTER, bold: true, color: C.safe }),
-      ),
-      row(
-        cell("선택 이유", { bg: C.light, width: 2000, bold: true }),
-        cell("최단 거리지만 시각장애인 필수 시설 미비", { width: 3680, color: C.darkgray }),
-        cell("거리 약간 길지만 보행 안전시설 3종 갖춤 → 선택", { width: 3680, bold: true }),
-      ),
-    ], { width: 9360, colWidths: [2000, 3680, 3680] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 시장 분석 ────────────────────────────────────────────────
-function marketSection() {
-  return [
-    h1("시장 분석 및 경쟁 환경"),
-
-    h2("7-1. 시장 규모 (TAM / SAM / SOM)"),
-    makeTable([
-      row(
-        hCell("구분", { width: 1200 }),
-        hCell("정의", { width: 3000 }),
-        hCell("규모 (추정)", { width: 2000 }),
-        hCell("근거", { width: 3160 }),
-      ),
-      row(
-        cell("TAM", { width: 1200, bold: true, color: C.primary, align: AlignmentType.CENTER, bg: C.lightest }),
-        cell("전 세계 시각장애인 보조기기 시장", { width: 3000 }),
-        cell("약 8.4조 원 (2024)", { width: 2000, bold: true, align: AlignmentType.CENTER }),
-        cell("WHO 추정 시각장애인 2.9억 명 기반", { width: 3160, color: C.darkgray }),
-      ),
-      row(
-        cell("SAM", { width: 1200, bold: true, color: C.secondary, align: AlignmentType.CENTER, bg: "EAF3FB" }),
-        cell("국내 스마트폰 기반 보행보조 앱 시장", { width: 3000 }),
-        cell("약 1,200억 원 (2024)", { width: 2000, bold: true, align: AlignmentType.CENTER }),
-        cell("시각장애인 25만 × 스마트폰 보유율 73.2%", { width: 3160, color: C.darkgray }),
-      ),
-      row(
-        cell("SOM", { width: 1200, bold: true, color: C.safe, align: AlignmentType.CENTER, bg: "F0FFF4" }),
-        cell("VoiceGuide 3년 내 목표 가입자 기반 수익", { width: 3000 }),
-        cell("약 36억 원 (3년)", { width: 2000, bold: true, align: AlignmentType.CENTER, color: C.safe }),
-        cell("복지기관 B2G 계약 + 개인 구독 3만 명 목표", { width: 3160, color: C.darkgray }),
-      ),
-    ], { width: 9360, colWidths: [1200, 3000, 2000, 3160] }),
-
-    spacer(160),
-    h2("7-2. 시장 점유율 현황 (국내 장애인 보조 앱)"),
-    ...barChart([
-      ["Microsoft Seeing AI", 22, C.midgray],
-      ["Be My Eyes",          18, C.midgray],
-      ["Lookout (Google)",    16, C.midgray],
-      ["AIRA",                12, C.midgray],
-      ["기타 국내앱",         22, C.midgray],
-      ["VoiceGuide (목표)",   10, C.primary],
-    ], { maxVal: 30, width: 28 }),
-
-    spacer(120),
-    h2("7-3. 경쟁 서비스 비교"),
-    makeTable([
-      row(
-        hCell("비교 항목", { width: 2000 }),
-        hCell("Microsoft Seeing AI", { width: 1560 }),
-        hCell("Google Lookout", { width: 1560 }),
-        hCell("Be My Eyes", { width: 1560 }),
-        hCell("VoiceGuide", { bg: C.primary, width: 2680 }),
-      ),
-      ...[
-        ["온디바이스 처리", "부분", "부분", "서버 의존", "완전 온디바이스 ✔"],
-        ["한국어 최적화", "미흡", "보통", "미흡", "완전 한국어 특화 ✔"],
-        ["오프라인 동작", "제한적", "제한적", "불가", "완전 오프라인 ✔"],
-        ["보행 위험 감지", "일반", "일반", "없음", "보행 특화 82클래스 ✔"],
-        ["공공데이터 연동", "없음", "없음", "없음", "국내 공공데이터 ✔"],
-        ["실시간 대시보드", "없음", "없음", "없음", "보호자용 대시보드 ✔"],
-        ["진동 피드백", "없음", "없음", "없음", "4단계 위험도 진동 ✔"],
-      ].map(([item, ms, gl, bme, vg]) =>
-        row(
-          cell(item, { bg: C.light, bold: true, width: 2000 }),
-          cell(ms, { width: 1560, align: AlignmentType.CENTER, color: ms.includes("✔") ? C.safe : C.midgray }),
-          cell(gl, { width: 1560, align: AlignmentType.CENTER, color: gl.includes("✔") ? C.safe : C.midgray }),
-          cell(bme, { width: 1560, align: AlignmentType.CENTER, color: bme.includes("✔") ? C.safe : C.midgray }),
-          cell(vg, { width: 2680, align: AlignmentType.CENTER, bold: true, color: C.safe, bg: C.lightest }),
-        )
-      ),
-    ], { width: 9360, colWidths: [2000, 1560, 1560, 1560, 2680] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 사업화 방안 ──────────────────────────────────────────────
-function businessSection() {
-  return [
-    h1("사업화 방안 및 수익 모델"),
-
-    h2("8-1. 수익 모델"),
-    makeTable([
-      row(
-        hCell("채널", { bg: C.primary, width: 1600 }),
-        hCell("대상", { bg: C.primary, width: 2000 }),
-        hCell("방식", { bg: C.primary, width: 3160 }),
-        hCell("예상 단가", { bg: C.primary, width: 2600 }),
-      ),
-      row(
-        cell("B2G", { bg: "EAF3FB", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("지자체·복지관·보건소", { width: 2000 }),
-        cell("기관 라이선스 계약 — 관할 시각장애인 등록자 수 기반 정액제", { width: 3160 }),
-        cell("연 500만원/기관 (50개소 목표)", { width: 2600, bold: true }),
-      ),
-      row(
-        cell("B2C", { bg: "F0FFF4", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("개인 사용자 (시각장애인·가족)", { width: 2000 }),
-        cell("프리미엄 구독 — 기본 무료 + 이력·경로·공공데이터 리포트 유료", { width: 3160 }),
-        cell("월 3,900원 (3만 명 목표)", { width: 2600, bold: true }),
-      ),
-      row(
-        cell("B2B", { bg: "FFF8F0", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("보험사·재활병원·앱 파트너", { width: 2000 }),
-        cell("보행 데이터 익명화 분석 리포트 / SDK 라이선스 공급", { width: 3160 }),
-        cell("건당 협의 / 연 2,000만원~", { width: 2600, bold: true }),
-      ),
-      row(
-        cell("공모·보조금", { bg: C.gray, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("정부·NIA·복지재단", { width: 2000 }),
-        cell("국민행복서비스 대회 입상 → 후속 사업화 지원금 연계", { width: 3160 }),
-        cell("최대 1억원 (3년)", { width: 2600, bold: true }),
-      ),
-    ], { width: 9360, colWidths: [1600, 2000, 3160, 2600] }),
-
-    spacer(160),
-    h2("8-2. 3년 수익 목표"),
-    makeTable([
-      row(
-        hCell("연도", { width: 1200 }),
-        hCell("핵심 목표", { width: 3560 }),
-        hCell("수익 목표", { width: 2000 }),
-        hCell("추진 전략", { width: 2600 }),
-      ),
-      row(
-        cell("1년차", { bg: "FFF3F3", bold: true, width: 1200, align: AlignmentType.CENTER }),
-        cell("MVP 완성·공모전 수상·파일럿 기관 3곳 확보", { width: 3560 }),
-        cell("1,500만원", { width: 2000, bold: true, align: AlignmentType.CENTER }),
-        cell("B2G 파일럿 + 공모 보조금", { width: 2600 }),
-      ),
-      row(
-        cell("2년차", { bg: "FFF8F0", bold: true, width: 1200, align: AlignmentType.CENTER }),
-        cell("기관 20곳 + 개인 5천명 + Google Play 정식 출시", { width: 3560 }),
-        cell("1억 2,000만원", { width: 2000, bold: true, align: AlignmentType.CENTER }),
-        cell("복지관 네트워크 확장 + 앱스토어 마케팅", { width: 2600 }),
-      ),
-      row(
-        cell("3년차", { bg: C.lightest, bold: true, width: 1200, align: AlignmentType.CENTER }),
-        cell("기관 50곳 + 개인 3만명 + B2B SDK 2건", { width: 3560 }),
-        cell("3억 6,000만원", { width: 2000, bold: true, align: AlignmentType.CENTER, color: C.safe }),
-        cell("정부 조달 등록 + 보험사 파트너십", { width: 2600 }),
-      ),
-    ], { width: 9360, colWidths: [1200, 3560, 2000, 2600] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 개발 로드맵 ──────────────────────────────────────────────
-function roadmapSection() {
-  return [
-    h1("개발 로드맵"),
-
-    h2("9-1. 마일스톤 로드맵 (2026~2028)"),
-    makeTable([
-      row(
-        hCell("분기", { width: 900 }),
-        hCell("Phase", { width: 1500 }),
-        hCell("핵심 목표", { width: 3360 }),
-        hCell("기술 과제", { width: 3600 }),
-      ),
-      ...[
-        ["2026 Q1", "Phase 0", "MVP 완성 및 공모전 제출", "YOLO82 파인튜닝 안정화, TFLite 경량화"],
-        ["2026 Q2", "Phase 1", "파일럿 3개 복지기관 실증 테스트", "실사용자 피드백 반영, UX 개선"],
-        ["2026 Q3", "Phase 1", "Google Play 베타 출시 (100명)", "배터리 최적화, 오디오 포커스 안정화"],
-        ["2026 Q4", "Phase 2", "기관 계약 10곳, 개인 1천 명", "다중 세션 서버 확장, 모니터링 대시보드"],
-        ["2027 Q1", "Phase 2", "보행 데이터 분석 리포트 v1 출시", "익명화 집계 파이프라인, 공공데이터 확장"],
-        ["2027 Q2", "Phase 3", "SDK 외부 공개 (보험사·재활병원)", "SDK 패키징, API 문서화"],
-        ["2027 Q4", "Phase 3", "기관 50곳, 개인 3만 명 목표", "Kubernetes 멀티리전 배포"],
-        ["2028+",   "Phase 4", "해외 시장 진출 (일본·동남아)", "다국어 TTS, 현지 공공데이터 연동"],
-      ].map(([q, ph, goal, tech]) =>
-        row(
-          cell(q, { width: 900, align: AlignmentType.CENTER, bg: C.lightest, bold: true }),
-          cell(ph, { width: 1500, align: AlignmentType.CENTER, bold: true, color: C.primary }),
-          cell(goal, { width: 3360 }),
-          cell(tech, { width: 3600, color: C.darkgray }),
-        )
-      ),
-    ], { width: 9360, colWidths: [900, 1500, 3360, 3600] }),
-
-    spacer(160),
-    h2("9-2. 기술 고도화 계획"),
-    makeTable([
-      row(
-        hCell("과제", { width: 2800 }),
-        hCell("현재", { width: 2280 }),
-        hCell("목표", { width: 2280 }),
-        hCell("예상 일정", { width: 2000 }),
-      ),
-      ...[
-        ["모델 정확도", "YOLO11n mAP39.5%", "YOLO11s 파인튜닝 mAP50%+", "2026 Q3"],
-        ["계단 감지", "오인식률 개선 중", "하드네거티브 마이닝 완료", "2026 Q2"],
-        ["거리 추정", "바운딩박스 면적 캘리브", "스테레오/LiDAR 옵션 추가", "2027 Q1"],
-        ["서버 인프라", "GCP Cloud Run 단일", "Kubernetes 오토스케일", "2027 Q2"],
-        ["개인화 학습", "글로벌 정책 json", "사용자별 민감도 조정", "2027 Q3"],
-        ["접근성 지도", "동작구 파일럿", "전국 17개 시도 확장", "2028"],
-      ].map(([task, cur, goal, when]) =>
-        row(
-          cell(task, { width: 2800, bold: true }),
-          cell(cur, { width: 2280, color: C.darkgray }),
-          cell(goal, { width: 2280, bold: true, color: C.primary }),
-          cell(when, { width: 2000, align: AlignmentType.CENTER }),
-        )
-      ),
-    ], { width: 9360, colWidths: [2800, 2280, 2280, 2000] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 기대효과 & 팀 ────────────────────────────────────────────
-function impactAndTeamSection() {
-  return [
-    h1("기대효과 및 팀 소개"),
-
-    h2("10-1. 사회적 기대효과"),
-    makeTable([
-      row(
-        hCell("영역", { bg: C.primary, width: 1600 }),
-        hCell("지표", { bg: C.primary, width: 2800 }),
-        hCell("기대 효과", { bg: C.primary, width: 4960 }),
-      ),
-      row(
-        cell("보행 안전", { bg: C.lightest, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("보행 사고 감소율 (목표)", { width: 2800 }),
-        cell("시각장애인 보행 사고 경험률 68.3% → 30% 이하 달성 목표", { width: 4960, bold: true }),
-      ),
-      row(
-        cell("독립 보행", { bg: "F0FFF4", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("보조 인력 의존 감소", { width: 2800 }),
-        cell("동행 보조 없이 단독 보행 가능 경우 확대 — 자립 생활 지원", { width: 4960 }),
-      ),
-      row(
-        cell("인프라 보완", { bg: "FFF8F0", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("음향신호기 미설치 구간 커버", { width: 2800 }),
-        cell("45.3% 미설치 교차로에서도 AI 음성 안내로 보행 지원", { width: 4960 }),
-      ),
-      row(
-        cell("데이터 활용", { bg: "F5EEF8", bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("보행 위험 지도 생성", { width: 2800 }),
-        cell("익명 집계 보행 데이터 → 지자체 보도 인프라 개선 근거 제공", { width: 4960 }),
-      ),
-      row(
-        cell("비용 절감", { bg: C.gray, bold: true, width: 1600, align: AlignmentType.CENTER }),
-        cell("보조기기 대비 비용", { width: 2800 }),
-        cell("전용 보조기기(200만원+) 대비 스마트폰 앱(무료~월 3,900원)으로 접근 장벽 대폭 감소", { width: 4960 }),
-      ),
-    ], { width: 9360, colWidths: [1600, 2800, 4960] }),
-
-    spacer(160),
-    h2("10-2. 팀 소개"),
-    makeTable([
-      row(
-        hCell("역할", { width: 1800 }),
-        hCell("담당 영역", { width: 4000 }),
-        hCell("주요 기여", { width: 3560 }),
-      ),
-      row(
-        cell("AI 리드", { bg: C.lightest, bold: true, width: 1800, align: AlignmentType.CENTER }),
-        cell("YOLO 모델 파인튜닝, TFLite 변환, 추론 파이프라인 설계", { width: 4000 }),
-        cell("VoiceGuide82 82클래스 모델 훈련, 3프레임 필터 설계", { width: 3560 }),
-      ),
-      row(
-        cell("Android 리드", { bg: "F0FFF4", bold: true, width: 1800, align: AlignmentType.CENTER }),
-        cell("Kotlin 앱 개발, CameraX 연동, TTS/진동 파이프라인", { width: 4000 }),
-        cell("MvpPipeline, SentenceBuilder, VoicePolicy 구현", { width: 3560 }),
-      ),
-      row(
-        cell("백엔드 리드", { bg: "FFF8F0", bold: true, width: 1800, align: AlignmentType.CENTER }),
-        cell("FastAPI 서버, DB 설계, GCP Cloud Run 배포", { width: 4000 }),
-        cell("SSE 스트림, Tracker, 공공데이터 파이프라인", { width: 3560 }),
-      ),
-      row(
-        cell("데이터 리드", { bg: "F5EEF8", bold: true, width: 1800, align: AlignmentType.CENTER }),
-        cell("공공데이터 수집·정제·시나리오 설계, 대시보드 시각화", { width: 4000 }),
-        cell("횡단보도 접근성 점수화, GeoJSON 산출, 데모 시나리오", { width: 3560 }),
-      ),
-    ], { width: 9360, colWidths: [1800, 4000, 3560] }),
-
-    spacer(160),
-    h2("10-3. 추진 일정 및 현재 개발 완료 현황"),
-    makeTable([
-      row(
-        hCell("구분", { width: 1200 }),
-        hCell("항목", { width: 4160 }),
-        hCell("완료 여부", { width: 1600 }),
-        hCell("비고", { width: 2400 }),
-      ),
-      ...[
-        ["핵심 기술", "YOLO11n 온디바이스 추론", "완료 ✔", "yolo11n_320.tflite"],
-        ["핵심 기술", "3프레임 투표 + IoU 추적 + EMA", "완료 ✔", "MvpPipeline.kt"],
-        ["핵심 기술", "4단계 위험도 진동 패턴", "완료 ✔", "VoiceGuideConstants.kt"],
-        ["핵심 기술", "한국어 TTS 음성 안내", "완료 ✔", "SentenceBuilder.kt"],
-        ["앱 기능", "완전 핸즈프리 4가지 모드", "완료 ✔", "VoicePolicy.kt"],
-        ["앱 기능", "오프라인 독립 운용", "완료 ✔", "서버 없이 TTS+진동"],
-        ["서버", "FastAPI + SQLite + SSE 대시보드", "완료 ✔", "GCP Cloud Run 배포"],
-        ["공공데이터", "횡단보도 접근성 점수화", "완료 ✔", "voiceguide_final/"],
-        ["공공데이터", "A/B 경로 시나리오", "완료 ✔", "보라매역 데모"],
-        ["공공데이터", "사고다발구역 지도 레이어", "완료 ✔", "대시보드 표시"],
-      ].map(([cat, item, status, note]) =>
-        row(
-          cell(cat, { width: 1200, bg: C.light, bold: true, align: AlignmentType.CENTER }),
-          cell(item, { width: 4160 }),
-          cell(status, { width: 1600, align: AlignmentType.CENTER, bold: true, color: C.safe, bg: "F0FFF4" }),
-          cell(note, { width: 2400, color: C.darkgray }),
-        )
-      ),
-    ], { width: 9360, colWidths: [1200, 4160, 1600, 2400] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── API 참고 ─────────────────────────────────────────────────
-function apiSection() {
-  return [
-    h1("주요 API 및 기술 스택"),
-
-    h2("11-1. API 엔드포인트"),
-    makeTable([
-      row(
-        hCell("메서드", { width: 1000 }),
-        hCell("경로", { width: 3200 }),
-        hCell("설명", { width: 5160 }),
-      ),
-      ...[
-        ["POST", "/detect", "탐지 결과 JSON 수신, DB 저장, Tracker 업데이트"],
-        ["POST", "/gps", "Android 위치 업데이트 수신"],
-        ["POST", "/question", "최근 Tracker/DB 상태 기반 주변 확인 응답"],
-        ["GET",  "/api/policy", "Android 정책 동기화, ETag 캐싱 지원"],
-        ["GET",  "/events/{session_id}", "SSE 실시간 스트림 (대시보드 연결)"],
-        ["GET",  "/status/{session_id}", "세션 현재 상태 조회"],
-        ["GET",  "/history/{session_id}", "세션별 탐지 이력"],
-        ["GET",  "/heatmap/{session_id}", "위험 히트맵 데이터"],
-        ["GET",  "/routes/{session_id}", "저장된 GPS 경로"],
-        ["GET",  "/pedestrian-hotspots/nearby", "GPS 기반 보행자 사고다발구역"],
-        ["GET",  "/voiceguide-final/summary", "최종 공공데이터 시나리오 요약"],
-        ["GET",  "/voiceguide-final/crosswalks.geojson", "횡단보도 접근성 GeoJSON"],
-        ["GET",  "/dashboard", "실시간 대시보드 HTML"],
-      ].map(([method, path, desc]) =>
-        row(
-          cell(method, { width: 1000, align: AlignmentType.CENTER, bold: true,
-            color: method === "POST" ? C.accent : C.secondary,
-            bg: method === "POST" ? "FFF8F0" : C.lightest }),
-          cell(path, { width: 3200, color: C.darkgray }),
-          cell(desc, { width: 5160 }),
-        )
-      ),
-    ], { width: 9360, colWidths: [1000, 3200, 5160] }),
-
-    spacer(160),
-    h2("11-2. 기술 스택"),
-    makeTable([
-      row(
-        hCell("계층", { width: 1600 }),
-        hCell("기술", { width: 3160 }),
-        hCell("버전/상세", { width: 4600 }),
-      ),
-      ...[
-        ["AI 모델", "YOLO11n + TFLite", "yolo11n_320.tflite / yolo26n_float32.tflite"],
-        ["Android", "Kotlin + CameraX", "Android Studio, USB 디버깅, Gradle"],
-        ["추론", "TensorFlow Lite", "온디바이스 추론, 카메라 프레임 서버 미전송"],
-        ["백엔드", "FastAPI (Python)", "Python 3.10+, SQLite, uvicorn"],
-        ["실시간", "SSE (Server-Sent Events)", "대시보드 실시간 탐지 스트림"],
-        ["인프라", "GCP Cloud Run", "asia-northeast3 (서울 리전), 서버리스 자동 스케일"],
-        ["데이터", "SQLite / GeoJSON / CSV", "SQLAlchemy, 공공데이터 처리 pandas"],
-        ["테스트", "pytest", "단위/통합 테스트, 공공데이터 검증"],
-      ].map(([layer, tech, detail]) =>
-        row(
-          cell(layer, { width: 1600, bg: C.light, bold: true, align: AlignmentType.CENTER }),
-          cell(tech, { width: 3160, bold: true, color: C.primary }),
-          cell(detail, { width: 4600, color: C.darkgray }),
-        )
-      ),
-    ], { width: 9360, colWidths: [1600, 3160, 4600] }),
-    spacer(200),
-    pageBreak(),
-  ];
-}
-
-// ─── 마무리 ────────────────────────────────────────────────────
-function closingSection() {
-  return [
-    h1("결론 및 향후 계획"),
-
-    h2("12-1. VoiceGuide가 만드는 변화"),
-    makeTable([
-      row(
-        hCell("Before VoiceGuide", { bg: C.danger, width: 4680 }),
-        hCell("After VoiceGuide", { bg: C.safe, width: 4680 }),
-      ),
-      row(
-        cell("흰지팡이로 감지 불가한 상체 높이 장애물 — 매 외출이 위험", { width: 4680 }),
-        cell("82종 장애물 실시간 감지 — 방향별 한국어 음성 즉시 안내", { width: 4680, bold: true }),
-      ),
-      row(
-        cell("음향신호기 없는 교차로 45.3% — 안전한 횡단 불가", { width: 4680 }),
-        cell("공공데이터 기반 접근성 우수 경로 추천", { width: 4680, bold: true }),
-      ),
-      row(
-        cell("보조 인력 동행 필수 — 독립 보행 어려움", { width: 4680 }),
-        cell("완전 핸즈프리 + 오프라인 동작 — 진정한 자립 보행", { width: 4680, bold: true }),
-      ),
-      row(
-        cell("보행 위험 데이터 미집계 — 인프라 개선 근거 부재", { width: 4680 }),
-        cell("익명 집계 보행 데이터 → 지자체 정책 근거 제공", { width: 4680, bold: true }),
-      ),
-      row(
-        cell("전용 보조기기 200만원+ — 경제적 접근 장벽", { width: 4680 }),
-        cell("스마트폰 앱 무료 기본 제공 — 누구나 접근 가능", { width: 4680, bold: true }),
-      ),
-    ], { width: 9360, colWidths: [4680, 4680] }),
-
-    spacer(200),
-    h2("12-2. 핵심 요약"),
-    makeTable([
+    sp(160),
+    subTitle("거리 추정 알고리즘 시각화"),
+    tbl([
       row(
         cell([
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200, after: 100 }, children: [
-            new TextRun({ text: "VoiceGuide", bold: true, size: 48, color: C.primary, font: "Arial" }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "D = (F × H) / h", bold: true, size: 40, color: C.primary, font: "Malgun Gothic" }),
           ]}),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 60 }, children: [
-            new TextRun({ text: "스마트폰 하나로, 시각장애인의 안전한 독립 보행을 실현합니다.", size: 24, color: C.darkgray, font: "Arial" }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "단일 카메라 기하학적 거리 추정 공식", size: 17, color: C.dark, font: "Malgun Gothic" }),
           ]}),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 80 }, children: [
-            new TextRun({ text: "온디바이스 AI · 한국어 특화 · 공공데이터 연동 · 완전 핸즈프리", bold: true, size: 22, color: C.secondary, font: "Arial" }),
+        ], { bg: C.lightest, bdr: bAll(C.secondary), w: 3000 }),
+        arrowCell(400),
+        cell([
+          new Paragraph({ spacing: { before: 40, after: 20 }, children: [
+            new TextRun({ text: "D", bold: true, color: C.danger, size: 22, font: "Malgun Gothic" }),
+            new TextRun({ text: " = 추정 거리 (미터)", size: 19, color: C.black, font: "Malgun Gothic" }),
           ]}),
-          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 200 }, children: [
-            new TextRun({ text: "https://voiceguide-1063164560758.asia-northeast3.run.app", size: 18, color: C.midgray, font: "Arial", italics: true }),
+          new Paragraph({ spacing: { before: 10, after: 10 }, children: [
+            new TextRun({ text: "F", bold: true, color: C.secondary, size: 22, font: "Malgun Gothic" }),
+            new TextRun({ text: " = 카메라 초점거리 팩터 (보정 상수)", size: 19, color: C.black, font: "Malgun Gothic" }),
           ]}),
-        ], { bg: C.lightest, span: 1 }),
+          new Paragraph({ spacing: { before: 10, after: 10 }, children: [
+            new TextRun({ text: "H", bold: true, color: C.safe, size: 22, font: "Malgun Gothic" }),
+            new TextRun({ text: " = 클래스 객체 실물 평균 높이", size: 19, color: C.black, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ spacing: { before: 10, after: 40 }, children: [
+            new TextRun({ text: "h", bold: true, color: C.accent, size: 22, font: "Malgun Gothic" }),
+            new TextRun({ text: " = 탐지된 바운딩박스 픽셀 높이", size: 19, color: C.black, font: "Malgun Gothic" }),
+          ]}),
+        ], { w: 5272 }),
       ),
-    ], { width: 9360, colWidths: [9360] }),
+    ], { w: 9072, cols: [3000, 400, 5272] }),
+    sp(80),
+    subTitle("방향 판별 구역 다이어그램 (화면 3분할)"),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 10 }, children: [
+            new TextRun({ text: "◀ 왼쪽", bold: true, size: 24, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "0.0 ~ 0.33", size: 17, color: "CCCCCC", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.secondary, bdr: bAll(C.primary), w: 2800 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 10 }, children: [
+            new TextRun({ text: "▶ 정면 ◀", bold: true, size: 24, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "0.33 ~ 0.66  ★ 최우선 위험", size: 17, color: "FFD700", font: "Malgun Gothic", bold: true }),
+          ]}),
+        ], { bg: C.danger, bdr: bAll("8B0000"), w: 3472 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 10 }, children: [
+            new TextRun({ text: "오른쪽 ▶", bold: true, size: 24, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "0.66 ~ 1.0", size: 17, color: "CCCCCC", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.secondary, bdr: bAll(C.primary), w: 2800 }),
+      ),
+      row(
+        cell("2순위: 방향 회피 안내\n(DOUBLE 진동)", { w: 2800, align: AlignmentType.CENTER, bg: C.blue, color: C.secondary, bold: true }),
+        cell("1순위: 즉시 정지 경고\n(URGENT 진동)", { w: 3472, align: AlignmentType.CENTER, bg: "FFEAEA", color: C.danger, bold: true }),
+        cell("2순위: 방향 회피 안내\n(DOUBLE 진동)", { w: 2800, align: AlignmentType.CENTER, bg: C.blue, color: C.secondary, bold: true }),
+      ),
+    ], { w: 9072, cols: [2800, 3472, 2800] }),
 
-    spacer(120),
+    sp(160),
+    subTitle("AI 기술 활용 및 구체적 알고리즘"),
+    p("VoiceGuide는 고비용의 클라우드 서버 통신이나 LTE/5G 음영 지역에서의 먹통 현상을 배제하기 위해 스마트폰 디바이스 내부에서 추론이 끝나는 '온디바이스(On-device) AI' 핵심 아키텍처를 지향합니다."),
+    sp(80),
+    tbl([
+      row(
+        hc("기술 요소", { w: 2200 }),
+        hc("적용 방식", { w: 4272 }),
+        hc("성능 목표", { w: 2600 }),
+      ),
+      row(
+        cell("객체감지 모델", { bg: C.blue, bold: true, w: 2200 }),
+        cell("YOLO11n-Nano를 TFLite로 변환해 모바일에서 온디바이스 추론 — FP32 기반", { w: 4272 }),
+        cell("레이턴시 30ms 이내, mAP 39.5%", { w: 2600, bold: true }),
+      ),
+      row(
+        cell("거리 추정\nD = (F × H) / h", { bg: C.orange, bold: true, w: 2200, align: AlignmentType.CENTER }),
+        cell("단일 카메라 환경에서 바운딩박스 크기와 클래스 평균 실물 높이를 이용한 기하학적 거리 추정\nD: 추정거리 | F: 초점거리 팩터 | H: 클래스 실물 평균 높이 | h: 바운딩박스 픽셀 높이", { w: 4272 }),
+        cell("클래스별 캘리브레이션 상수 개별 설정 (50종 이상)", { w: 2600, bold: true }),
+      ),
+      row(
+        cell("방향 판별\n(3분할)", { bg: C.purple, bold: true, w: 2200, align: AlignmentType.CENTER }),
+        cell("바운딩박스 중심점 X 좌표 기준\n• 0.0 ~ 0.33: 왼쪽\n• 0.33 ~ 0.66: 정면\n• 0.66 ~ 1.0: 오른쪽", { w: 4272 }),
+        cell("화면 위치 기반 즉시 계산 (추가 연산 없음)", { w: 2600, bold: true }),
+      ),
+      row(
+        cell("모델 최적화\n계획", { bg: C.gray, bold: true, w: 2200, align: AlignmentType.CENTER }),
+        cell("현재 FP32 → 추후 FP16 또는 INT8 양자화로 발열·배터리·FPS 문제 완화", { w: 4272 }),
+        cell("FPS 20 이상 목표 (저사양 기기)", { w: 2600, bold: true }),
+      ),
+    ], { w: 9072, cols: [2200, 4272, 2600] }),
+
+    sp(140),
+    subTitle("위험도 우선순위 매트릭스"),
+    tbl([
+      row(
+        hc("구분(거리)", { w: 1800, bg: C.primary }),
+        hc("정면 영역\n(0.33 ~ 0.66)", { bg: C.danger, w: 2424 }),
+        hc("왼쪽 영역\n(0.0 ~ 0.33)", { bg: C.warning, w: 2424 }),
+        hc("오른쪽 영역\n(0.66 ~ 1.0)", { bg: C.warning, w: 2424 }),
+      ),
+      row(
+        cell("초근접\n(1.0m 이내)", { bg: "FFEAEA", bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("위험 1순위\n즉시 정지 경고 (URGENT)", { bg: "FFEAEA", w: 2424, align: AlignmentType.CENTER, bold: true, color: C.danger }),
+        cell("위험 2순위\n방향 회피 안내 (DOUBLE)", { bg: "FFF3E0", w: 2424, align: AlignmentType.CENTER }),
+        cell("위험 2순위\n방향 회피 안내 (DOUBLE)", { bg: "FFF3E0", w: 2424, align: AlignmentType.CENTER }),
+      ),
+      row(
+        cell("근접\n(1.0m ~ 2.0m)", { bg: C.yellow, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("주의 3순위\n진행 방향 주의 (SHORT)", { bg: C.yellow, w: 2424, align: AlignmentType.CENTER }),
+        cell("주의 4순위\n접근 인지 알림 (SHORT)", { bg: C.yellow, w: 2424, align: AlignmentType.CENTER }),
+        cell("주의 4순위\n접근 인지 알림 (SHORT)", { bg: C.yellow, w: 2424, align: AlignmentType.CENTER }),
+      ),
+      row(
+        cell("원거리\n(2.0m 초과)", { bg: C.gray, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("모니터링\n(안내 미출력)", { bg: C.gray, w: 2424, align: AlignmentType.CENTER, color: C.midgray }),
+        cell("필터링\n(안내 제외)", { bg: C.gray, w: 2424, align: AlignmentType.CENTER, color: C.midgray }),
+        cell("필터링\n(안내 제외)", { bg: C.gray, w: 2424, align: AlignmentType.CENTER, color: C.midgray }),
+      ),
+    ], { w: 9072, cols: [1800, 2424, 2424, 2424] }),
+
+    sp(140),
+    subTitle("성능 검증 계획"),
+    tbl([
+      row(
+        hc("검증 항목", { w: 2200 }),
+        hc("검증 방법", { w: 4000 }),
+        hc("목표치", { w: 2872 }),
+      ),
+      ...[
+        ["응답 지연", "카메라 입력부터 TTS 시작까지 시간 측정", "평균 0.5초 이하"],
+        ["탐지 안정성", "동일 코스 반복 주행 영상 라벨링 비교", "핵심 객체 경고 정확도 85% 이상"],
+        ["배터리/발열", "20분 연속 사용 시 온도·배터리 감소율 측정", "발열 경고 없이 사용 가능"],
+        ["음성 피로도", "반복경고 빈도와 사용자 불편도 설문", "불편도 20% 이상 감소"],
+        ["오프라인 안정성", "Wi-Fi 차단 상태에서 TTS·진동 동작 확인", "100% 기본 기능 유지"],
+      ].map(([item, method, goal]) =>
+        row(
+          cell(item, { bg: C.lightest, bold: true, w: 2200 }),
+          cell(method, { w: 4000 }),
+          cell(goal, { w: 2872, bold: true, color: C.primary }),
+        )
+      ),
+    ], { w: 9072, cols: [2200, 4000, 2872] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 4. 차별성 ──────────────────────────────────────────
+function section4() {
+  return [
+    sectionTitle("4", "기존 서비스와의 차별성 (독창성)"),
+
+    subTitle("국내외 유관 서비스와의 세부 성능 비교"),
+    tbl([
+      row(
+        hc("비교 항목", { w: 2200, bg: C.primary }),
+        hc("흰지팡이\n(기본)", { bg: C.midgray, w: 1468 }),
+        hc("Be My Eyes\n(수동 캡처)", { bg: "888888", w: 1468 }),
+        hc("Microsoft\nSeeing AI", { bg: "888888", w: 1468 }),
+        hc("VoiceGuide", { bg: C.secondary, w: 2468 }),
+      ),
+      ...[
+        ["주요 감지 대상", "바닥 30cm 이내 장애물", "텍스트·이미지 묘사", "텍스트·바코드·장면 설명", "정면/상체 높이 장애물 82클래스 ✔"],
+        ["위험 즉시 알림", "접촉 시에만(사후)", "불가(수동 캡처)", "수동 캡처 필요", "자동 실시간 음성 경고(사전) ✔"],
+        ["구동 방식", "완전 아날로그", "클라우드 서버 의존", "클라우드 서버 의존", "온디바이스 AI (오프라인 가능) ✔"],
+        ["보행 중 조작성", "물리적 조작 필수", "화면 터치 조작 필요", "화면 터치 조작 필요", "음성 명령 완전 핸즈프리 ✔"],
+        ["한국어 특화", "해당 없음", "미흡", "미흡", "완전 한국어 특화 (SentenceBuilder) ✔"],
+        ["공공데이터 연동", "없음", "없음", "없음", "국내 공공데이터 접근성 분석 ✔"],
+        ["실시간 대시보드", "없음", "없음", "없음", "보호자/기관용 SSE 대시보드 ✔"],
+        ["4단계 진동 피드백", "없음", "없음", "없음", "NONE/SHORT/DOUBLE/URGENT ✔"],
+        ["프라이버시", "해당 없음", "영상 서버 전송", "영상 서버 전송", "온디바이스 처리, 영상 미전송 ✔"],
+      ].map(([item, wc, bme, ms, vg]) =>
+        row(
+          cell(item, { bg: C.light, bold: true, w: 2200 }),
+          cell(wc, { w: 1468, align: AlignmentType.CENTER, color: C.midgray }),
+          cell(bme, { w: 1468, align: AlignmentType.CENTER, color: C.midgray }),
+          cell(ms, { w: 1468, align: AlignmentType.CENTER, color: C.midgray }),
+          cell(vg, { w: 2468, align: AlignmentType.CENTER, bold: true, color: C.safe, bg: C.green }),
+        )
+      ),
+    ], { w: 9072, cols: [2200, 1468, 1468, 1468, 2468] }),
+
+    sp(160),
+    subTitle("독창성 핵심 차별점 요약"),
+    tbl([
+      row(
+        hc("차별점", { w: 2400, bg: C.secondary }),
+        hc("설명", { w: 6672 }),
+      ),
+      row(
+        cell("① 보행 위험 감지 자동화", { bg: C.blue, bold: true, w: 2400 }),
+        cell("기존 앱들은 사용자가 직접 카메라로 찍어야 대답하는 방식인 반면, VoiceGuide는 앱 실행만으로 전방의 충돌 위협을 '자동' 감지하여 실시간 선제 안내를 제공합니다.", { w: 6672 }),
+      ),
+      row(
+        cell("② 네트워크 독립 & 프라이버시", { bg: C.green, bold: true, w: 2400 }),
+        cell("온디바이스에서 100% 로컬 처리하므로 즉시 반응이 가능하며, 카메라 프레임을 서버로 전송하지 않아 사용자의 시선 프라이버시를 안전하게 보호합니다.", { w: 6672 }),
+      ),
+      row(
+        cell("③ 흰지팡이 상호보완 구조", { bg: C.purple, bold: true, w: 2400 }),
+        cell("흰지팡이를 전면 부정하는 것이 아니라, 흰지팡이의 탐지 범위(하단 지면) 바깥의 사각지대(상단·정면 1.5m 공간)를 AI 카메라가 백업하는 형태로 연계합니다.", { w: 6672 }),
+      ),
+      row(
+        cell("④ 공공데이터 경로 최적화", { bg: C.orange, bold: true, w: 2400 }),
+        cell("단순 최단 경로가 아닌 음향신호기·볼라드·횡단보도 접근성 점수를 반영한 '시각장애인 안전 최적 경로'를 추천하는 차별화된 시나리오를 제공합니다.", { w: 6672 }),
+      ),
+    ], { w: 9072, cols: [2400, 6672] }),
+
+    sp(140),
+    subTitle("경쟁 포지셔닝 매트릭스"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgPositioningMatrix(), 420, 320)],
+    }),
+
+    sp(140),
+    subTitle("서비스 포지셔닝 분석"),
+    tbl([
+      row(
+        hc("포지셔닝 축", { w: 2000 }),
+        hc("낮은 쪽", { w: 2500 }),
+        hc("높은 쪽", { w: 2500 }),
+        hc("VoiceGuide 위치", { bg: C.secondary, w: 2072 }),
+      ),
+      ...[
+        ["즉시성", "사후 신고·사후 설명", "보행 중 자동 경고", "보행 중 자동 위험 경고 ✔"],
+        ["데이터 활용", "단순 정보 조회", "실증·운영·환류", "공공데이터 + 비식별 위험로그 ✔"],
+        ["보급 장벽", "고가 전용 장비", "스마트폰 앱", "스마트폰 기반 저마찰 도입 ✔"],
+        ["프라이버시", "영상 서버 전송", "로컬 처리", "온디바이스 우선 처리 ✔"],
+      ].map(([axis, low, high, pos]) =>
+        row(
+          cell(axis, { bg: C.light, bold: true, w: 2000 }),
+          cell(low, { w: 2500, color: C.midgray }),
+          cell(high, { w: 2500 }),
+          cell(pos, { w: 2072, bold: true, color: C.safe, bg: C.green }),
+        )
+      ),
+    ], { w: 9072, cols: [2000, 2500, 2500, 2072] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 5. 사업화 ──────────────────────────────────────────
+function section5() {
+  return [
+    sectionTitle("5", "아이디어의 창업(사업화, 시장성), 매출 발생 및 투자 가능성"),
+
+    subTitle("비즈니스 모델 캔버스 (4원 수익 구조)"),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+            new TextRun({ text: "B2G", bold: true, size: 32, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [
+            new TextRun({ text: "정부 · 지자체", bold: true, size: 20, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 80 }, children: [
+            new TextRun({ text: "스마트시티 시범사업\n정보통신보조기기 조달\n→ 연 500만원/기관", size: 17, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "1A3E6B", bdr: bAll("0D2240"), w: 2200 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+            new TextRun({ text: "B2B", bold: true, size: 32, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [
+            new TextRun({ text: "보조기기 · 웨어러블", bold: true, size: 20, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 80 }, children: [
+            new TextRun({ text: "AI 감지 엔진\nSDK 라이선스\n→ 연 2,000만원~", size: 17, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "E67E22", bdr: bAll("CC6600"), w: 2236 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+            new TextRun({ text: "B2C", bold: true, size: 32, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [
+            new TextRun({ text: "시각장애인 개인", bold: true, size: 20, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 80 }, children: [
+            new TextRun({ text: "기본 무료 + 유료 팩\n→ 월 3,900원\n(3만 명 목표)", size: 17, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "7D3C98", bdr: bAll("5B2780"), w: 2236 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 20 }, children: [
+            new TextRun({ text: "B2G2C", bold: true, size: 28, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 20 }, children: [
+            new TextRun({ text: "복지관 라이선스", bold: true, size: 20, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 10, after: 80 }, children: [
+            new TextRun({ text: "보행 훈련 라이선스\n대면 검증 프로그램\n→ 복지관 20곳 목표", size: 17, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "27AE60", bdr: bAll("1A7A40"), w: 2400 }),
+      ),
+    ], { w: 9072, cols: [2200, 2236, 2236, 2400] }),
+    sp(80),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 80 }, children: [
+            new TextRun({ text: "★ 정보통신보조기기 보급사업 등록 시 정부가 비용의 80~90% 지원 → 빠른 보급 채널 확보 가능", bold: true, size: 19, color: C.primary, font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.lightest, bdr: bAll(C.secondary) }),
+      ),
+    ], { w: 9072, cols: [9072] }),
+
+    sp(120),
+    subTitle("수익 구조 도넛 차트 (중장기 목표 비중)"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgDonutChart({
+        title: "VoiceGuide 수익 구조 (중장기 목표)",
+        slices: [
+          { label: "B2G 정부·지자체 조달", value: 40, color: "#1A3E6B" },
+          { label: "B2B SDK 라이선스",   value: 25, color: "#E67E22" },
+          { label: "B2C 개인 구독",       value: 20, color: "#7D3C98" },
+          { label: "B2G2C 복지관",       value: 15, color: "#27AE60" },
+        ],
+        size: 300,
+      }), 252, 320)],
+    }),
+
+    sp(140),
+    subTitle("다각적 비즈니스 모델 (BM) 상세"),
+    tbl([
+      row(
+        hc("비즈니스\n타겟", { w: 1400, bg: C.primary }),
+        hc("제공 가치 (Value Proposition)", { w: 3600 }),
+        hc("수익 창출 방식", { w: 4072 }),
+      ),
+      row(
+        cell("B2G\n정부·지자체", { bg: C.blue, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("교통약자 안전 보행 인프라 확충, 공공데이터 연계 복지 서비스 제공 실적", { w: 3600 }),
+        cell("지자체 스마트시티 보행 안전 시범 사업 계약, 정보통신보조기기 조달 납품\n→ 연 500만원/기관 (50개소 목표)", { w: 4072 }),
+      ),
+      row(
+        cell("B2B\n보조기기·웨어러블", { bg: C.orange, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("기존 아날로그 안경, 목걸이형 스마트 기기에 AI 핵심 객체 감지 모듈 탑재 지원", { w: 3600 }),
+        cell("AI 감지/거리판단 알고리즘 엔진 API/SDK 라이선스 수수료\n→ 연 2,000만원~", { w: 4072 }),
+      ),
+      row(
+        cell("B2C\n개인 사용자", { bg: C.purple, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("이동 안전 및 자율 보행감 증진, 삶의 질 향상", { w: 3600 }),
+        cell("기본 자동 안내 영구 무료 + 고화질 정밀 탐지·음성 팩 유료 구독\n→ 월 3,900원 (3만 명 목표)", { w: 4072 }),
+      ),
+      row(
+        cell("B2G2C\n복지관", { bg: C.green, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("기관 이용자 보행 자립 훈련 프로그램 보완", { w: 3600 }),
+        cell("기관용 보행 훈련 라이선스 판매 및 대면 검증 프로그램 공동 수행\n→ 복지관 20곳 목표 (2년차)", { w: 4072 }),
+      ),
+    ], { w: 9072, cols: [1400, 3600, 4072] }),
+
+    sp(140),
+    subTitle("초기 고객 가설 및 검증 방법"),
+    tbl([
+      row(
+        hc("우선\n순위", { w: 600, bg: C.primary }),
+        hc("고객군", { w: 2200 }),
+        hc("도입 이유", { w: 3272 }),
+        hc("검증 방법", { w: 3000 }),
+      ),
+      row(
+        cell("1", { bg: C.blue, bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("시각장애인 복지관", { w: 2200, bold: true }),
+        cell("보행훈련 프로그램 보조와 사용자 피드백 확보", { w: 3272 }),
+        cell("20명 내외 파일럿 테스트 — 현장 코스 운영", { w: 3000 }),
+      ),
+      row(
+        cell("2", { bg: C.orange, bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("지자체 장애인복지/교통약자 부서", { w: 2200, bold: true }),
+        cell("지역 보행 위험 분석 및 스마트복지 성과", { w: 3272 }),
+        cell("위험구간 리포트와 PoC 제안", { w: 3000 }),
+      ),
+      row(
+        cell("3", { bg: C.purple, bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("보조기기 기업", { w: 2200, bold: true }),
+        cell("기존 하드웨어에 AI 감지 엔진 탑재 가능", { w: 3272 }),
+        cell("SDK 데모와 공동사업 제안", { w: 3000 }),
+      ),
+    ], { w: 9072, cols: [600, 2200, 3272, 3000] }),
+
+    sp(140),
+    subTitle("도입 패키지 예시"),
+    tbl([
+      row(
+        hc("패키지", { w: 1400, bg: C.primary }),
+        hc("대상", { w: 2200 }),
+        hc("구성", { w: 3472 }),
+        hc("목표", { w: 2000 }),
+      ),
+      row(
+        cell("실증형", { bg: C.blue, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("복지관 / 교육기관", { w: 2200 }),
+        cell("앱, 테스트 코스, 설문지, 위험로그 리포트", { w: 3472 }),
+        cell("사용성 검증", { w: 2000, bold: true, color: C.safe }),
+      ),
+      row(
+        cell("기관형", { bg: C.orange, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("지자체 / 공공기관", { w: 2200 }),
+        cell("앱 라이선스, 대시보드, 월간 리포트", { w: 3472 }),
+        cell("교통약자 안전정책 자료화", { w: 2000, bold: true, color: C.primary }),
+      ),
+      row(
+        cell("SDK형", { bg: C.purple, bold: true, w: 1400, align: AlignmentType.CENTER }),
+        cell("보조기기 기업", { w: 2200 }),
+        cell("객체감지·위험도 엔진, 음성 안내 모듈", { w: 3472 }),
+        cell("기존 장비와 결합", { w: 2000, bold: true, color: C.dark }),
+      ),
+    ], { w: 9072, cols: [1400, 2200, 3472, 2000] }),
+
+    sp(140),
+    subTitle("중장기 발전 로드맵 타임라인"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgTimeline(), 589, 168)],
+    }),
+
+    sp(140),
+    subTitle("중장기 발전 단계 로드맵 (상세)"),
+    tbl([
+      row(
+        hc("단계", { w: 1000, bg: C.primary }),
+        hc("기간", { w: 1400 }),
+        hc("목표", { w: 3272 }),
+        hc("주요 산출물", { w: 3400 }),
+      ),
+      ...[
+        ["1단계\nMVP", "현재 ~ 1개월", "TFLite 추론 구조화, 위험도 규칙 정리, MVP 기능 완성·검증", "Android MVP, 테스트 체크리스트, 대시보드"],
+        ["2단계\n파일럿", "1 ~ 3개월", "복지관 3곳과 실증 MOU 체결, 시각장애인 20인 대상 실외 필드 주행 테스트", "실증 리포트 1차, 인터뷰 요약, 공공데이터 매핑표"],
+        ["3단계\n조달", "3 ~ 6개월", "NIA 정보통신보조기기 보급사업 소프트웨어 부문 신규 품목 등록 추진", "사업화 로드맵, 개인정보·윤리 체크리스트"],
+        ["4단계\n확장", "6개월~", "안경형/웨어러블 디바이스 제휴 — 스마트 글래스 시장 진출", "SDK 패키징, 해외 시장 진출 기획서"],
+      ].map(([phase, period, goal, output]) =>
+        row(
+          cell(phase, { bg: C.lightest, bold: true, w: 1000, align: AlignmentType.CENTER }),
+          cell(period, { w: 1400, align: AlignmentType.CENTER, color: C.dark }),
+          cell(goal, { w: 3272 }),
+          cell(output, { w: 3400, color: C.dark, sz: 17 }),
+        )
+      ),
+    ], { w: 9072, cols: [1000, 1400, 3272, 3400] }),
+
+    sp(140),
+    subTitle("월별 실행계획"),
+    tbl([
+      row(
+        hc("기간", { w: 1200 }),
+        hc("목표", { w: 2200 }),
+        hc("주요 작업", { w: 3272 }),
+        hc("산출물", { w: 2400 }),
+      ),
+      ...[
+        ["1개월차", "MVP 안정화", "모델 클래스 통일, TFLite 추론 안정화, 위험도 규칙 정리, 음성 안내문 개선", "Android MVP, 테스트 체크리스트"],
+        ["2개월차", "공공데이터 연계", "사회서비스 제공기관/편의시설/복지서비스 API 매핑, 실증기관 후보 도출", "기관 후보 리스트, 데이터 매핑표"],
+        ["3개월차", "1차 파일럿", "복지관 테스트 코스 운영, 사용자 인터뷰, 위험객체 클래스 보정", "실증 리포트 1차, 인터뷰 요약"],
+        ["4개월차", "AI·UX 고도화", "오탐/미탐 개선, 반복 경고 억제, 음성 명령 개선, 배터리·발열 측정", "모델/UX 개선본, 성능표"],
+        ["5개월차", "기관 제안", "지자체/복지기관용 대시보드, 위험구간 리포트, 도입 제안서 작성", "PoC 제안서, 대시보드 캡처"],
+        ["6개월차", "확산 준비", "후속지원사업 신청, 보조기기 연계 검토, 개인정보 문서화", "사업화 로드맵, 윤리 체크리스트"],
+      ].map(([period, goal, work, output]) =>
+        row(
+          cell(period, { bg: C.lightest, bold: true, w: 1200, align: AlignmentType.CENTER }),
+          cell(goal, { w: 2200, bold: true, color: C.primary }),
+          cell(work, { w: 3272, sz: 18 }),
+          cell(output, { w: 2400, sz: 17, color: C.dark }),
+        )
+      ),
+    ], { w: 9072, cols: [1200, 2200, 3272, 2400] }),
+
+    sp(140),
+    subTitle("성과지표 (KPI)"),
+    tbl([
+      row(
+        hc("구분", { w: 1400 }),
+        hc("1차 목표", { w: 4000 }),
+        hc("측정 방법", { w: 3672 }),
+      ),
+      ...[
+        ["기술 성능", "핵심 위험객체 경고 정확도 85% 이상, 평균 응답지연 0.5초 이하", "테스트 영상·현장 코스 기준 라벨링 검증"],
+        ["사용자 경험", "음성 경고 이해도 80점 이상, 경고 피로도 20% 감소", "실증 후 설문 및 인터뷰"],
+        ["실증 확산", "복지기관 3곳 이상 협의, 파일럿 사용자 20~100명 단계 확대", "협력기관 미팅록, 참여자 수"],
+        ["공공데이터 활용", "데이터셋 3종 이상 실제 기능/운영에 반영", "API 매핑표, 기관·시설·서비스 안내 로그"],
+        ["사업화", "기관 PoC 제안 2건 이상, 후속지원사업 1건 이상 신청", "제안서, 신청서, 미팅 결과"],
+      ].map(([cat, goal, measure]) =>
+        row(
+          cell(cat, { bg: C.light, bold: true, w: 1400, align: AlignmentType.CENTER }),
+          cell(goal, { w: 4000, bold: true }),
+          cell(measure, { w: 3672, color: C.dark }),
+        )
+      ),
+    ], { w: 9072, cols: [1400, 4000, 3672] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 6. 파급효과 ────────────────────────────────────────
+function section6() {
+  return [
+    sectionTitle("6", "아이디어 상용화에 따른 파급효과 (기대효과, ESG 경영 실현 가능성)"),
+
+    subTitle("파급효과 한눈에 보기 (인포그래픽)"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgKpiRow({
+        stats: [
+          { value: "40%↓",    label: "보행 돌발\n사고율 경감 목표",     color: "#C0392B" },
+          { value: "30%↑",    label: "자립 보행\n비율 향상",            color: "#27AE60" },
+          { value: "수천억",  label: "물리 인프라\n절감 (재설치 대비)", color: "#7D3C98" },
+          { value: "UN SDGs", label: "포용적 도시\nESG 기여",           color: "#2E75B6" },
+        ],
+        width: 680, height: 130,
+      }), 572, 109)],
+    }),
+
+    sp(120),
+    subTitle("ESG 경영 실현 다이어그램"),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "E  환경(Environment)", bold: true, size: 22, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "온디바이스 처리로\n서버 전력 소비 최소화\n(Green AI)", size: 17, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "2ECC71", bdr: bAll("1A7A40"), w: 2924 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "S  사회(Social)", bold: true, size: 22, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "시각장애인 이동권 보장\nUN SDGs 포용적 도시\n디지털 소외계층 지원", size: 17, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "3498DB", bdr: bAll("1A5A9A"), w: 3124 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "G  거버넌스(Governance)", bold: true, size: 22, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "영상 원본 미저장\n개인정보보호법 완전 준수\n비식별 데이터만 활용", size: 17, color: "EEEEEE", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: "8E44AD", bdr: bAll("5B2780"), w: 3024 }),
+      ),
+    ], { w: 9072, cols: [2924, 3124, 3024] }),
+
+    sp(140),
+    subTitle("상용화 기대효과 상세"),
+    tbl([
+      row(
+        hc("영역", { w: 1600, bg: C.primary }),
+        hc("기대효과", { w: 5000 }),
+        hc("정량 목표", { w: 2472 }),
+      ),
+      row(
+        cell("보행 안전성\n향상", { bg: C.green, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("82종 장애물 실시간 감지로 충돌 전 사전 인지 — 흰지팡이 사각지대 완전 보완", { w: 5000 }),
+        cell("보행 돌발 사고율 40% 이상 경감", { w: 2472, bold: true, color: C.safe }),
+      ),
+      row(
+        cell("독립 보행\n실현", { bg: C.blue, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("완전 핸즈프리 + 오프라인 동작으로 보조 인력 동행 없이 단독 보행 가능 경우 확대", { w: 5000 }),
+        cell("자립 보행 비율 30% 이상 향상", { w: 2472, bold: true, color: C.safe }),
+      ),
+      row(
+        cell("인프라 비용\n절감", { bg: C.orange, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("물리적 점자블록·음향신호기 전면 재설치 비용 대비 모바일 앱으로 즉각적·전국적 보완 솔루션 제공", { w: 5000 }),
+        cell("수천억 규모 인프라 보완 효과", { w: 2472, bold: true, color: C.safe }),
+      ),
+      row(
+        cell("Edge AI\n모범 사례", { bg: C.purple, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("고성능 클라우드 서버 의존 없이 사회 복지 분야에서 경량 엣지 컴퓨팅 실용 사례를 정립", { w: 5000 }),
+        cell("온디바이스 AI 복지 모델 선도", { w: 2472, bold: true }),
+      ),
+      row(
+        cell("보행 데이터\n정책 환류", { bg: C.light, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("익명 집계 보행 위험 로그를 지자체에 제공 → 도보 인프라 개선 근거 및 정책 자료화", { w: 5000 }),
+        cell("연 2건 이상 지자체 정책 제안", { w: 2472, bold: true }),
+      ),
+    ], { w: 9072, cols: [1600, 5000, 2472] }),
+
+    sp(140),
+    subTitle("리스크 대응 표"),
+    tbl([
+      row(
+        hc("리스크", { w: 1800 }),
+        hc("영향", { w: 3000 }),
+        hc("대응 방안", { w: 4272 }),
+      ),
+      ...[
+        ["오탐·미탐", "불필요한 경고 또는 위험 미인지로 사용자 신뢰 저하", "핵심 객체군부터 제한 운영, 3프레임 안정화, 위험도 임계값 튜닝, 사용자 피드백 기반 보정"],
+        ["배터리·발열", "장시간 보행 시 사용성 저하", "FPS 동적 조절, 화면 꺼짐 백그라운드 안내, 저전력 모드"],
+        ["음성 마스킹", "경고음이 차량 경적·사이렌 등 외부 소리를 가릴 위험", "골전도 이어폰 가이드, 안내 길이 최소화, 주변 소음 기준 볼륨 조절"],
+        ["개인정보", "카메라 영상에 타인 얼굴·차량 번호가 포함될 수 있음", "영상 원본 미저장, 온디바이스 처리, 비식별 최소 로그, 명확한 동의서"],
+        ["과신 위험", "앱이 모든 위험을 감지한다고 오해할 가능성", "\"보행 보조 도구\" 고지, 흰지팡이 병행 사용, 위험 상황별 주의 문구"],
+        ["공공데이터 최신성", "기관 정보·복지서비스 정보 오류 가능성", "정기 동기화, 공식 링크 연결, 중요 정보는 전화/홈페이지 재확인 안내"],
+      ].map(([risk, impact, response]) =>
+        row(
+          cell(risk, { bg: "FFEAEA", bold: true, w: 1800, align: AlignmentType.CENTER }),
+          cell(impact, { w: 3000, color: C.danger }),
+          cell(response, { w: 4272 }),
+        )
+      ),
+    ], { w: 9072, cols: [1800, 3000, 4272] }),
+
+    sp(140),
+    subTitle("ESG 경영 실현 방안"),
+    tbl([
+      row(
+        hc("ESG 항목", { w: 1600, bg: C.primary }),
+        hc("실현 방안", { w: 7472 }),
+      ),
+      row(
+        cell("S\nSocial", { bg: C.green, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("디지털 소외계층이자 교통약자인 시각장애인의 정보 및 이동 접근성을 극대화하여 UN 지속가능발전목표(SDGs) '모두를 위한 포용적이고 안전한 도시 구축'에 기여합니다.", { w: 7472 }),
+      ),
+      row(
+        cell("G\nGovernance", { bg: C.blue, bold: true, w: 1600, align: AlignmentType.CENTER }),
+        cell("시각장애인이 이동하는 모든 영상 데이터는 중앙 서버에 수집되지 않고 온디바이스에서 즉시 소멸되므로, 타인의 얼굴이나 차량 번호판 불법 수집 관련 개인정보보호법 리스크를 원천 차단합니다.", { w: 7472 }),
+      ),
+    ], { w: 9072, cols: [1600, 7472] }),
+
+    sp(140),
+    subTitle("윤리·법적 체크리스트"),
+    tbl([
+      row(
+        hc("항목", { w: 1600 }),
+        hc("체크 내용", { w: 5000 }),
+        hc("현재 상태", { w: 2472 }),
+      ),
+      ...[
+        ["동의", "실증 참여자에게 수집 항목, 보관기간, 철회 방법을 안내했는가", "서식 준비 중"],
+        ["최소수집", "영상·음성 원본 없이도 검증 가능한 통계만 저장하는가", "완료 ✔ (탐지 JSON만 저장)"],
+        ["안전고지", "앱이 흰지팡이와 보행훈련을 대체하지 않음을 명시했는가", "앱 내 고지 문구 포함"],
+        ["접근성", "화면을 보지 않아도 앱 시작·중지·도움 요청이 가능한가", "완료 ✔ (핸즈프리 완전 지원)"],
+        ["오류 대응", "오탐/미탐 신고와 모델 개선 루프가 준비되어 있는가", "피드백 채널 설계 중"],
+      ].map(([item, check, status]) =>
+        row(
+          cell(item, { bg: C.light, bold: true, w: 1600, align: AlignmentType.CENTER }),
+          cell(check, { w: 5000 }),
+          cell(status, { w: 2472, bold: true, color: status.includes("✔") ? C.safe : C.warning, align: AlignmentType.CENTER }),
+        )
+      ),
+    ], { w: 9072, cols: [1600, 5000, 2472] }),
+    pb(),
+  ];
+}
+
+// ─── 섹션 7. 공공데이터 ──────────────────────────────────────
+function section7() {
+  return [
+    sectionTitle("7", "출품작에 활용한 공공데이터 및 국가중점데이터 적용 계획 세부 내용"),
+
+    p("VoiceGuide는 공공데이터를 단순한 시장 조사 목적에 그치지 않고 서비스의 실행, 실증, 보급 확장 단계에 입체적으로 활용합니다. 특히 서울시 동작구를 중심으로 횡단보도 접근성 점수화 시나리오를 구현하여, 최단 경로가 아닌 '시각장애인 안전 최적 경로'를 추천하는 데모를 완성하였습니다.", { sz: 18, color: C.dark }),
+
+    sp(120),
+    subTitle("공공데이터 활용 흐름도"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgDataPipeline(), 589, 168)],
+    }),
+
+    sp(140),
+    subTitle("활용 공공데이터 목록"),
+    tbl([
+      row(
+        hc("데이터셋명", { w: 2800 }),
+        hc("제공 기관", { w: 2000 }),
+        hc("구체적 연계 방식 및 서비스 기여점", { w: 4272 }),
+      ),
+      ...[
+        ["횡단보도 위치 데이터", "서울 열린데이터 광장", "동작구 횡단보도 후보 지도 포인트 및 경로 비교 기준점 — 보라매역 데모 시나리오 구성"],
+        ["보행등·교통신호 정보", "서울 열린데이터 광장", "횡단 가능 신호 안내 근거, 접근성 점수 가중치 (보행등 유무 +1점)"],
+        ["음향신호기 정보", "한국사회보장정보원", "시각장애인 필수 시설 여부 점수화 (음향신호기 유무 +1점)"],
+        ["보행자작동신호기 정보", "보건복지부", "사용자 직접 신호 요청 가능 여부 점수화 (+1점)"],
+        ["고원식 횡단보도 정보", "국토교통부", "차량 감속·보행자 보호 가능성 보조 점수 (+1점)"],
+        ["교통안전시설 상세정보", "서울시", "횡단보도별 설명 가능 안전 근거 텍스트"],
+        ["보행자 사고다발구역", "경찰청", "대시보드 지도 주의 구역 레이어 표시"],
+        ["장애인 복지시설 정보", "한국사회보장정보원", "데모 목적지(서울시남부장애인종합복지관) 및 접근성 시나리오 구성"],
+        ["사회서비스 제공기관 정보 검색", "한국사회보장정보원", "실증 복지관 매핑 및 파일럿 기관 섭외"],
+        ["중앙부처복지서비스", "한국사회보장정보원", "정보통신보조기기 보급사업 정책 단가 및 BM 프레임 설계"],
+        ["등록장애인 수", "보건복지부", "지역별 잠재 고객 규모 도출 및 마케팅 전략 수립"],
+      ].map(([name, src, usage]) =>
+        row(
+          cell(name, { w: 2800, bold: true }),
+          cell(src, { w: 2000, align: AlignmentType.CENTER, color: C.dark }),
+          cell(usage, { w: 4272, sz: 17 }),
+        )
+      ),
+    ], { w: 9072, cols: [2800, 2000, 4272] }),
+
+    sp(140),
+    subTitle("데이터 처리 파이프라인"),
+    tbl([
+      row(
+        hc("단계", { w: 600 }),
+        hc("처리 내용", { w: 3400 }),
+        hc("산출물", { w: 5072 }),
+      ),
+      ...[
+        ["①", "원본 공공데이터 수집 및 분류", "목적지 / 횡단보도 / 보행지원시설 / 이동지원센터 분리"],
+        ["②", "좌표 정규화 및 위경도 변환", "WGS84 좌표계 통일, 횡단보도 주변 30m 반경 시설 매칭"],
+        ["③", "접근성 점수화 (0~5점)", "보행등·음향신호기·작동신호기·고원식·상세정보 각 1점씩 가산"],
+        ["④", "등급 분류", "preferred(5점) / recommended(3-4점) / basic(1-2점) / insufficient(0점)"],
+        ["⑤", "대시보드용 파일 산출", "CSV / GeoJSON / JSON / HTML — build_voiceguide_final_dataset.py"],
+      ].map(([step, proc, output]) =>
+        row(
+          cell(step, { bg: C.lightest, bold: true, w: 600, align: AlignmentType.CENTER }),
+          cell(proc, { w: 3400, bold: true }),
+          cell(output, { w: 5072, color: C.dark }),
+        )
+      ),
+    ], { w: 9072, cols: [600, 3400, 5072] }),
+
+    sp(140),
+    subTitle("대표 데모 시나리오: 보라매역 → 서울시남부장애인종합복지관"),
+    tbl([
+      row(
+        hc("항목", { w: 2000 }),
+        hc("경로 A — 최단 직선", { bg: C.warning, w: 3536 }),
+        hc("경로 B — 접근성 우선 ✔ 채택", { bg: C.safe, w: 3536 }),
+      ),
+      ...[
+        ["횡단보도 ID", "06-0000016344", "06-0000032157"],
+        ["접근성 점수", "1점 (basic)", "4점 (recommended)"],
+        ["음향신호기", "없음 ✗", "있음 ✔"],
+        ["보행자작동신호기", "없음 ✗", "있음 ✔"],
+        ["고원식 횡단보도", "없음 ✗", "있음 ✔"],
+        ["보행등", "있음 ✔", "있음 ✔"],
+      ].map(([item, a, b]) =>
+        row(
+          cell(item, { bg: C.light, bold: true, w: 2000 }),
+          cell(a, { w: 3536, align: AlignmentType.CENTER, color: a.includes("✗") ? C.danger : C.dark }),
+          cell(b, { w: 3536, align: AlignmentType.CENTER, bold: true, color: b.includes("✔") ? C.safe : C.dark }),
+        )
+      ),
+      row(
+        cell("선택 이유", { bg: C.light, bold: true, w: 2000 }),
+        cell("최단 거리지만 시각장애인 필수 시설(음향신호기·작동신호기·고원식) 미비", { w: 3536, color: C.warning }),
+        cell("거리 약간 길지만 보행 안전시설 3종 완비 → 시각장애인 안전 최적 경로로 선택", { w: 3536, bold: true, color: C.safe }),
+      ),
+    ], { w: 9072, cols: [2000, 3536, 3536] }),
+
+    sp(140),
+    subTitle("데이터 연계 흐름"),
+    tbl([
+      row(
+        hc("단계", { w: 1200, bg: C.secondary }),
+        hc("데이터 활용", { w: 3400 }),
+        hc("산출물", { w: 4472 }),
+      ),
+      ...[
+        ["1. 실증 전", "사회서비스 제공기관/편의시설 데이터로 실증기관과 테스트 코스 후보 선정", "실증 지도, 기관 후보 리스트"],
+        ["2. 실증 중", "앱 감지 로그와 공공데이터 위치정보를 대조", "위험구간별 객체 유형 통계"],
+        ["3. 실증 후", "복지서비스 데이터와 사용자 니즈를 연결", "복지서비스 안내 시나리오, 정책 제안서"],
+        ["4. 확산", "지역별 등록장애인 수 기반 단계별 마케팅 전략 수립", "지역별 타겟 고객 분석 리포트"],
+      ].map(([stage, usage, output]) =>
+        row(
+          cell(stage, { bg: C.lightest, bold: true, w: 1200, align: AlignmentType.CENTER }),
+          cell(usage, { w: 3400 }),
+          cell(output, { w: 4472, color: C.dark }),
+        )
+      ),
+    ], { w: 9072, cols: [1200, 3400, 4472] }),
+
+    sp(140),
+    subTitle("데이터 필드 설계 및 개인정보 최소화"),
+    tbl([
+      row(
+        hc("구분", { w: 1800, bg: C.primary }),
+        hc("저장/활용 필드", { w: 3800 }),
+        hc("개인정보 최소화 방식", { w: 3472 }),
+      ),
+      row(
+        cell("공공데이터", { bg: C.blue, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("기관명, 주소, 시설유형, 복지서비스명, 신청방법", { w: 3800 }),
+        cell("공개 데이터만 사용 — 개인정보 미포함", { w: 3472, color: C.safe, bold: true }),
+      ),
+      row(
+        cell("앱 위험로그", { bg: C.orange, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("객체유형, 위험도, 시간대, 격자화 위치, 앱 버전", { w: 3800 }),
+        cell("영상·음성 원본 저장 금지 — 탐지 JSON만 저장", { w: 3472, color: C.safe, bold: true }),
+      ),
+      row(
+        cell("실증 설문", { bg: C.purple, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("만족도, 경고 이해도, 피로도, 개선의견", { w: 3800 }),
+        cell("이름 대신 참여자 코드 사용", { w: 3472, color: C.safe, bold: true }),
+      ),
+      row(
+        cell("기관 리포트", { bg: C.gray, bold: true, w: 1800, align: AlignmentType.CENTER }),
+        cell("위험구간 유형, 반복 감지 객체, 개선 제안", { w: 3800 }),
+        cell("개별 사용자 이동경로 노출 방지", { w: 3472, color: C.safe, bold: true }),
+      ),
+    ], { w: 9072, cols: [1800, 3800, 3472] }),
+
+    sp(140),
+    subTitle("한국사회보장정보원 관점 강조"),
+    tbl([
+      row(
+        hc("한국사회보장정보원 관점", { w: 3200, bg: C.secondary }),
+        hc("VoiceGuide 반영 내용", { w: 5872 }),
+      ),
+      ...[
+        ["공공데이터 활용 강화", "OpenAPI를 단순 조회가 아니라 실증기관 선정, 편의시설 취약구간 분석, 복지서비스 안내에 사용"],
+        ["복지 사각지대 해소", "이동이 어려워 복지기관·서비스 접근이 제한되는 시각장애인의 첫 관문을 보행안전으로 지원"],
+        ["AI 기술의 실서비스화", "온디바이스 AI로 보행 중 즉시 반응하는 피지컬 AI 성격의 안전 서비스를 구현"],
+        ["데이터 환류 가능성", "영상이 아닌 비식별 위험 로그를 활용해 지역별 보행위험 히트맵과 시설 개선 우선순위 도출"],
+        ["기관 협업 가능성", "복지관·자립생활센터·지자체와 파일럿을 수행해 실제 사용자 기반 검증 가능"],
+        ["복지로 연계성", "복지로 위치정보 서비스와 달리 '시설 탐색 후 실제 이동 중 위험'을 보완하는 서비스로 포지셔닝"],
+      ].map(([view, content]) =>
+        row(
+          cell(view, { bg: C.lightest, bold: true, w: 3200 }),
+          cell(content, { w: 5872 }),
+        )
+      ),
+    ], { w: 9072, cols: [3200, 5872] }),
+    sp(80),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 60 }, children: [
+            new TextRun({ text: "VoiceGuide는 사회보장정보가 '어디에 무엇이 있는지'를 알려주는 것을 넘어,", size: 19, color: C.primary, font: "Malgun Gothic", bold: true }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [
+            new TextRun({ text: "사용자가 그 서비스에 실제로 도달하도록 돕는 이동 안전 서비스를 제안합니다.", size: 19, color: C.dark, font: "Malgun Gothic", bold: true }),
+          ]}),
+        ], { bg: C.blue, bdr: bAll(C.secondary) }),
+      ),
+    ], { w: 9072, cols: [9072] }),
+
+    sp(200),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 120, after: 60 }, children: [
+            new TextRun({ text: "VoiceGuide", bold: true, size: 48, color: C.primary, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "스마트폰 하나로, 시각장애인의 안전한 독립 보행을 실현합니다.", size: 22, color: C.dark, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 60 }, children: [
+            new TextRun({ text: "온디바이스 AI  ·  한국어 특화  ·  공공데이터 연동  ·  완전 핸즈프리", bold: true, size: 20, color: C.secondary, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 120 }, children: [
+            new TextRun({ text: "https://voiceguide-1063164560758.asia-northeast3.run.app", size: 17, color: C.midgray, font: "Malgun Gothic", italics: true }),
+          ]}),
+        ], { bg: C.lightest, bdr: bAll(C.secondary), span: 1 }),
+      ),
+    ], { w: 9072, cols: [9072] }),
+  ];
+}
+
+// ─── 부록. 데이터 기반 실증·사업성 보강 ───────────────────────
+function appendixSection() {
+  return [
+    pb(),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 80, after: 40 },
-      children: [new TextRun({ text: "AI HUMAN 4기 3팀  |  2026", color: C.midgray, size: 20, font: "Arial" })]
+      spacing: { before: 0, after: 160 },
+      children: [new TextRun({ text: "【 부록 】 데이터 기반 실증·사업성 보강", bold: true, size: 28, color: C.primary, font: "Malgun Gothic" })],
+      border: {
+        top: { style: BorderStyle.SINGLE, size: 6, color: C.primary },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: C.primary },
+      },
     }),
+    p("final_* 데이터셋을 바탕으로 공공데이터 활용성, 실증 코스 설계, 안전 경로 추천 근거를 시각화했습니다.", { sz: 18, color: C.dark }),
+    sp(80),
+
+    // 핵심 통계 요약 박스
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "1,025건", bold: true, size: 52, color: C.primary, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "횡단보도 분석 (동작구)", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.blue, bdr: bAll(C.secondary), w: 2268 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "368건 (35.9%)", bold: true, size: 52, color: C.safe, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "우선/권장 횡단보도 후보", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.green, bdr: bAll("27AE60"), w: 2268 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "4개", bold: true, size: 52, color: C.accent, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "복지 목적지", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.orange, bdr: bAll("E67E22"), w: 2268 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 40 }, children: [new TextRun({ text: "+8m 안전", bold: true, size: 52, color: C.safe, font: "Malgun Gothic" })] }),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 100 }, children: [new TextRun({ text: "경로 안전 근거 확보", size: 18, color: C.dark, font: "Malgun Gothic" })] }),
+        ], { bg: C.green, bdr: bAll("27AE60"), w: 2268 }),
+      ),
+    ], { w: 9072, cols: [2268, 2268, 2268, 2268] }),
+
+    sp(120),
+    subTitle("경로 A/B 안전성 비교 시각화"),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "경로 A  (최단 거리)", bold: true, size: 24, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "817m", bold: true, size: 40, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.danger, bdr: bAll("8B0000"), w: 3000 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "VS", bold: true, size: 32, color: C.primary, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "+8m", bold: true, size: 22, color: C.dark, font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.gray, bdr: bNone(), w: 1072 }),
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 20 }, children: [
+            new TextRun({ text: "경로 B  ★ 채택 (안전 우선)", bold: true, size: 24, color: C.white, font: "Malgun Gothic" }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 60 }, children: [
+            new TextRun({ text: "825m", bold: true, size: 40, color: "FFFFFF", font: "Malgun Gothic" }),
+          ]}),
+        ], { bg: C.safe, bdr: bAll("1A7A40"), w: 3000 }),
+      ),
+      row(
+        cell([
+          iconRow("✗", "음향신호기 없음", C.danger),
+          iconRow("✗", "보행자작동신호기 없음", C.danger),
+          iconRow("✗", "고원식 횡단보도 없음", C.danger),
+          iconRow("✓", "보행등 있음", C.safe),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [
+            new TextRun({ text: "접근성 점수: 1점 (basic)", bold: true, size: 18, color: C.danger, font: "Malgun Gothic" }),
+          ]}),
+        ], { w: 3000, bg: "FFF0F0" }),
+        cell("", { w: 1072, bdr: bNone() }),
+        cell([
+          iconRow("✓", "음향신호기 있음", C.safe),
+          iconRow("✓", "보행자작동신호기 있음", C.safe),
+          iconRow("✓", "고원식 횡단보도 있음", C.safe),
+          iconRow("✓", "보행등 있음", C.safe),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 40, after: 40 }, children: [
+            new TextRun({ text: "접근성 점수: 4점 (recommended)", bold: true, size: 18, color: C.safe, font: "Malgun Gothic" }),
+          ]}),
+        ], { w: 3000, bg: C.green }),
+      ),
+    ], { w: 9072, cols: [3000, 1072, 3000] }),
+
+    sp(120),
+    subTitle("성능 목표 KPI 차트"),
+    new Paragraph({
+      spacing: { before: 60, after: 80 },
+      children: [svgImage(svgVerticalBar({
+        title: "VoiceGuide 핵심 성능 목표 KPI",
+        bars: [
+          { label: "탐지 정확도\n목표 85%+",   value: 85, color: "#27AE60" },
+          { label: "사고율 감소\n목표 40%+",   value: 40, color: "#C0392B" },
+          { label: "보행 자립\n향상 30%+",     value: 30, color: "#2E75B6" },
+          { label: "경고 이해도\n80점 이상",   value: 80, color: "#E67E22" },
+          { label: "피로도 감소\n20%+",        value: 20, color: "#7D3C98" },
+        ],
+        width: 500, height: 280, yMax: 100,
+      }), 420, 235)],
+    }),
+
+    sp(160),
+    subTitle("표 1. 데이터 활용 구조와 사업계획서 반영 포인트"),
+    tbl([
+      row(
+        hc("활용 데이터", { w: 2200, bg: C.primary }),
+        hc("반영 내용", { w: 3472 }),
+        hc("서비스/사업 효과", { w: 3400 }),
+      ),
+      ...[
+        ["복지시설 정보", "동작구 장애인복지관 후보 추출", "실증기관 발굴·복지관 방문 시나리오 구성"],
+        ["횡단보도 접근성", "보행등·음향신호기·작동신호기·고원식 여부 점수화", "최단거리보다 설명 가능한 안전 경로 추천"],
+        ["경로 A/B 비교", "817m 최단 후보와 825m 안전 경로 비교", "\"왜 8m를 더 이동하는지\" 사용자에게 설명"],
+        ["TTS 안내 문구", "경로 선택·횡단보도 접근·실시간 감지 안내 분리", "화면 조작 없이 짧고 행동 가능한 음성 UX 제공"],
+      ].map(([data, content, effect]) =>
+        row(
+          cell(data, { bg: C.lightest, bold: true, w: 2200 }),
+          cell(content, { w: 3472 }),
+          cell(effect, { w: 3400, color: C.primary }),
+        )
+      ),
+    ], { w: 9072, cols: [2200, 3472, 3400] }),
+
+    sp(140),
+    subTitle("표 2. 사용자 음성 안내(TTS) 및 진동 패턴 예시"),
+    tbl([
+      row(
+        hc("순서", { w: 600, bg: C.primary }),
+        hc("상황", { w: 1800, bg: C.secondary }),
+        hc("안내 문구 (TTS)", { w: 4600 }),
+        hc("진동", { w: 2072 }),
+      ),
+      row(
+        cell("1", { bg: C.lightest, bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("경로 선택", { w: 1800, bold: true }),
+        cell("\"최단 후보보다 약 8미터 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다.\"", { w: 4600, color: C.primary, bold: true }),
+        cell("짧은 진동 (SHORT)", { w: 2072, align: AlignmentType.CENTER, color: C.dark }),
+      ),
+      row(
+        cell("2", { bg: C.lightest, bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("횡단보도 접근", { w: 1800, bold: true }),
+        cell("\"전방에 보행지원시설 정보가 있는 횡단보도가 있습니다. 신호 안내를 확인하며 건너세요.\"", { w: 4600, color: C.primary, bold: true }),
+        cell("중간 진동 (DOUBLE)", { w: 2072, align: AlignmentType.CENTER, color: C.warning }),
+      ),
+      row(
+        cell("3", { bg: "FFEAEA", bold: true, w: 600, align: AlignmentType.CENTER }),
+        cell("실시간 장애물\n감지", { w: 1800, bold: true }),
+        cell("\"이동 중 전방 장애물은 카메라로 계속 확인합니다.\" (+ 실시간 객체 감지 즉시 안내)", { w: 4600, color: C.danger, bold: true }),
+        cell("URGENT (4단계)", { w: 2072, align: AlignmentType.CENTER, bold: true, color: C.white, bg: C.danger }),
+      ),
+    ], { w: 9072, cols: [600, 1800, 4600, 2072] }),
+
+    sp(140),
+    subTitle("표 3. 사업화·실증 보강 포인트"),
+    tbl([
+      row(
+        hc("구분", { w: 1600, bg: C.primary }),
+        hc("보강 내용", { w: 4400 }),
+        hc("사업계획서 활용", { w: 3072 }),
+      ),
+      ...[
+        ["실증 설득력", "보라매역 → 서울시남부장애인종합복지관 실제 방문 흐름", "복지관 PoC 제안서·데모 영상에 바로 활용"],
+        ["심사 대응", "공공데이터를 단순 조회가 아니라 안전 경로 판단 근거로 전환", "공공데이터 활용 적정성 및 AI 서비스성 강화"],
+        ["개인정보 보호", "영상은 온디바이스 처리, 서버에는 비식별 위험 이벤트만 축적", "개인정보보호법 리스크 및 운영 부담 최소화"],
+        ["보완 계획", "지도 경로 API·현장 좌표 검증·사용자 피드백 로그 결합", "대표 직선거리 데모값을 실제 보행 네트워크로 고도화"],
+      ].map(([cat, content, usage]) =>
+        row(
+          cell(cat, { bg: C.lightest, bold: true, w: 1600, align: AlignmentType.CENTER }),
+          cell(content, { w: 4400 }),
+          cell(usage, { w: 3072, color: C.primary }),
+        )
+      ),
+    ], { w: 9072, cols: [1600, 4400, 3072] }),
+
+    sp(80),
+    tbl([
+      row(
+        cell([
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 40 }, children: [
+            new TextRun({ text: "자료 기준: final_scenario_dataset.json(2026-05-24T17:38:31), final_crosswalk_accessibility.csv,", size: 15, color: C.midgray, font: "Malgun Gothic", italics: true }),
+          ]}),
+          new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 0, after: 80 }, children: [
+            new TextRun({ text: "final_route_comparison.csv, final_tts_guidance.csv", size: 15, color: C.midgray, font: "Malgun Gothic", italics: true }),
+          ]}),
+        ], { bg: C.gray, bdr: bNone() }),
+      ),
+    ], { w: 9072, cols: [9072] }),
   ];
 }
 
 // ─── 문서 조립 ────────────────────────────────────────────────
 async function buildDoc() {
-  const allChildren = [
+  const children = [
     ...coverPage(),
-    ...summarySection(),
-    ...backgroundSection(),
-    ...serviceSection(),
-    ...aiModelSection(),
-    ...riskSection(),
-    ...featuresSection(),
-    ...publicDataSection(),
-    ...marketSection(),
-    ...businessSection(),
-    ...roadmapSection(),
-    ...impactAndTeamSection(),
-    ...apiSection(),
-    ...closingSection(),
+    ...planSummary(),
+    ...section1(),
+    ...section2(),
+    ...section3(),
+    ...section4(),
+    ...section5(),
+    ...section6(),
+    ...section7(),
+    ...appendixSection(),
   ];
 
   const doc = new Document({
-    numbering: { config: [] },
     styles: {
-      default: {
-        document: { run: { font: "Arial", size: 20, color: C.black } }
-      }
+      default: { document: { run: { font: "Malgun Gothic", size: 19, color: C.black } } },
     },
     sections: [{
       properties: {
         page: {
           size: { width: 11906, height: 16838 },
-          margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 }
-        }
+          margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 },
+        },
       },
       headers: {
-        default: new Header({
-          children: [new Paragraph({
-            alignment: AlignmentType.RIGHT,
-            border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: C.secondary, space: 4 } },
-            children: [
-              new TextRun({ text: "VoiceGuide  |  시각장애인 온디바이스 AI 보행 보조 서비스", size: 16, color: C.midgray, font: "Arial" }),
-            ]
-          })]
-        })
+        default: new Header({ children: [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: C.secondary, space: 3 } },
+          spacing: { before: 0, after: 100 },
+          children: [new TextRun({ text: "VoiceGuide 사업계획서  |  AI Human 4기 3팀  |  2026 국민행복 서비스 발굴·창업경진대회", size: 15, color: C.midgray, font: "Malgun Gothic" })],
+        })] }),
       },
       footers: {
-        default: new Footer({
-          children: [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({ text: "AI HUMAN 4기 3팀  |  2026  |  ", size: 16, color: C.midgray, font: "Arial" }),
-              new TextRun({ children: [PageNumber.CURRENT], size: 16, color: C.midgray, font: "Arial" }),
-              new TextRun({ text: " / ", size: 16, color: C.midgray, font: "Arial" }),
-              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: C.midgray, font: "Arial" }),
-            ]
-          })]
-        })
+        default: new Footer({ children: [new Paragraph({
+          alignment: AlignmentType.CENTER,
+          border: { top: { style: BorderStyle.SINGLE, size: 2, color: C.midgray, space: 3 } },
+          children: [
+            new TextRun({ text: "- ", size: 15, color: C.midgray, font: "Malgun Gothic" }),
+            new TextRun({ children: [PageNumber.CURRENT], size: 15, color: C.midgray, font: "Malgun Gothic" }),
+            new TextRun({ text: " -", size: 15, color: C.midgray, font: "Malgun Gothic" }),
+          ],
+        })] }),
       },
-      children: allChildren,
-    }]
+      children,
+    }],
   });
 
-  const buffer = await Packer.toBuffer(doc);
-  const outPath = "C:\\Users\\ghksw\\Downloads\\VoiceGuide_사업계획서_최종.docx";
-  fs.writeFileSync(outPath, buffer);
-  console.log("생성 완료:", outPath);
+  const buf = await Packer.toBuffer(doc);
+  const out = "C:\\Users\\ghksw\\Downloads\\VoiceGuide_사업계획서_최종_업그레이드.docx";
+  fs.writeFileSync(out, buf);
+  console.log("완료:", out);
 }
 
 buildDoc().catch(e => { console.error(e); process.exit(1); });
