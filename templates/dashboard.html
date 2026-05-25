@@ -822,6 +822,70 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+
+  /* ── 데모 시나리오 패널 ──────────────────────── */
+  .scenario-section { background: rgba(108,99,255,0.04); border-top: 2px solid var(--accent) !important; }
+
+  .scenario-route-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .scenario-route-place { flex: 1; display: flex; flex-direction: column; }
+  .scenario-place-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+  .scenario-place-name  { font-size: 12px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .scenario-route-arrow { color: var(--accent); font-weight: 700; font-size: 14px; }
+
+  .scenario-route-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .scenario-route-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .scenario-route-card.route-a { border-color: rgba(255,77,109,0.35); }
+  .scenario-route-card.route-b { border-color: rgba(82,183,136,0.35); }
+  .scenario-route-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .scenario-route-label { font-size: 10px; font-weight: 700; color: var(--muted); }
+  .scenario-route-badge { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+  .badge-fail { background: rgba(255,77,109,0.15); color: var(--danger); }
+  .badge-win  { background: rgba(82,183,136,0.15); color: var(--safe); }
+  .scenario-crosswalk-id { font-size: 9px; color: var(--accent2); font-family: monospace; margin-bottom: 3px; }
+  .scenario-distance     { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .scenario-score-bar    { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
+  .scenario-score-fill   { height: 100%; border-radius: inherit; }
+  .scenario-score-label  { font-size: 9px; color: var(--muted); line-height: 1.4; }
+
+  .scenario-tts {
+    background: rgba(72,191,227,0.06);
+    border: 1px solid rgba(72,191,227,0.2);
+    border-left: 3px solid var(--accent2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--accent2);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .scenario-grade-title { font-size: 9px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .scenario-grades      { display: flex; flex-direction: column; gap: 4px; }
+  .scenario-grade-row   { display: grid; grid-template-columns: 74px 1fr 28px; align-items: center; gap: 6px; }
+  .scenario-grade-label { font-size: 9px; color: var(--muted); font-family: monospace; }
+  .scenario-grade-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+  .scenario-grade-fill  { height: 100%; border-radius: inherit; }
+  .scenario-grade-count { font-size: 9px; color: var(--text); text-align: right; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -961,6 +1025,82 @@
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <span>탐지된 물체 없음<br>앱을 실행하세요</span>
+        </div>
+      </div>
+
+      <!-- 데모 시나리오 패널 -->
+      <div class="panel-section scenario-section">
+        <div class="section-title">데모 경로 시나리오</div>
+
+        <!-- 출발 → 목적지 -->
+        <div class="scenario-route-header">
+          <div class="scenario-route-place">
+            <span class="scenario-place-label">출발</span>
+            <span class="scenario-place-name">보라매역</span>
+          </div>
+          <div class="scenario-route-arrow">→</div>
+          <div class="scenario-route-place" style="text-align:right;">
+            <span class="scenario-place-label">목적지</span>
+            <span class="scenario-place-name">서울시남부<br>장애인종합복지관</span>
+          </div>
+        </div>
+
+        <!-- A/B 경로 비교 -->
+        <div class="scenario-route-pair">
+          <div class="scenario-route-card route-a">
+            <div class="scenario-route-card-header">
+              <span class="scenario-route-label">A 경로</span>
+              <span class="scenario-route-badge badge-fail">탈락</span>
+            </div>
+            <div class="scenario-crosswalk-id">06-0000016344</div>
+            <div class="scenario-distance">약 817m</div>
+            <div class="scenario-score-bar">
+              <div class="scenario-score-fill" style="width:12.5%;background:var(--danger);"></div>
+            </div>
+            <div class="scenario-score-label">접근성 1점<br>보행지원시설 없음</div>
+          </div>
+          <div class="scenario-route-card route-b">
+            <div class="scenario-route-card-header">
+              <span class="scenario-route-label">B 경로</span>
+              <span class="scenario-route-badge badge-win">선택</span>
+            </div>
+            <div class="scenario-crosswalk-id">06-0000032157</div>
+            <div class="scenario-distance">약 825m (+8m)</div>
+            <div class="scenario-score-bar">
+              <div class="scenario-score-fill" style="width:87.5%;background:var(--safe);"></div>
+            </div>
+            <div class="scenario-score-label">접근성 7점<br>보행등·음향·버튼</div>
+          </div>
+        </div>
+
+        <!-- TTS -->
+        <div class="scenario-tts">
+          "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
+        </div>
+
+        <!-- 동작구 횡단보도 등급 분포 -->
+        <div class="scenario-grade-title">동작구 횡단보도 1,025건 등급분포</div>
+        <div class="scenario-grades">
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">preferred</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:5.3%;background:var(--safe);"></div></div>
+            <span class="scenario-grade-count">54</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">recommended</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:30.6%;background:var(--accent2);"></div></div>
+            <span class="scenario-grade-count">314</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">basic</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:59.5%;background:var(--warn);"></div></div>
+            <span class="scenario-grade-count">610</span>
+          </div>
+          <div class="scenario-grade-row">
+            <span class="scenario-grade-label">insufficient</span>
+            <div class="scenario-grade-track"><div class="scenario-grade-fill" style="width:4.6%;background:var(--danger);"></div></div>
+            <span class="scenario-grade-count">47</span>
+          </div>
         </div>
       </div>
 
@@ -2327,7 +2467,6 @@ function renderHotspotPanel(summary, features) {
     const color = hotspotColor(p.risk_level);
     return `
       <div class="hotspot-item" style="border-left-color:${color}" onclick="focusPedestrianHotspot(${index})">
-        <div class="hotspot-name">${escapeHtml(p.display_name ?? p.representative_place_name ?? '사고다발구역')}</div>
         <div class="hotspot-meta">
           ${escapeHtml(p.risk_level_ko ?? p.risk_level ?? '-')} · 점수 ${Number(p.max_risk_score ?? 0).toFixed(1)}
           · 사고 ${p.accidents_total ?? 0}건 · 반복 ${p.repeat_year_count ?? 0}년
