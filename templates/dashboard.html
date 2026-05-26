@@ -1314,6 +1314,20 @@
         </div>
       </div>
 
+      <!-- 경로 검증 버튼 (항상 표시) -->
+      <div class="panel-section" style="padding:10px 16px;">
+        <button type="button" id="btnRouteValidation"
+          onclick="triggerRouteValidation()"
+          style="width:100%;padding:9px 12px;
+                 background:var(--accent);border:none;border-radius:8px;
+                 color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+                 transition:background 0.15s,box-shadow 0.15s;letter-spacing:0.3px;"
+          onmouseover="this.style.background='#5850d8';this.style.boxShadow='0 4px 14px rgba(108,99,255,0.4)'"
+          onmouseout="this.style.background='var(--accent)';this.style.boxShadow='none'">
+          🔍 장애인복지관 경로 검증
+        </button>
+      </div>
+
     </div><!-- /panel-top -->
 
     <!-- ▼ 하단: 최근 24시간 탐지 내역 (신규) -->
@@ -2450,16 +2464,6 @@ function renderFinalScenario(data) {
     <div class="scenario-info-box is-visible"><strong>왜 필요한가요?</strong>보강 제안 지점은 새 시설을 이미 설치했다는 뜻이 아니라, 음향신호기·보행자작동신호기 같은 보강을 우선 검토할 위치입니다.</div>
     <div class="improvement-list">${installCandidates}</div>
     <button type="button" class="data-usage-link" data-info-title="데이터 활용 근거" data-info-body="최종 데이터는 경로 비교 CSV, 시나리오 JSON, 횡단보도 접근성 CSV/GeoJSON, 데이터 활용 HTML을 함께 사용합니다. 전체 문서는 새 탭에서 열 수 있습니다." onclick="window.open('/voiceguide-final/data-usage.html', '_blank', 'noopener')">데이터 활용 근거 보기</button>
-    <button type="button" id="btnRouteValidation"
-      onclick="triggerRouteValidation()"
-      style="width:100%;margin-top:10px;padding:8px 12px;
-             background:var(--accent);border:none;border-radius:8px;
-             color:#fff;font-size:12px;font-weight:700;cursor:pointer;
-             transition:background 0.15s,box-shadow 0.15s;letter-spacing:0.3px;"
-      onmouseover="this.style.background='#5850d8';this.style.boxShadow='0 4px 14px rgba(108,99,255,0.4)'"
-      onmouseout="this.style.background='var(--accent)';this.style.boxShadow='none'">
-      🔍 장애인복지관 경로 검증
-    </button>
   `;
 
   panel.querySelectorAll('[data-info-title]').forEach(el => {
@@ -3020,18 +3024,16 @@ function _addDemoLayer(layer) {
   return layer;
 }
 
-async function initDemoRouteLayer() {
-  // 1) 카카오 지오코딩으로 출발지·목적지 좌표 조회
-  const [startRes, destRes] = await Promise.all([
-    fetch(`${SERVER_BASE}/api/kakao-geocode?query=${encodeURIComponent('보라매역')}`).then(r => r.json()),
-    fetch(`${SERVER_BASE}/api/kakao-geocode?query=${encodeURIComponent('서울시남부장애인종합복지관')}`).then(r => r.json()),
-  ]);
+// ── 사전 계산된 OSRM 보행 경로 좌표 ─────────────────────────────────────────
+// routing.openstreetmap.de/routed-foot 로 미리 계산. 외부 API 호출 불필요.
+const DEMO_START  = [37.500325, 126.923801];  // 보라매역
+const DEMO_DEST   = [37.495096, 126.927424];  // 서울시남부장애인종합복지관
+const ROUTE_A_COORDS = [[37.500325,126.923801],[37.500318,126.924045],[37.499821,126.924056],[37.499514,126.924048],[37.499279,126.924041],[37.498855,126.924029],[37.498621,126.924022],[37.498428,126.924017],[37.498238,126.924041],[37.49795,126.924077],[37.497779,126.924176],[37.49777,126.924015],[37.497779,126.924176],[37.497583,126.924217],[37.497533,126.924228],[37.497231,126.924276],[37.497088,126.924285],[37.496982,126.924291],[37.496763,126.924303],[37.496357,126.924345],[37.496131,126.924368],[37.496227,126.925773],[37.495776,126.925881],[37.495613,126.925885],[37.495639,126.926244],[37.49547,126.926269],[37.495446,126.926414],[37.495412,126.926639],[37.495363,126.926969],[37.495292,126.927471],[37.495096,126.927424]];
+const ROUTE_B_COORDS = [[37.500325,126.923801],[37.500318,126.924045],[37.499821,126.924056],[37.499514,126.924048],[37.499279,126.924041],[37.498855,126.924029],[37.498621,126.924022],[37.498428,126.924017],[37.498238,126.924041],[37.49795,126.924077],[37.497779,126.924176],[37.497583,126.924217],[37.497533,126.924228],[37.497231,126.924276],[37.497088,126.924285],[37.496982,126.924291],[37.496763,126.924303],[37.496357,126.924345],[37.496131,126.924368],[37.496227,126.925773],[37.495776,126.925881],[37.495613,126.925885],[37.495639,126.926244],[37.49547,126.926269],[37.495446,126.926414],[37.495412,126.926639],[37.495363,126.926969],[37.495292,126.927471],[37.495038,126.92741],[37.495034,126.927409],[37.495038,126.92741],[37.495096,126.927424]];
 
-  const startLatLng = (startRes.lat && startRes.lng) ? [startRes.lat, startRes.lng] : [37.5003, 126.9238];
-  const destLatLng  = (destRes.lat  && destRes.lng)  ? [destRes.lat,  destRes.lng]  : [37.4951, 126.9274];
-
-  // 2) 출발지 마커 (파란 핀)
-  _addDemoLayer(L.marker(startLatLng, {
+function initDemoRouteLayer() {
+  // 1) 출발지 마커 (파란 핀)
+  _addDemoLayer(L.marker(DEMO_START, {
     icon: L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;border-radius:50%;background:#48bfe3;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
@@ -3039,8 +3041,8 @@ async function initDemoRouteLayer() {
     })
   })).bindPopup('<strong>출발지</strong><br>보라매역');
 
-  // 3) 목적지 마커 (보라색 핀)
-  _addDemoLayer(L.marker(destLatLng, {
+  // 2) 목적지 마커 (보라색 핀)
+  _addDemoLayer(L.marker(DEMO_DEST, {
     icon: L.divIcon({
       className: '',
       html: '<div style="width:14px;height:14px;border-radius:50%;background:#6c63ff;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
@@ -3048,19 +3050,19 @@ async function initDemoRouteLayer() {
     })
   })).bindPopup('<strong>목적지</strong><br>서울시남부장애인종합복지관');
 
-  // 4) 횡단보도 A 마커 (빨강 - 음향신호 없음)
+  // 3) 횡단보도 A 마커 (빨강 - 음향신호 없음)
   _addDemoLayer(L.circleMarker(CROSSWALK_A, {
     radius: 9, color: '#fff', weight: 2,
     fillColor: '#ff4d6d', fillOpacity: 0.9,
   })).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000016344<br>❌ 음향신호기 없음<br>접근성 1점');
 
-  // 5) 횡단보도 B 마커 (초록 - 음향신호 있음)
+  // 4) 횡단보도 B 마커 (초록 - 음향신호 있음)
   _addDemoLayer(L.circleMarker(CROSSWALK_B, {
     radius: 9, color: '#fff', weight: 2,
     fillColor: '#52b788', fillOpacity: 0.9,
   })).bindPopup('<strong>경로 B 횡단보도 ✅ 선택</strong><br>06-0000032157<br>🔊 음향신호기 있음<br>접근성 7점');
 
-  // 6) BF 편의시설 마커 (목적지 주변 복지관들 - 대략 위치)
+  // 5) BF 편의시설 마커 (목적지 주변 복지관들)
   const bfFacilities = [
     { latlng: [37.4953, 126.9271], name: '서울시남부장애인종합복지관' },
     { latlng: [37.4956, 126.9268], name: '서울시립발달장애인복지관' },
@@ -3077,35 +3079,19 @@ async function initDemoRouteLayer() {
     })).bindPopup(`<strong>BF 편의시설</strong><br>${f.name}`);
   });
 
-  // 7) OSRM 보행 경로 A (빨강)
-  try {
-    const routeARes = await fetch(
-      `${SERVER_BASE}/api/walking-route?origin_lat=${startLatLng[0]}&origin_lng=${startLatLng[1]}&dest_lat=${destLatLng[0]}&dest_lng=${destLatLng[1]}&via_lat=${CROSSWALK_A[0]}&via_lng=${CROSSWALK_A[1]}`
-    ).then(r => r.json());
-    if (routeARes.coordinates?.length) {
-      _addDemoLayer(L.polyline(routeARes.coordinates, {
-        color: '#ff4d6d', weight: 4, opacity: 0.7, dashArray: '8,5',
-      }));
-    }
-  } catch(e) { console.warn('경로 A 조회 실패', e); }
+  // 6) 경로 A (빨강 점선 - 탈락)
+  _addDemoLayer(L.polyline(ROUTE_A_COORDS, {
+    color: '#ff4d6d', weight: 4, opacity: 0.7, dashArray: '8,5',
+  }));
 
-  // 8) OSRM 보행 경로 B (초록)
-  try {
-    const routeBRes = await fetch(
-      `${SERVER_BASE}/api/walking-route?origin_lat=${startLatLng[0]}&origin_lng=${startLatLng[1]}&dest_lat=${destLatLng[0]}&dest_lng=${destLatLng[1]}&via_lat=${CROSSWALK_B[0]}&via_lng=${CROSSWALK_B[1]}`
-    ).then(r => r.json());
-    if (routeBRes.coordinates?.length) {
-      _addDemoLayer(L.polyline(routeBRes.coordinates, {
-        color: '#52b788', weight: 4, opacity: 0.85,
-      }));
-    }
-  } catch(e) { console.warn('경로 B 조회 실패', e); }
+  // 7) 경로 B (초록 실선 - 선택)
+  _addDemoLayer(L.polyline(ROUTE_B_COORDS, {
+    color: '#52b788', weight: 4, opacity: 0.85,
+  }));
 
   // 지도 뷰 조정
-  if (_demoRouteLayers.length) {
-    const group = L.featureGroup(_demoRouteLayers);
-    map.fitBounds(group.getBounds(), { padding: [60, 60] });
-  }
+  const group = L.featureGroup(_demoRouteLayers);
+  map.fitBounds(group.getBounds(), { padding: [60, 60] });
 }
 
 // ── 경로 검증 패널 ────────────────────────────────────
