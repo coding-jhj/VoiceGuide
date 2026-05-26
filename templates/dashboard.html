@@ -3026,7 +3026,7 @@ async function saveCurrentRoute() {
 
 // ── 데모 경로 지도 레이어 ──────────────────────────────
 // 좌표 상수 (JSON 기반 고정값)
-const CROSSWALK_A = [37.498288, 126.932845];  // 경로 A 횡단보도 (음향신호 없음, 동광교회 경로 기준)
+const CROSSWALK_A = [37.5000778, 126.9324007];  // 경로 A 횡단보도 06-0000006458 (음향신호 없음, 상도동 345-13도)
 const CROSSWALK_B = [37.49503545, 126.9274009];  // 경로 B 횡단보도 (음향신호 있음)
 
 let _demoRouteLayers = [];  // 지우기용
@@ -3074,7 +3074,7 @@ function initDemoRouteLayer() {
   const cwA = L.circleMarker(CROSSWALK_A, {
     radius: 9, color: '#fff', weight: 2,
     fillColor: '#ff4d6d', fillOpacity: 0.9,
-  }).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000016344<br>❌ 음향신호기 없음<br>❌ 보행자작동신호기 없음<br>⚠️ 사고다발 구간 통과<br>접근성 1점');
+  }).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000006458<br>동작구 상도동 345-13도<br>❌ 보행등 없음<br>❌ 음향신호기 없음<br>❌ 보행자작동신호기 없음<br>⚠️ 사고다발 구간 통과<br>접근성 1점');
   _addDemoLayer(cwA);
   _registerCrosswalkMarker('A', cwA);
 
