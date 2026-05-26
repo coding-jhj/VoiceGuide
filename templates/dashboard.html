@@ -1245,7 +1245,7 @@
         <div class="scenario-route-header">
           <div class="scenario-route-place">
             <span class="scenario-place-label">출발</span>
-            <span class="scenario-place-name">보라매역</span>
+            <span class="scenario-place-name">동광교회<br><span style="font-size:10px;color:var(--muted);">성대로1가길</span></span>
           </div>
           <div class="scenario-route-arrow">→</div>
           <div class="scenario-route-place" style="text-align:right;">
@@ -1256,35 +1256,48 @@
 
         <!-- A/B 경로 비교 -->
         <div class="scenario-route-pair">
-          <div class="scenario-route-card route-a">
+          <div class="scenario-route-card route-a" style="cursor:pointer;" onclick="focusDemoRoute('A')" title="지도에서 경로 A 보기">
             <div class="scenario-route-card-header">
               <span class="scenario-route-label">A 경로</span>
               <span class="scenario-route-badge badge-fail">탈락</span>
             </div>
             <div class="scenario-crosswalk-id">06-0000016344</div>
-            <div class="scenario-distance">약 817m</div>
+            <div class="scenario-distance">1,160m</div>
             <div class="scenario-score-bar">
               <div class="scenario-score-fill" style="width:12.5%;background:var(--danger);"></div>
             </div>
-            <div class="scenario-score-label">접근성 1점<br>보행지원시설 없음</div>
+            <div class="scenario-score-label">접근성 1점<br>⚠️ 사고다발 구간 2곳</div>
           </div>
-          <div class="scenario-route-card route-b">
+          <div class="scenario-route-card route-b" style="cursor:pointer;" onclick="focusDemoRoute('B')" title="지도에서 경로 B 보기">
             <div class="scenario-route-card-header">
               <span class="scenario-route-label">B 경로</span>
               <span class="scenario-route-badge badge-win">선택</span>
             </div>
             <div class="scenario-crosswalk-id">06-0000032157</div>
-            <div class="scenario-distance">약 825m (+8m)</div>
+            <div class="scenario-distance">1,303m (+143m)</div>
             <div class="scenario-score-bar">
               <div class="scenario-score-fill" style="width:87.5%;background:var(--safe);"></div>
             </div>
-            <div class="scenario-score-label">접근성 7점<br>보행등·음향·버튼</div>
+            <div class="scenario-score-label">접근성 7점<br>🔊 음향·보행등·버튼</div>
           </div>
         </div>
 
         <!-- TTS -->
         <div class="scenario-tts">
-          "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
+          "최단 경로보다 143m 더 이동하지만, 신대방동 사고다발 구간을 우회하고 음향신호기·보행자작동신호기가 있는 횡단보도로 안내합니다."
+        </div>
+
+        <!-- 지도 바로가기 버튼 -->
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button onclick="focusCrosswalk('A')" style="flex:1;padding:5px 4px;background:rgba(255,77,109,0.15);border:1px solid var(--danger);border-radius:6px;color:var(--danger);font-size:10px;cursor:pointer;">
+            📍 A 횡단보도
+          </button>
+          <button onclick="focusCrosswalk('B')" style="flex:1;padding:5px 4px;background:rgba(82,183,136,0.15);border:1px solid var(--safe);border-radius:6px;color:var(--safe);font-size:10px;cursor:pointer;">
+            🔊 B 횡단보도
+          </button>
+          <button onclick="focusHotspots()" style="flex:1;padding:5px 4px;background:rgba(244,162,97,0.15);border:1px solid var(--warn);border-radius:6px;color:var(--warn);font-size:10px;cursor:pointer;">
+            ⚠️ 사고다발
+          </button>
         </div>
 
 
@@ -1484,7 +1497,7 @@
         <span class="rvp-title">경로 검증 결과</span>
         <button class="rvp-minimize-btn" onclick="minimizeValidationPanel()" title="최소화">−</button>
       </div>
-      <div class="rvp-subtitle">보라매역 → 서울시남부장애인종합복지관</div>
+      <div class="rvp-subtitle">동광교회(성대로1가길) → 서울시남부장애인종합복지관</div>
       <div class="rvp-grid">
         <div class="rvp-card">
           <span class="rvp-value" id="valRouteCount">—</span>
@@ -3026,10 +3039,12 @@ function _addDemoLayer(layer) {
 
 // ── 사전 계산된 OSRM 보행 경로 좌표 ─────────────────────────────────────────
 // routing.openstreetmap.de/routed-foot 로 미리 계산. 외부 API 호출 불필요.
-const DEMO_START  = [37.500325, 126.923801];  // 보라매역
-const DEMO_DEST   = [37.495096, 126.927424];  // 서울시남부장애인종합복지관
-const ROUTE_A_COORDS = [[37.500325,126.923801],[37.500318,126.924045],[37.499821,126.924056],[37.499514,126.924048],[37.499279,126.924041],[37.498855,126.924029],[37.498621,126.924022],[37.498428,126.924017],[37.498238,126.924041],[37.49795,126.924077],[37.497779,126.924176],[37.49777,126.924015],[37.497779,126.924176],[37.497583,126.924217],[37.497533,126.924228],[37.497231,126.924276],[37.497088,126.924285],[37.496982,126.924291],[37.496763,126.924303],[37.496357,126.924345],[37.496131,126.924368],[37.496227,126.925773],[37.495776,126.925881],[37.495613,126.925885],[37.495639,126.926244],[37.49547,126.926269],[37.495446,126.926414],[37.495412,126.926639],[37.495363,126.926969],[37.495292,126.927471],[37.495096,126.927424]];
-const ROUTE_B_COORDS = [[37.500325,126.923801],[37.500318,126.924045],[37.499821,126.924056],[37.499514,126.924048],[37.499279,126.924041],[37.498855,126.924029],[37.498621,126.924022],[37.498428,126.924017],[37.498238,126.924041],[37.49795,126.924077],[37.497779,126.924176],[37.497583,126.924217],[37.497533,126.924228],[37.497231,126.924276],[37.497088,126.924285],[37.496982,126.924291],[37.496763,126.924303],[37.496357,126.924345],[37.496131,126.924368],[37.496227,126.925773],[37.495776,126.925881],[37.495613,126.925885],[37.495639,126.926244],[37.49547,126.926269],[37.495446,126.926414],[37.495412,126.926639],[37.495363,126.926969],[37.495292,126.927471],[37.495038,126.92741],[37.495034,126.927409],[37.495038,126.92741],[37.495096,126.927424]];
+const DEMO_START  = [37.5018726, 126.9350194];  // 성대로1가길 동광교회
+const DEMO_DEST   = [37.495096,  126.927424];   // 서울시남부장애인종합복지관
+// 경로 A: 직선 최단 1,160m — 사고다발(상도3동, 신대방동) 구간 통과
+const ROUTE_A_COORDS = [[37.501727,126.935007],[37.501583,126.93445],[37.501415,126.934372],[37.501026,126.934016],[37.50086,126.933684],[37.500626,126.933025],[37.50037,126.932667],[37.500078,126.932357],[37.499765,126.932067],[37.499743,126.932037],[37.499534,126.931771],[37.499264,126.931221],[37.499244,126.93118],[37.499015,126.931308],[37.498938,126.93135],[37.49877,126.931434],[37.498648,126.93144],[37.498453,126.931388],[37.498397,126.931293],[37.49821,126.931063],[37.49818,126.931024],[37.498101,126.930925],[37.497991,126.930907],[37.49791,126.930684],[37.497884,126.930514],[37.49783,126.930171],[37.497775,126.929659],[37.497746,126.929619],[37.497561,126.929247],[37.497503,126.92905],[37.497489,126.929003],[37.497457,126.928887],[37.497173,126.928546],[37.497157,126.928472],[37.497095,126.928489],[37.496914,126.928523],[37.49677,126.928523],[37.496607,126.928543],[37.496514,126.92854],[37.496351,126.928517],[37.496248,126.928483],[37.49618,126.92846],[37.496053,126.928408],[37.495993,126.928307],[37.4961,126.927666],[37.495937,126.92763],[37.495292,126.927471],[37.495096,126.927424]];
+// 경로 B: 안전 우회 1,303m — 신대방동 사고다발 우회 + 음향신호기 횡단보도(06-0000032157) 경유
+const ROUTE_B_COORDS = [[37.501727,126.935007],[37.501583,126.93445],[37.501415,126.934372],[37.501026,126.934016],[37.50086,126.933684],[37.500626,126.933025],[37.50037,126.932667],[37.500078,126.932357],[37.499765,126.932067],[37.499743,126.932037],[37.499534,126.931771],[37.499264,126.931221],[37.499244,126.93118],[37.499177,126.930975],[37.499162,126.930915],[37.499048,126.930481],[37.498979,126.930097],[37.498952,126.929951],[37.498893,126.929152],[37.498442,126.929108],[37.498399,126.929067],[37.498277,126.929209],[37.498206,126.929276],[37.498243,126.929332],[37.498234,126.929694],[37.498243,126.929332],[37.498206,126.929276],[37.498056,126.929409],[37.497851,126.929571],[37.497775,126.929659],[37.497746,126.929619],[37.497561,126.929247],[37.497503,126.92905],[37.497489,126.929003],[37.497457,126.928887],[37.497173,126.928546],[37.497157,126.928472],[37.497095,126.928489],[37.496914,126.928523],[37.49677,126.928523],[37.496607,126.928543],[37.496514,126.92854],[37.496351,126.928517],[37.496248,126.928483],[37.49618,126.92846],[37.496053,126.928408],[37.495993,126.928307],[37.4961,126.927666],[37.495937,126.92763],[37.495292,126.927471],[37.495038,126.92741],[37.495034,126.927409],[37.495038,126.92741],[37.495096,126.927424]];
 
 function initDemoRouteLayer() {
   // 1) 출발지 마커 (파란 핀)
@@ -3039,7 +3054,7 @@ function initDemoRouteLayer() {
       html: '<div style="width:14px;height:14px;border-radius:50%;background:#48bfe3;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
       iconSize: [14, 14], iconAnchor: [7, 7],
     })
-  })).bindPopup('<strong>출발지</strong><br>보라매역');
+  })).bindPopup('<strong>출발지</strong><br>성대로1가길 동광교회');
 
   // 2) 목적지 마커 (보라색 핀)
   _addDemoLayer(L.marker(DEMO_DEST, {
@@ -3051,16 +3066,20 @@ function initDemoRouteLayer() {
   })).bindPopup('<strong>목적지</strong><br>서울시남부장애인종합복지관');
 
   // 3) 횡단보도 A 마커 (빨강 - 음향신호 없음)
-  _addDemoLayer(L.circleMarker(CROSSWALK_A, {
+  const cwA = L.circleMarker(CROSSWALK_A, {
     radius: 9, color: '#fff', weight: 2,
     fillColor: '#ff4d6d', fillOpacity: 0.9,
-  })).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000016344<br>❌ 음향신호기 없음<br>접근성 1점');
+  }).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000016344<br>❌ 음향신호기 없음<br>❌ 보행자작동신호기 없음<br>⚠️ 사고다발 구간 통과<br>접근성 1점');
+  _addDemoLayer(cwA);
+  _registerCrosswalkMarker('A', cwA);
 
   // 4) 횡단보도 B 마커 (초록 - 음향신호 있음)
-  _addDemoLayer(L.circleMarker(CROSSWALK_B, {
+  const cwB = L.circleMarker(CROSSWALK_B, {
     radius: 9, color: '#fff', weight: 2,
     fillColor: '#52b788', fillOpacity: 0.9,
-  })).bindPopup('<strong>경로 B 횡단보도 ✅ 선택</strong><br>06-0000032157<br>🔊 음향신호기 있음<br>접근성 7점');
+  }).bindPopup('<strong>경로 B 횡단보도 ✅ 선택</strong><br>06-0000032157<br>✅ 보행등 있음<br>🔊 음향신호기 있음<br>✅ 보행자작동신호기 있음<br>✅ 사고다발 우회<br>접근성 7점');
+  _addDemoLayer(cwB);
+  _registerCrosswalkMarker('B', cwB);
 
   // 5) BF 편의시설 마커 (목적지 주변 복지관들)
   const bfFacilities = [
@@ -3092,6 +3111,64 @@ function initDemoRouteLayer() {
   // 지도 뷰 조정
   const group = L.featureGroup(_demoRouteLayers);
   map.fitBounds(group.getBounds(), { padding: [60, 60] });
+}
+
+// ── 패널 → 지도 바로가기 ──────────────────────────────
+
+// 경로 A 또는 B 경로선에 맞춰 지도 이동
+function focusDemoRoute(which) {
+  const coords = (which === 'A') ? ROUTE_A_COORDS : ROUTE_B_COORDS;
+  if (!coords.length) return;
+  const bounds = L.latLngBounds(coords);
+  map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+// 횡단보도 마커로 지도 이동 후 팝업 열기
+let _cwMarkers = {};  // 'A'|'B' → Leaflet layer
+function _registerCrosswalkMarker(which, layer) {
+  _cwMarkers[which] = layer;
+}
+
+function focusCrosswalk(which) {
+  const latlng = (which === 'A') ? CROSSWALK_A : CROSSWALK_B;
+  map.setView(latlng, 18, { animate: true });
+  const m = _cwMarkers[which];
+  if (m) setTimeout(() => m.openPopup(), 400);
+}
+
+// 사고다발 지역 표시 (근처 high 클러스터 강조)
+const HOTSPOT_MARKERS = [
+  { latlng: [37.50009, 126.93238], name: '상도3동주민센터 부근 사고다발', risk: 'high' },
+  { latlng: [37.49862, 126.92789], name: '신대방동 메디칼우리약국 부근 사고다발', risk: 'high' },
+];
+let _hotspotHighlightLayers = [];
+
+function focusHotspots() {
+  // 이미 그려진 경우 제거
+  _hotspotHighlightLayers.forEach(l => map.removeLayer(l));
+  _hotspotHighlightLayers = [];
+
+  HOTSPOT_MARKERS.forEach(h => {
+    const circle = L.circle(h.latlng, {
+      radius: 120, color: '#f4a261', weight: 2,
+      fillColor: '#f4a261', fillOpacity: 0.25,
+    }).addTo(map);
+    const marker = L.circleMarker(h.latlng, {
+      radius: 10, color: '#fff', weight: 2,
+      fillColor: '#f4a261', fillOpacity: 0.95,
+    }).bindPopup(`<strong>⚠️ 사고다발 구역</strong><br>${h.name}`).addTo(map);
+    _hotspotHighlightLayers.push(circle, marker);
+    marker.openPopup();
+  });
+
+  const bounds = L.latLngBounds(HOTSPOT_MARKERS.map(h => h.latlng));
+  map.fitBounds(bounds, { padding: [80, 80] });
+
+  // 8초 후 제거
+  setTimeout(() => {
+    _hotspotHighlightLayers.forEach(l => map.removeLayer(l));
+    _hotspotHighlightLayers = [];
+  }, 8000);
 }
 
 // ── 경로 검증 패널 ────────────────────────────────────
