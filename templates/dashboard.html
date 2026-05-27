@@ -525,7 +525,39 @@
   .map-overlay.top-left {
     top: 16px; left: 16px;
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 12px;
+    min-width: 130px;
+  }
+  .legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .legend-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.15s;
+    flex-shrink: 0;
+  }
+  .legend-toggle-btn:hover { color: var(--text); }
+  .legend-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
   }
 
   .map-overlay.bottom-left {
@@ -680,6 +712,111 @@
     font-size: 11px;
     color: var(--muted);
     text-align: right;
+  }
+
+  /* ── 경로 검증 패널 ─────────────────────────────── */
+  .route-validation-panel {
+    position: absolute;
+    z-index: 1200;
+    bottom: 50%; right: 50%;
+    transform: translate(50%, 50%);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 18px 22px 16px;
+    min-width: 340px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    animation: rvpFadeIn 0.3s ease;
+  }
+  @keyframes rvpFadeIn {
+    from { opacity: 0; transform: translate(50%, calc(50% + 16px)); }
+    to   { opacity: 1; transform: translate(50%, 50%); }
+  }
+  .rvp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .rvp-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent2);
+    letter-spacing: 0.3px;
+  }
+  .rvp-minimize-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    width: 26px; height: 26px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .rvp-minimize-btn:hover { border-color: var(--accent); color: var(--text); }
+  .rvp-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .rvp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .rvp-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .rvp-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--accent2);
+    line-height: 1;
+  }
+  .rvp-label {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.3;
+  }
+  .rvp-note {
+    font-size: 10px;
+    color: var(--muted);
+    background: rgba(108,99,255,0.08);
+    border: 1px solid rgba(108,99,255,0.2);
+    border-radius: 6px;
+    padding: 7px 10px;
+    line-height: 1.5;
+  }
+
+  /* ── 흰지팡이 보행자 아이콘 ─────────────────────── */
+  .cane-walker-btn {
+    position: absolute;
+    z-index: 1200;
+    bottom: 52px; right: 16px;
+    width: 60px; height: 60px;
+    background: none;
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+  }
+  .cane-walker-btn:hover {
+    box-shadow: 0 8px 24px rgba(108,99,255,0.45);
+    transform: translateY(-2px);
+    border-color: var(--accent2);
   }
 
   /* ── 저장된 경로 선택 (GPS 카드 내부) */
@@ -1108,7 +1245,7 @@
         <div class="scenario-route-header">
           <div class="scenario-route-place">
             <span class="scenario-place-label">출발</span>
-            <span class="scenario-place-name">보라매역</span>
+            <span class="scenario-place-name">동광교회<br><span style="font-size:10px;color:var(--muted);">성대로1가길</span></span>
           </div>
           <div class="scenario-route-arrow">→</div>
           <div class="scenario-route-place" style="text-align:right;">
@@ -1119,36 +1256,50 @@
 
         <!-- A/B 경로 비교 -->
         <div class="scenario-route-pair">
-          <div class="scenario-route-card route-a">
+          <div class="scenario-route-card route-a" style="cursor:pointer;" onclick="focusDemoRoute('A')" title="지도에서 경로 A 보기">
             <div class="scenario-route-card-header">
               <span class="scenario-route-label">A 경로</span>
               <span class="scenario-route-badge badge-fail">탈락</span>
             </div>
             <div class="scenario-crosswalk-id">06-0000016344</div>
-            <div class="scenario-distance">약 817m</div>
+            <div class="scenario-distance">1,160m</div>
             <div class="scenario-score-bar">
               <div class="scenario-score-fill" style="width:12.5%;background:var(--danger);"></div>
             </div>
-            <div class="scenario-score-label">접근성 1점<br>보행지원시설 없음</div>
+            <div class="scenario-score-label">접근성 1점<br>⚠️ 사고다발 구간 2곳</div>
           </div>
-          <div class="scenario-route-card route-b">
+          <div class="scenario-route-card route-b" style="cursor:pointer;" onclick="focusDemoRoute('B')" title="지도에서 경로 B 보기">
             <div class="scenario-route-card-header">
               <span class="scenario-route-label">B 경로</span>
               <span class="scenario-route-badge badge-win">선택</span>
             </div>
             <div class="scenario-crosswalk-id">06-0000032157</div>
-            <div class="scenario-distance">약 825m (+8m)</div>
+            <div class="scenario-distance">1,581m (+421m)</div>
             <div class="scenario-score-bar">
               <div class="scenario-score-fill" style="width:87.5%;background:var(--safe);"></div>
             </div>
-            <div class="scenario-score-label">접근성 7점<br>보행등·음향·버튼</div>
+            <div class="scenario-score-label">접근성 7점<br>🔊 음향·보행등·버튼</div>
           </div>
         </div>
 
         <!-- TTS -->
         <div class="scenario-tts">
-          "최단 후보보다 약 8m 더 이동하지만, 보행등과 음향신호기, 보행자작동신호기 정보가 있는 횡단보도로 안내합니다."
+          "최단 경로보다 421m 더 이동하지만, 여의대방로를 경유해 신대방동 사고다발 구간을 완전히 우회하고 음향신호기·보행자작동신호기가 있는 횡단보도로 안내합니다."
         </div>
+
+        <!-- 지도 바로가기 버튼 -->
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button onclick="focusCrosswalk('A')" style="flex:1;padding:5px 4px;background:rgba(255,77,109,0.15);border:1px solid var(--danger);border-radius:6px;color:var(--danger);font-size:10px;cursor:pointer;">
+            📍 A 횡단보도
+          </button>
+          <button onclick="focusCrosswalk('B')" style="flex:1;padding:5px 4px;background:rgba(82,183,136,0.15);border:1px solid var(--safe);border-radius:6px;color:var(--safe);font-size:10px;cursor:pointer;">
+            🔊 B 횡단보도
+          </button>
+          <button onclick="focusHotspots()" style="flex:1;padding:5px 4px;background:rgba(244,162,97,0.15);border:1px solid var(--warn);border-radius:6px;color:var(--warn);font-size:10px;cursor:pointer;">
+            ⚠️ 사고다발
+          </button>
+        </div>
+
 
         <!-- 동작구 횡단보도 등급 분포 -->
         <div class="scenario-grade-title">동작구 횡단보도 1,025건 등급분포</div>
@@ -1174,6 +1325,20 @@
             <span class="scenario-grade-count">47</span>
           </div>
         </div>
+      </div>
+
+      <!-- 경로 검증 버튼 (항상 표시) -->
+      <div class="panel-section" style="padding:10px 16px;">
+        <button type="button" id="btnRouteValidation"
+          onclick="triggerRouteValidation()"
+          style="width:100%;padding:9px 12px;
+                 background:var(--accent);border:none;border-radius:8px;
+                 color:#fff;font-size:12px;font-weight:700;cursor:pointer;
+                 transition:background 0.15s,box-shadow 0.15s;letter-spacing:0.3px;"
+          onmouseover="this.style.background='#5850d8';this.style.boxShadow='0 4px 14px rgba(108,99,255,0.4)'"
+          onmouseout="this.style.background='var(--accent)';this.style.boxShadow='none'">
+          🔍 장애인복지관 경로 검증
+        </button>
       </div>
 
     </div><!-- /panel-top -->
@@ -1251,25 +1416,39 @@
       </div>
     </div>
 
-    <!-- 범례 -->
-    <div class="map-overlay top-left">
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#6c63ff;"></div> 현재 위치
+    <!-- 범례 (접기/펼치기) -->
+    <div class="map-overlay top-left" id="legendPanel">
+      <div class="legend-header" onclick="toggleLegend()">
+        <div class="legend-item" style="margin:0;">
+          <div class="legend-dot" style="background:#6c63ff;"></div> 현재 위치
+        </div>
+        <button class="legend-toggle-btn" id="legendToggleBtn" title="범례 펼치기" onclick="event.stopPropagation();toggleLegend()">▶</button>
       </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#48bfe3; opacity:0.6;"></div> 실시간 경로
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#f4a261; opacity:0.8;"></div> 저장된 경로
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#ff4d6d; opacity:0.85;"></div> 사고다발 고위험
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#f4a261; opacity:0.85;"></div> 사고다발 주의
-      </div>
-      <div class="legend-item">
-        <div class="legend-dot" style="background:#52b788; opacity:0.85;"></div> 사고다발 관심
+      <div class="legend-body" id="legendBody" style="display:none;">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#48bfe3; opacity:0.6;"></div> 실시간 경로
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#f4a261; opacity:0.8;"></div> 저장된 경로
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ff4d6d; opacity:0.85;"></div> 경로 A (탈락)
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#52b788; opacity:0.85;"></div> 경로 B (선택)
+        </div>
+        <div class="legend-item">
+          <div style="width:8px;height:8px;background:#f4a261;transform:rotate(45deg);display:inline-block;margin-right:4px;flex-shrink:0;"></div> BF 편의시설
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#ff4d6d; opacity:0.85;"></div> 사고다발 고위험
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#f4a261; opacity:0.85;"></div> 사고다발 주의
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:#52b788; opacity:0.85;"></div> 사고다발 관심
+        </div>
       </div>
     </div>
 
@@ -1311,6 +1490,43 @@
     </div>
 
     <div class="last-update" id="lastUpdate">-</div>
+
+    <!-- 경로 검증 결과 창 -->
+    <div id="routeValidationPanel" class="route-validation-panel" style="display:none;">
+      <div class="rvp-header">
+        <span class="rvp-title">경로 검증 결과</span>
+        <button class="rvp-minimize-btn" onclick="minimizeValidationPanel()" title="최소화">−</button>
+      </div>
+      <div class="rvp-subtitle">동광교회(성대로1가길) → 서울시남부장애인종합복지관</div>
+      <div class="rvp-grid">
+        <div class="rvp-card">
+          <span class="rvp-value" id="valRouteCount">—</span>
+          <span class="rvp-label">후보 경로 수</span>
+        </div>
+        <div class="rvp-card">
+          <span class="rvp-value" id="valMatchedCrosswalks">—</span>
+          <span class="rvp-label">매칭 횡단보도</span>
+        </div>
+        <div class="rvp-card">
+          <span class="rvp-value" id="valAudioCrosswalks">—</span>
+          <span class="rvp-label">음향신호기 설치 횡단보도</span>
+        </div>
+        <div class="rvp-card">
+          <span class="rvp-value" id="valBfFacilities">—</span>
+          <span class="rvp-label">목적지 주변 BF 편의시설</span>
+        </div>
+      </div>
+      <div class="rvp-note">지도 캡처 + 실제 건수 · 경로 선택 이유 로그 확인 가능</div>
+    </div>
+
+    <!-- 흰지팡이 보행자 아이콘 (검증결과 최소화 상태) -->
+    <button id="caneWalkerBtn" class="cane-walker-btn" style="display:none;"
+            onclick="restoreValidationPanel()"
+            onmouseenter="restoreValidationPanel()"
+            title="검증 결과 보기">
+      <img src="/static/cane-walker-icon" alt="흰지팡이 보행자"
+           style="width:100%;height:100%;object-fit:cover;border-radius:10px;display:block;">
+    </button>
   </div>
 
   <div class="analysis-panel">
@@ -2195,7 +2411,7 @@ function renderFinalScenario(data) {
   const total = data.crosswalk_total || 1;
   const tierCounts = data.tier_counts || {};
   const candidates = data.improvement_candidates || [];
-  const startName = routes[0]?.start_name || '보라매역';
+  const startName = routes[0]?.start_name || '동광교회(성대로1가길)';
   const destinationName = selected.destination_name || routes[0]?.destination_name || '서울시남부장애인종합복지관';
 
   const routeCards = routes.map(route => {
@@ -2254,6 +2470,11 @@ function renderFinalScenario(data) {
     </div>
     <div class="scenario-route-pair">${routeCards}</div>
     <div class="scenario-tts">${escapeHtml(selected.selection_reason || meta.scenario || '보행지원시설 근거가 확인된 경로를 우선 안내합니다.')}</div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="focusCrosswalk('A')" style="flex:1;padding:5px 4px;background:rgba(255,77,109,0.15);border:1px solid var(--danger);border-radius:6px;color:var(--danger);font-size:10px;cursor:pointer;">📍 A 횡단보도</button>
+      <button onclick="focusCrosswalk('B')" style="flex:1;padding:5px 4px;background:rgba(82,183,136,0.15);border:1px solid var(--safe);border-radius:6px;color:var(--safe);font-size:10px;cursor:pointer;">🔊 B 횡단보도</button>
+      <button onclick="focusHotspots()" style="flex:1;padding:5px 4px;background:rgba(244,162,97,0.15);border:1px solid var(--warn);border-radius:6px;color:var(--warn);font-size:10px;cursor:pointer;">⚠️ 사고다발</button>
+    </div>
     <div id="scenarioInfoBox" class="scenario-info-box" aria-live="polite"></div>
     <div class="scenario-grade-title">동작구 횡단보도 ${formatCount(total)}건 접근성 등급</div>
     <div class="scenario-grades">${tierRows}</div>
@@ -2754,6 +2975,16 @@ async function loadPedestrianHotspots() {
   }
 }
 
+function toggleLegend() {
+  const body = document.getElementById('legendBody');
+  const btn  = document.getElementById('legendToggleBtn');
+  if (!body || !btn) return;
+  const expanded = body.style.display !== 'none';
+  body.style.display = expanded ? 'none' : 'flex';
+  btn.textContent   = expanded ? '▶' : '✕';
+  btn.title         = expanded ? '범례 펼치기' : '범례 접기';
+}
+
 function bindHotspotPanelHover() {
   const panel = document.getElementById('hotspotPanel');
   if (!panel) return;
@@ -2793,6 +3024,207 @@ async function saveCurrentRoute() {
   }
 }
 
+// ── 데모 경로 지도 레이어 ──────────────────────────────
+// 좌표 상수 (JSON 기반 고정값)
+const CROSSWALK_A = [37.5000778, 126.9324007];  // 경로 A 횡단보도 06-0000006458 (음향신호 없음, 상도동 345-13도)
+const CROSSWALK_B = [37.49503545, 126.9274009];  // 경로 B 횡단보도 (음향신호 있음)
+
+let _demoRouteLayers = [];  // 지우기용
+
+function _clearDemoLayers() {
+  _demoRouteLayers.forEach(l => map.removeLayer(l));
+  _demoRouteLayers = [];
+}
+
+function _addDemoLayer(layer) {
+  layer.addTo(map);
+  _demoRouteLayers.push(layer);
+  return layer;
+}
+
+// ── 사전 계산된 OSRM 보행 경로 좌표 ─────────────────────────────────────────
+// routing.openstreetmap.de/routed-foot 로 미리 계산. 외부 API 호출 불필요.
+const DEMO_START  = [37.5018726, 126.9350194];  // 성대로1가길 동광교회
+const DEMO_DEST   = [37.495096,  126.927424];   // 서울시남부장애인종합복지관
+// 경로 A: 직선 최단 1,160m — 사고다발(상도3동, 신대방동) 구간 통과
+const ROUTE_A_COORDS = [[37.501727,126.935007],[37.501583,126.93445],[37.501415,126.934372],[37.501026,126.934016],[37.50086,126.933684],[37.500626,126.933025],[37.50037,126.932667],[37.500078,126.932357],[37.499765,126.932067],[37.499743,126.932037],[37.499534,126.931771],[37.499264,126.931221],[37.499244,126.93118],[37.499015,126.931308],[37.498938,126.93135],[37.49877,126.931434],[37.498648,126.93144],[37.498453,126.931388],[37.498397,126.931293],[37.49821,126.931063],[37.49818,126.931024],[37.498101,126.930925],[37.497991,126.930907],[37.49791,126.930684],[37.497884,126.930514],[37.49783,126.930171],[37.497775,126.929659],[37.497746,126.929619],[37.497561,126.929247],[37.497503,126.92905],[37.497489,126.929003],[37.497457,126.928887],[37.497173,126.928546],[37.497157,126.928472],[37.497095,126.928489],[37.496914,126.928523],[37.49677,126.928523],[37.496607,126.928543],[37.496514,126.92854],[37.496351,126.928517],[37.496248,126.928483],[37.49618,126.92846],[37.496053,126.928408],[37.495993,126.928307],[37.4961,126.927666],[37.495937,126.92763],[37.495292,126.927471],[37.495096,126.927424]];
+// 경로 B: 안전 우회 1,581m — 신대방동 사고다발 완전 우회(여의대방로 경유) + 음향신호기 횡단보도(06-0000032157) 경유
+const ROUTE_B_COORDS = [[37.501727,126.935007],[37.501583,126.93445],[37.501415,126.934372],[37.501026,126.934016],[37.500862,126.934061],[37.500701,126.934057],[37.500427,126.93405],[37.500263,126.933991],[37.500177,126.933973],[37.500155,126.934014],[37.500107,126.934048],[37.500098,126.934208],[37.499767,126.934291],[37.499285,126.934411],[37.498977,126.934498],[37.498968,126.934503],[37.498865,126.934549],[37.498775,126.93459],[37.498499,126.934881],[37.498324,126.934916],[37.498324,126.934882],[37.498296,126.934826],[37.497977,126.934554],[37.49795,126.934503],[37.497353,126.93381],[37.497238,126.933916],[37.497201,126.933888],[37.49717,126.933861],[37.496981,126.933427],[37.497077,126.933366],[37.497136,126.933331],[37.497364,126.933194],[37.497779,126.932986],[37.4979,126.93294],[37.498073,126.932898],[37.498151,126.932879],[37.498288,126.932845],[37.498199,126.932461],[37.497981,126.931604],[37.497929,126.931398],[37.497837,126.931149],[37.497795,126.930917],[37.497758,126.930734],[37.49791,126.930684],[37.497884,126.930514],[37.49783,126.930171],[37.497775,126.929659],[37.497746,126.929619],[37.497561,126.929247],[37.497503,126.92905],[37.497489,126.929003],[37.497457,126.928887],[37.497173,126.928546],[37.497157,126.928472],[37.497095,126.928489],[37.496914,126.928523],[37.49677,126.928523],[37.496607,126.928543],[37.496514,126.92854],[37.496351,126.928517],[37.496248,126.928483],[37.49618,126.92846],[37.496053,126.928408],[37.495993,126.928307],[37.4961,126.927666],[37.495937,126.92763],[37.495292,126.927471],[37.495038,126.92741],[37.495034,126.927409],[37.495038,126.92741],[37.495096,126.927424]];
+
+function initDemoRouteLayer() {
+  // 1) 출발지 마커 (파란 핀)
+  _addDemoLayer(L.marker(DEMO_START, {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#48bfe3;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7],
+    })
+  })).bindPopup('<strong>출발지</strong><br>성대로1가길 동광교회');
+
+  // 2) 목적지 마커 (보라색 핀)
+  _addDemoLayer(L.marker(DEMO_DEST, {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;border-radius:50%;background:#6c63ff;border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5);"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7],
+    })
+  })).bindPopup('<strong>목적지</strong><br>서울시남부장애인종합복지관');
+
+  // 3) 횡단보도 A 마커 (빨강 - 음향신호 없음)
+  const cwA = L.circleMarker(CROSSWALK_A, {
+    radius: 9, color: '#fff', weight: 2,
+    fillColor: '#ff4d6d', fillOpacity: 0.9,
+  }).bindPopup('<strong>경로 A 횡단보도</strong><br>06-0000006458<br>동작구 상도동 345-13도<br>❌ 보행등 없음<br>❌ 음향신호기 없음<br>❌ 보행자작동신호기 없음<br>⚠️ 사고다발 구간 통과<br>접근성 1점');
+  _addDemoLayer(cwA);
+  _registerCrosswalkMarker('A', cwA);
+
+  // 4) 횡단보도 B 마커 (초록 - 음향신호 있음)
+  const cwB = L.circleMarker(CROSSWALK_B, {
+    radius: 9, color: '#fff', weight: 2,
+    fillColor: '#52b788', fillOpacity: 0.9,
+  }).bindPopup('<strong>경로 B 횡단보도 ✅ 선택</strong><br>06-0000032157<br>✅ 보행등 있음<br>🔊 음향신호기 있음<br>✅ 보행자작동신호기 있음<br>✅ 사고다발 우회<br>접근성 7점');
+  _addDemoLayer(cwB);
+  _registerCrosswalkMarker('B', cwB);
+
+  // 5) BF 편의시설 마커 (목적지 주변 복지관들)
+  const bfFacilities = [
+    { latlng: [37.4953, 126.9271], name: '서울시남부장애인종합복지관' },
+    { latlng: [37.4956, 126.9268], name: '서울시립발달장애인복지관' },
+    { latlng: [37.4978, 126.9254], name: '삼성소리샘복지관' },
+    { latlng: [37.4950, 126.9274], name: '서울남부주간보호센터' },
+  ];
+  bfFacilities.forEach(f => {
+    _addDemoLayer(L.marker(f.latlng, {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:12px;height:12px;border-radius:3px;background:#f4a261;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);transform:rotate(45deg);"></div>',
+        iconSize: [12, 12], iconAnchor: [6, 6],
+      })
+    })).bindPopup(`<strong>BF 편의시설</strong><br>${f.name}`);
+  });
+
+  // 6) 경로 A (빨강 점선 - 탈락)
+  _addDemoLayer(L.polyline(ROUTE_A_COORDS, {
+    color: '#ff4d6d', weight: 4, opacity: 0.7, dashArray: '8,5',
+  }));
+
+  // 7) 경로 B (초록 실선 - 선택)
+  _addDemoLayer(L.polyline(ROUTE_B_COORDS, {
+    color: '#52b788', weight: 4, opacity: 0.85,
+  }));
+
+  // 지도 뷰 조정
+  const group = L.featureGroup(_demoRouteLayers);
+  map.fitBounds(group.getBounds(), { padding: [60, 60] });
+}
+
+// ── 패널 → 지도 바로가기 ──────────────────────────────
+
+// 경로 A 또는 B 경로선에 맞춰 지도 이동
+function focusDemoRoute(which) {
+  const coords = (which === 'A') ? ROUTE_A_COORDS : ROUTE_B_COORDS;
+  if (!coords.length) return;
+  const bounds = L.latLngBounds(coords);
+  map.fitBounds(bounds, { padding: [50, 50] });
+}
+
+// 횡단보도 마커로 지도 이동 후 팝업 열기
+let _cwMarkers = {};  // 'A'|'B' → Leaflet layer
+function _registerCrosswalkMarker(which, layer) {
+  _cwMarkers[which] = layer;
+}
+
+function focusCrosswalk(which) {
+  const latlng = (which === 'A') ? CROSSWALK_A : CROSSWALK_B;
+  map.setView(latlng, 18, { animate: true });
+  const m = _cwMarkers[which];
+  if (m) setTimeout(() => m.openPopup(), 400);
+}
+
+// 사고다발 지역 표시 (근처 high 클러스터 강조)
+const HOTSPOT_MARKERS = [
+  { latlng: [37.50009, 126.93238], name: '상도3동주민센터 부근 사고다발', risk: 'high' },
+  { latlng: [37.49862, 126.92789], name: '신대방동 메디칼우리약국 부근 사고다발', risk: 'high' },
+];
+let _hotspotHighlightLayers = [];
+
+function focusHotspots() {
+  // 이미 그려진 경우 제거
+  _hotspotHighlightLayers.forEach(l => map.removeLayer(l));
+  _hotspotHighlightLayers = [];
+
+  HOTSPOT_MARKERS.forEach(h => {
+    const circle = L.circle(h.latlng, {
+      radius: 120, color: '#f4a261', weight: 2,
+      fillColor: '#f4a261', fillOpacity: 0.25,
+    }).addTo(map);
+    const marker = L.circleMarker(h.latlng, {
+      radius: 10, color: '#fff', weight: 2,
+      fillColor: '#f4a261', fillOpacity: 0.95,
+    }).bindPopup(`<strong>⚠️ 사고다발 구역</strong><br>${h.name}`).addTo(map);
+    _hotspotHighlightLayers.push(circle, marker);
+    marker.openPopup();
+  });
+
+  const bounds = L.latLngBounds(HOTSPOT_MARKERS.map(h => h.latlng));
+  map.fitBounds(bounds, { padding: [80, 80] });
+
+  // 8초 후 제거
+  setTimeout(() => {
+    _hotspotHighlightLayers.forEach(l => map.removeLayer(l));
+    _hotspotHighlightLayers = [];
+  }, 8000);
+}
+
+// ── 경로 검증 패널 ────────────────────────────────────
+let _validationMinimizeTimer = null;
+
+async function triggerRouteValidation() {
+  const panel = document.getElementById('routeValidationPanel');
+  const btn   = document.getElementById('btnRouteValidation');
+  if (!panel) return;
+
+  btn.disabled = true;
+  btn.textContent = '검증 중...';
+
+  try {
+    const stats = await fetch(`${SERVER_BASE}/api/route-validation-stats`).then(r => r.json());
+    document.getElementById('valRouteCount').textContent       = stats.candidate_routes ?? '—';
+    document.getElementById('valMatchedCrosswalks').textContent = (stats.matched_crosswalks ?? '—').toLocaleString();
+    document.getElementById('valAudioCrosswalks').textContent  = (stats.audio_signal_crosswalks ?? '—').toLocaleString();
+    document.getElementById('valBfFacilities').textContent     = stats.bf_facilities_near_dest ?? '—';
+  } catch(e) {
+    console.warn('검증 통계 조회 실패', e);
+  }
+
+  document.getElementById('caneWalkerBtn').style.display = 'none';
+  panel.style.display = 'block';
+  btn.disabled = false;
+  btn.textContent = '🔍 장애인복지관 경로 검증';
+
+  // 4초 후 자동 최소화
+  clearTimeout(_validationMinimizeTimer);
+  _validationMinimizeTimer = setTimeout(minimizeValidationPanel, 4000);
+}
+
+function minimizeValidationPanel() {
+  clearTimeout(_validationMinimizeTimer);
+  const panel = document.getElementById('routeValidationPanel');
+  const icon  = document.getElementById('caneWalkerBtn');
+  if (panel) panel.style.display = 'none';
+  if (icon)  icon.style.display  = 'flex';
+}
+
+function restoreValidationPanel() {
+  clearTimeout(_validationMinimizeTimer);
+  const panel = document.getElementById('routeValidationPanel');
+  const icon  = document.getElementById('caneWalkerBtn');
+  if (panel) panel.style.display = 'block';
+  if (icon)  icon.style.display  = 'none';
+  // 4초 후 다시 최소화
+  _validationMinimizeTimer = setTimeout(minimizeValidationPanel, 4000);
+}
+
 // ── 시작 ─────────────────────────────────────────────
 document.getElementById('disabledContextCard')?.closest('.panel-section')?.remove();
 connectEventStream();
@@ -2800,6 +3232,7 @@ loadRouteList();
 bindHotspotPanelHover();
 loadPedestrianHotspots();
 loadFinalScenarioLayer();
+initDemoRouteLayer();
 </script>
 </body>
 </html>

@@ -26,6 +26,7 @@ import re
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
+import requests as _requests
 
 from fastapi import APIRouter, Depends, Body, Form, Header, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -34,6 +35,7 @@ from src.api import locations as location_api
 
 # ── API Key 인증 ────────────────────────────────────────────────────────────
 _API_KEY = os.getenv("API_KEY", "")
+_KAKAO_KEY = os.getenv("KAKAO_REST_API_KEY", "")
 
 def _verify_api_key(
     authorization: str = Header(default=""),
@@ -1491,3 +1493,100 @@ async def delete_location_endpoint(label: str):
         "sentence": f"{label}{eul_reul} 삭제했어요.",
         "label": label,
     }
+
+
+# ── 정적 에셋 ────────────────────────────────────────────────────────────────
+
+@router.get("/static/cane-walker-icon")
+async def serve_cane_walker_icon():
+    from fastapi.responses import FileResponse
+    path = _ROOT_DIR / "templates" / "static" / "cane-walker.png"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="icon not found")
+    return FileResponse(str(path), media_type="image/png")
+
+
+# ── 보행 경로 / 카카오 지오코딩 / 경로 검증 통계 ────────────────────────────
+
+@router.get("/api/walking-route")
+async def get_walking_route(
+    origin_lat: float, origin_lng: float,
+    dest_lat: float, dest_lng: float,
+    via_lat: float | None = None,
+    via_lng: float | None = None,
+):
+    """OSRM 공개 서버를 사용한 보행자 경로 조회. via 파라미터로 경유지 지정 가능."""
+    def _call():
+        if via_lat is not None and via_lng is not None:
+            coords = f"{origin_lng},{origin_lat};{via_lng},{via_lat};{dest_lng},{dest_lat}"
+        else:
+            coords = f"{origin_lng},{origin_lat};{dest_lng},{dest_lat}"
+        url = f"https://routing.openstreetmap.de/routed-foot/route/v1/foot/{coords}?geometries=geojson&overview=full"
+        r = _requests.get(url, timeout=12)
+        r.raise_for_status()
+        return r.json()
+
+    try:
+        data = await asyncio.to_thread(_call)
+        raw = data["routes"][0]["geometry"]["coordinates"]
+        return {"coordinates": [[c[1], c[0]] for c in raw]}
+    except Exception as exc:
+        return {"coordinates": [], "error": str(exc)}
+
+
+@router.get("/api/kakao-geocode")
+async def kakao_geocode(query: str):
+    """카카오 키워드 검색으로 장소 좌표 조회."""
+    if not _KAKAO_KEY:
+        return {"error": "KAKAO_REST_API_KEY not set"}
+
+    def _call():
+        r = _requests.get(
+            "https://dapi.kakao.com/v2/local/search/keyword.json",
+            headers={"Authorization": f"KakaoAK {_KAKAO_KEY}"},
+            params={"query": query, "size": 1},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    try:
+        data = await asyncio.to_thread(_call)
+        docs = data.get("documents", [])
+        if docs:
+            return {
+                "lat": float(docs[0]["y"]),
+                "lng": float(docs[0]["x"]),
+                "name": docs[0]["place_name"],
+            }
+        return {"error": "검색 결과 없음"}
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+@router.get("/api/route-validation-stats")
+async def route_validation_stats():
+    """경로 검증 통계: CSV 파일 기반 실제 건수 반환."""
+    def _calc():
+        rows = _require_csv_artifact(_VOICEGUIDE_FINAL_CROSSWALK_PATH)
+        total = len(rows)
+        audio = sum(1 for r in rows if r.get("has_audio_signal", "").strip().upper() == "Y")
+
+        scenario = _require_json_artifact(_VOICEGUIDE_FINAL_SCENARIO_PATH)
+        pair = scenario.get("demo_crosswalk_pair", {})
+        candidate_count = len(pair)
+
+        dest_candidates = scenario.get("destination_candidates", [])
+        welfare = sum(
+            1 for c in dest_candidates
+            if str(c.get("is_welfare_center", "")).lower() in {"true", "1", "yes"}
+        )
+
+        return {
+            "candidate_routes": candidate_count,
+            "matched_crosswalks": total,
+            "audio_signal_crosswalks": audio,
+            "bf_facilities_near_dest": welfare,
+        }
+
+    return await asyncio.to_thread(_calc)
