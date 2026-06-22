@@ -1,0 +1,10 @@
+# 데이터/모델/산출물은 통계 제외, 문서/템플릿은 분리 → Python·Kotlin 부각
+docs/** linguist-documentation
+templates/** linguist-vendored
+data/** linguist-generated
+datasets/** linguist-generated
+runs/** linguist-generated
+outputs/** linguist-generated
+*.geojson linguist-generated
+*.tflite binary
+*.pb binary
