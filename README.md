@@ -57,6 +57,26 @@ Android CameraX
   -> 실시간 대시보드
 ```
 
+```mermaid
+flowchart LR
+    CAM[Android CameraX] --> YOLO["TFLite YOLO<br/>온디바이스 추론"]
+    YOLO --> FILTER["3프레임 투표 + IoU 추적 + EMA 평활화"]
+    FILTER --> RISK[위험도 계산]
+    RISK --> ALERT["진동 · 로컬 TTS 즉시 안내"]
+    RISK -->|"POST /detect, /gps"| SERVER["FastAPI + DB + SSE"]
+    SERVER --> DASH[실시간 대시보드]
+
+    style CAM fill:#4285F4,color:#fff,stroke:none
+    style YOLO fill:#FF6F00,color:#fff,stroke:none
+    style ALERT fill:#22c55e,color:#fff,stroke:none
+    style SERVER fill:#009688,color:#fff,stroke:none
+    style DASH fill:#6366f1,color:#fff,stroke:none
+```
+
+<div align="center">
+  <img src="docs/image/architecture-overview.png" width="760" alt="VoiceGuide architecture overview"/>
+</div>
+
 ---
 
 ## 주요 기능
