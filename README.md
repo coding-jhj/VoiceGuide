@@ -114,6 +114,8 @@ flowchart LR
 | 오프라인 보조 안내 | 완료 | 서버 없이 Android 내장 TTS와 진동 유지 |
 | 공공데이터 시나리오 | 완료 | 보라매역 -> 서울시남부장애인종합복지관 경로 비교 |
 
+> 위 표는 코드 구현 완료 기준입니다. Android 실기기 FPS·발열·장시간 안정성, 모델별 mAP50은 아직 측정하지 않았습니다. 자세한 현황은 [`docs/status/CURRENT_STATUS_REPORT.md`](docs/status/CURRENT_STATUS_REPORT.md) 참고.
+
 ---
 
 ## 공공데이터 활용 시나리오
@@ -288,9 +290,8 @@ GET /voiceguide-final/data-usage.html
 
 배포 예시:
 
-```powershell
-cd C:\VoiceGuide\VoiceGuide
-gcloud run deploy voiceguide --source . --region asia-northeast3 --project project-d9b26ccb-c174-4820-b16
+```bash
+gcloud run deploy voiceguide --source . --region asia-northeast3 --project <YOUR_GCP_PROJECT_ID>
 ```
 
 ---
